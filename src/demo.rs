@@ -2760,7 +2760,6 @@ mod tests {
         use egui::accesskit::Role;
         let (ctx, mut app) = accessible_app("library-folder-labels");
         app.locale = Locale::German;
-        app.settings.sidebar_grid = true;
         app.rootlist = vec![
             FolderStart {
                 id: "focus".into(),
@@ -2775,8 +2774,19 @@ mod tests {
         ];
         app.collapsed_folders = vec!["weekend".into()];
 
+        // In the list, a row opens its folder and its arrow rolls it up or
+        // out in place; each says so.
         let tree = accessible_frame(&ctx, &mut app, vec![]);
         accessible_node(&tree, "Focus, Ordner, ausgeklappt", Role::Button);
+        accessible_node(&tree, "Weekend, Ordner, eingeklappt", Role::Button);
+        accessible_node(&tree, "Focus einklappen", Role::Button);
+        accessible_node(&tree, "Weekend ausklappen", Role::Button);
+
+        // The grid has no arrows: its folders are cards that open, their
+        // contents inside them.
+        app.settings.sidebar_grid = true;
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        accessible_node(&tree, "Focus, Ordner, eingeklappt", Role::Button);
         accessible_node(&tree, "Weekend, Ordner, eingeklappt", Role::Button);
         app.backend.shutdown();
     }
@@ -8093,6 +8103,211 @@ mod tests {
         view_frame(&ctx, &mut app, first, view);
         view_frame(&ctx, &mut app, second, view);
         assert!(played_contexts(&app).is_empty(), "folders must not play");
+        app.backend.shutdown();
+    }
+
+    /// A folder row opens the folder. Opening it moves other rows under
+    /// the pointer, so the second click of a double click lands on a row
+    /// the first never touched: that row neither opens nor plays.
+    #[test]
+    fn double_clicking_a_sidebar_folder_opens_it_and_nothing_under_it() {
+        use crate::player::RootlistEntry;
+        let (ctx, mut app) = accessible_app("sidebar-double-click-open-folder");
+        app.rootlist = vec![
+            RootlistEntry::FolderStart {
+                id: "f1".into(),
+                name: "Focus".into(),
+            },
+            RootlistEntry::Playlist("spotify:playlist:pl1".into()),
+            RootlistEntry::Playlist("spotify:playlist:pl2".into()),
+            RootlistEntry::Playlist("spotify:playlist:pl3".into()),
+            RootlistEntry::FolderEnd,
+        ];
+        let view = crate::ui::sidebar::show;
+        view_frame(&ctx, &mut app, vec![], view);
+        let painted = view_frame(&ctx, &mut app, vec![], view);
+        let name = sidebar_text(&painted, "Focus").center();
+        app.actions.clear();
+        let [first, second] = double_click(name);
+        view_frame(&ctx, &mut app, first, view);
+        assert!(
+            app.actions
+                .iter()
+                .any(|action| matches!(action, Action::EnterLibraryFolder(Some(id)) if id == "f1")),
+            "a folder row opens the folder"
+        );
+        for action in std::mem::take(&mut app.actions) {
+            app.apply(action, &ctx);
+        }
+        assert_eq!(app.library_folder.as_deref(), Some("f1"));
+        // The opened folder is drawn before the second click arrives, as
+        // the app repaints after the first.
+        view_frame(&ctx, &mut app, vec![], view);
+        let opened = view_frame(&ctx, &mut app, second, view);
+        assert!(
+            opened
+                .iter()
+                .any(|(text, rect)| text != "Focus" && rect.contains(name)),
+            "a row of the opened folder sits under the pointer"
+        );
+        assert!(played_contexts(&app).is_empty(), "nothing plays");
+        assert!(
+            !app.actions
+                .iter()
+                .any(|action| matches!(action, Action::Open(_))),
+            "nothing opens"
+        );
+        app.backend.shutdown();
+    }
+
+    /// In the grid, a double click on a folder card opens the folder; the
+    /// second click, on whatever card slid under the pointer, plays nothing
+    /// and opens nothing, its play button included.
+    #[test]
+    fn double_clicking_a_grid_folder_card_opens_it_and_nothing_under_it() {
+        use crate::player::RootlistEntry;
+        let (ctx, mut app) = accessible_app("grid-double-click-open-folder");
+        app.settings.sidebar_grid = true;
+        app.rootlist = vec![
+            RootlistEntry::FolderStart {
+                id: "f1".into(),
+                name: "Focus".into(),
+            },
+            RootlistEntry::Playlist("spotify:playlist:pl1".into()),
+            RootlistEntry::Playlist("spotify:playlist:pl2".into()),
+            RootlistEntry::Playlist("spotify:playlist:pl3".into()),
+            RootlistEntry::FolderEnd,
+        ];
+        let view = crate::ui::sidebar::show;
+        view_frame(&ctx, &mut app, vec![], view);
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        let folder = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Focus, folder, collapsed"))
+            .and_then(|(_, node)| node.bounds())
+            .expect("the folder card");
+        // Open it once to learn which card's play button lands on the
+        // folder card.
+        app.library_folder = Some("f1".into());
+        view_frame(&ctx, &mut app, vec![], view);
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        let spot = tree
+            .nodes
+            .iter()
+            .filter(|(_, node)| {
+                node.role() == egui::accesskit::Role::Button
+                    && node.label().is_some_and(|label| label.starts_with("Play "))
+            })
+            .filter_map(|(_, node)| node.bounds())
+            .map(|play| {
+                egui::pos2(
+                    ((play.x0 + play.x1) / 2.0) as f32,
+                    ((play.y0 + play.y1) / 2.0) as f32,
+                )
+            })
+            .find(|spot| {
+                folder.x0 <= spot.x as f64
+                    && spot.x as f64 <= folder.x1
+                    && folder.y0 <= spot.y as f64
+                    && spot.y as f64 <= folder.y1
+            })
+            .expect("a play button of the opened folder sits over the folder card");
+        app.library_folder = None;
+        for _ in 0..40 {
+            view_frame(&ctx, &mut app, vec![], view);
+        }
+        app.actions.clear();
+        let [first, second] = double_click(spot);
+        view_frame(&ctx, &mut app, first, view);
+        assert!(
+            app.actions
+                .iter()
+                .any(|action| matches!(action, Action::EnterLibraryFolder(Some(id)) if id == "f1")),
+            "a folder card opens the folder"
+        );
+        for action in std::mem::take(&mut app.actions) {
+            app.apply(action, &ctx);
+        }
+        view_frame(&ctx, &mut app, vec![], view);
+        view_frame(&ctx, &mut app, second, view);
+        assert!(played_contexts(&app).is_empty(), "nothing plays");
+        assert!(
+            !app.actions
+                .iter()
+                .any(|action| matches!(action, Action::Open(_) | Action::TogglePlay)),
+            "nothing opens or toggles"
+        );
+        app.backend.shutdown();
+    }
+
+    /// The arrow beside a folder rolls it up in place; the rest of the row
+    /// opens the folder.
+    #[test]
+    fn a_sidebar_folder_arrow_rolls_it_up_and_its_row_opens_it() {
+        use crate::player::RootlistEntry;
+        let (ctx, mut app) = accessible_app("sidebar-folder-arrow");
+        app.rootlist = vec![
+            RootlistEntry::FolderStart {
+                id: "f1".into(),
+                name: "Focus".into(),
+            },
+            RootlistEntry::Playlist("spotify:playlist:pl1".into()),
+            RootlistEntry::Playlist("spotify:playlist:pl2".into()),
+            RootlistEntry::FolderEnd,
+        ];
+        let view = crate::ui::sidebar::show;
+        view_frame(&ctx, &mut app, vec![], view);
+        let painted = view_frame(&ctx, &mut app, vec![], view);
+        let name = sidebar_text(&painted, "Focus");
+        let subtitle = sidebar_text(&painted, "Folder \u{2022} 2 playlists");
+        let arrow = egui::pos2(
+            name.left() - 38.0,
+            (name.center().y + subtitle.center().y) / 2.0,
+        );
+        app.actions.clear();
+        view_frame(
+            &ctx,
+            &mut app,
+            pointer_click(arrow, egui::PointerButton::Primary),
+            view,
+        );
+        assert!(
+            app.actions
+                .iter()
+                .any(|action| matches!(action, Action::ToggleLibraryFolder(id) if id == "f1")),
+            "the arrow rolls the folder up"
+        );
+        assert!(
+            !app.actions
+                .iter()
+                .any(|action| matches!(action, Action::EnterLibraryFolder(_))),
+            "the arrow does not open the folder"
+        );
+
+        // Well past a double click, the row itself opens the folder.
+        app.actions.clear();
+        for _ in 0..40 {
+            view_frame(&ctx, &mut app, vec![], view);
+        }
+        view_frame(
+            &ctx,
+            &mut app,
+            pointer_click(name.center(), egui::PointerButton::Primary),
+            view,
+        );
+        assert!(
+            app.actions
+                .iter()
+                .any(|action| matches!(action, Action::EnterLibraryFolder(Some(id)) if id == "f1")),
+            "the row opens the folder"
+        );
+        assert!(
+            !app.actions
+                .iter()
+                .any(|action| matches!(action, Action::ToggleLibraryFolder(_))),
+            "the row does not roll the folder up"
+        );
         app.backend.shutdown();
     }
 

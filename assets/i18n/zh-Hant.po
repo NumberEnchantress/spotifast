@@ -3465,3 +3465,118 @@ msgstr ""
 
 #~ msgid "Reduce lyrics motion"
 #~ msgstr "減少歌詞動畫"
+
+#: src/folders.rs:1
+msgid "That folder or playlist has changed on Spotify. Try again."
+msgstr "該資料夾或播放清單已在 Spotify 上變更。請再試一次。"
+
+#: src/folders.rs:1
+msgid "A folder can't go inside itself."
+msgstr "資料夾無法放入自身。"
+
+#: src/folders.rs:1
+msgid "Spotify's copy of this folder looks damaged, so Spotifast left it alone."
+msgstr "Spotify 上此資料夾的資料似乎已損毀，因此 Spotifast 未加以變更。"
+
+#: src/folders.rs:1
+msgid "A folder needs a name."
+msgstr "資料夾需要名稱。"
+
+#. Translators: {error} says why Spotify did not take the change.
+#: src/app.rs:2612
+#, rust-format
+msgid "Couldn't change your folders on Spotify: {error}"
+msgstr "無法變更你在 Spotify 上的資料夾：{error}"
+
+#: src/app.rs:4998
+msgid "Set up playback here to change folders. Folders are only reachable through the playback connection."
+msgstr "請在這裡設定播放以變更資料夾。資料夾只能透過播放連線存取。"
+
+#: src/ui/dialogs.rs:68
+msgid "Remove folder?"
+msgstr "要移除資料夾嗎？"
+
+#. Translators: {name} is a folder name.
+#: src/ui/dialogs.rs:71
+#, rust-format
+msgid "“{name}” will be removed from Your Library on Spotify. The playlists in it stay where they are."
+msgstr "「{name}」將從你在 Spotify 上的音樂庫中移除。其中的播放清單會留在原處。"
+
+#: src/ui/dialogs.rs:480
+msgid "Rename folder"
+msgstr "重新命名資料夾"
+
+#: src/ui/dialogs.rs:482
+msgid "New folder"
+msgstr "新增資料夾"
+
+#: src/ui/dialogs.rs:500
+msgid "My folder"
+msgstr "我的資料夾"
+
+#: src/ui/sidebar.rs:1129
+msgid "Create a playlist or folder"
+msgstr "建立播放清單或資料夾"
+
+#: src/app.rs:14456
+msgid "Rename"
+msgstr "重新命名"
+
+#: src/ui/sidebar.rs:2171
+msgid "New folder inside"
+msgstr "在其中新增資料夾"
+
+#: src/ui/dialogs.rs:68
+msgid "Remove folder"
+msgstr "移除資料夾"
+
+#: src/ui/sidebar.rs:2268
+msgid "Move to folder"
+msgstr "移至資料夾"
+
+#: src/ui/sidebar.rs:2290
+msgid "Remove from folder"
+msgstr "從資料夾中移出"
+
+#: src/app.rs:2678
+msgid "Spotify's pin limit is reached. Unpin something first."
+msgstr "已達到 Spotify 的釘選數量上限。請先取消釘選其他項目。"
+
+#: src/app.rs:2683
+msgid "Spotify can't pin something that's inside a folder."
+msgstr "Spotify 無法釘選資料夾中的項目。"
+
+#: src/app.rs:2687
+msgid "Spotify can't pin this."
+msgstr "Spotify 無法釘選此項目。"
+
+#. Translators: {error} says why Spotify did not take the change.
+#: src/app.rs:2692
+#, rust-format
+msgid "Couldn't change your pins on Spotify: {error}"
+msgstr "無法變更你在 Spotify 上的釘選項目：{error}"
+
+#. Translators: Keep {count} exactly as written. It becomes the number of folders a folder holds.
+#: src/i18n.rs:234
+#, rust-format
+msgid "{count} folder"
+msgid_plural "{count} folders"
+msgstr[0] "{count} 個資料夾"
+
+#. Translators: What a folder holds. {playlists} becomes a number of playlists and {folders} a number of folders, such as "7 playlists" and "3 folders".
+#: src/i18n.rs:251
+#, rust-format
+msgid "{playlists}, {folders}"
+msgstr "{playlists}，{folders}"
+
+#. Translators: Keep {name} exactly as written. It becomes the folder name. The arrow beside a folder shows or hides its playlists in place.
+#: src/i18n.rs:273
+#, rust-format
+msgid "Expand {name}"
+msgstr "展開{name}"
+
+#. Translators: Keep {name} exactly as written. It becomes the folder name. The arrow beside a folder shows or hides its playlists in place.
+#: src/i18n.rs:275
+#, rust-format
+msgid "Collapse {name}"
+msgstr "摺疊{name}"

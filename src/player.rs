@@ -648,16 +648,39 @@ impl Engine {
     /// Account playlist tree in Spotify order, including folder markers,
     /// and which of its playlists the account may add songs to.
     pub async fn rootlist(&self) -> Result<Rootlist> {
+        let (raw, editable) = self.read_rootlist().await?;
+        Ok(Rootlist {
+            entries: parse_rootlist(&raw.uris),
+            editable,
+        })
+    }
+
+    /// The rootlist's rows as Spotify keeps them, with the revision they
+    /// were read at, which folder edits are counted against. When the pages
+    /// do not all carry one revision, a change landed between them and the
+    /// revision is left empty: rows counted across such a read are not to
+    /// be trusted.
+    pub async fn read_rootlist(
+        &self,
+    ) -> Result<(
+        crate::folders::RawRootlist,
+        std::collections::BTreeSet<String>,
+    )> {
         let mut uris = Vec::new();
+        let mut revisions = Vec::new();
         let mut editable = std::collections::BTreeSet::new();
-        for contents in crate::session_reads::rootlist(&self.session).await? {
+        for (revision, contents) in crate::session_reads::rootlist_pages(&self.session).await? {
+            revisions.push(revision);
             editable.extend(editable_uris(&contents));
             uris.extend(contents.items.into_iter().filter_map(|item| item.uri));
         }
-        Ok(Rootlist {
-            entries: parse_rootlist(&uris),
+        Ok((
+            crate::folders::RawRootlist {
+                uris,
+                revision: crate::folders::one_revision(revisions),
+            },
             editable,
-        })
+        ))
     }
 
     /// The streaming session, for reads that need no Web API quota.

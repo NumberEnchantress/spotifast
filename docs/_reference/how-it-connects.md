@@ -158,6 +158,28 @@ Since 0.9.0, a playlist-folder and invitation-permission read requested
 before local playback connects waits for that connection instead of being lost.
 Sign-out discards the waiting read and any result from the previous session.
 
+A folder change goes over the same session. Spotifast reads the rootlist,
+plans the change against that read, and posts it once to
+`/playlist/v2/user/{username}/rootlist/changes` with the session's Login5
+bearer and client token, through a connection that never retries or follows
+redirects: a repeated add would make a second folder. Every change names
+the rows it touches by URI, as Spotify's web player does, except moving a
+whole folder, which counts rows by position like the web player's own
+folder move. That one is planned only against a read whose pages all carry
+the same revision, and carries that revision with it. Removing a folder
+names its two marker rows by URI, so it can never match a playlist.
+Spotifast then reads the tree back until it shows the change. Nothing is
+sent before the session has read the tree once, edits go out one at a
+time, and no token is logged.
+
+Pins are read with the tree, from the first page of Spotify's private
+`libraryV3` Pathfinder query, and changed with its `pinLibraryItem` and
+`unpinLibraryItem` mutations, the requests Spotify's web player makes. They
+carry the session's Login5 bearer and client token, like the Home shelf's
+read, go out one at a time with folder edits, and are sent once. The last
+pins read are kept in `session.json` for the account, so the sidebar shows
+them before the session reconnects.
+
 Since 0.9.0, a dropped active playback session retains its resolved
 contexts and queue in memory. The replacement session restores them after
 Connect registration instead of loading only the interrupted song. Unresolved

@@ -21,7 +21,7 @@ use crate::model::QueueTab;
 use crate::model::*;
 use crate::paths::AppDirs;
 use crate::player::{EngineConfig, LoadSpec, LocalState, Playback, PlayerCommand, RepeatMode};
-use crate::settings::{CachedRootlist, SessionState, Settings, ThemeChoice};
+use crate::settings::{CachedPins, CachedRootlist, SessionState, Settings, ThemeChoice};
 use crate::single_instance::ControlCommand;
 use crate::theme::{self, Palette};
 use crate::util;
@@ -730,6 +730,40 @@ pub struct App {
     /// Coming back to the window asked for the tree, and it has not been
     /// read since.
     rootlist_wanted: bool,
+    /// The session has read the tree since sign-in, so folder edits can be
+    /// planned against something real rather than the cached copy.
+    rootlist_live: bool,
+    /// Folder edits sent and not yet answered, and when the first was sent.
+    /// While any is out, a read of the tree tells the story from before it
+    /// and is set aside; the edit's own answer brings the tree back.
+    folder_edits: usize,
+    folder_edits_since: Option<Instant>,
+    /// Reads of the tree asked for so far, numbered so an answer can say
+    /// which request it serves.
+    rootlist_asked: u64,
+    /// Reads numbered up to this were asked for before the latest folder
+    /// edit: they tell the story from before it, whenever they land.
+    rootlist_stale_upto: Option<u64>,
+    /// The account's pins as Spotify's library holds them, by URI in its
+    /// order. `None` until known, and the sidebar then shows the pins saved
+    /// on this computer; once known, pinning goes to Spotify.
+    pub spotify_pins: Option<Vec<String>>,
+    /// Last pins read from Spotify and the account they belong to.
+    pins_cache: Option<CachedPins>,
+    /// Pin changes sent and not yet answered. Reads of the pins are set
+    /// aside meanwhile, as reads of the tree are for folder edits.
+    pin_edits: usize,
+    /// Pin reads numbered up to this were asked for before the latest pin
+    /// change.
+    pins_stale_upto: Option<u64>,
+    /// Spotify's pins have been read this session, not only restored from
+    /// the last one. Until then a failed read falls back to the pins saved
+    /// on this computer.
+    pins_live: bool,
+    /// Pin changes Spotify has taken, by key, held over reads until a read
+    /// shows them: Spotify's library can answer from before a change it has
+    /// already accepted, and a pin must not flicker away and back.
+    pin_overrides: Vec<(String, bool, Instant)>,
     /// Playlists the account may add songs to by Spotify's own word, by
     /// URI: the ones shared with it by invitation, which the Web API's
     /// collaborative flag does not show. Empty until the session answers.
@@ -747,6 +781,9 @@ pub struct App {
     pending_pastes: Vec<PendingPaste>,
     /// Sidebar folders rolled up, by their rootlist ids.
     pub collapsed_folders: Vec<String>,
+    /// The folder the sidebar's playlists are opened into, by rootlist id;
+    /// `None` shows the whole library.
+    pub library_folder: Option<String>,
     /// A newer release than this build, once GitHub has said so.
     pub update: Option<crate::updates::Release>,
     last_update_check: Option<Instant>,
@@ -1262,6 +1299,17 @@ impl App {
             rootlist_read_at: None,
             window_focused: true,
             rootlist_wanted: false,
+            rootlist_live: false,
+            folder_edits: 0,
+            folder_edits_since: None,
+            rootlist_asked: 0,
+            rootlist_stale_upto: None,
+            spotify_pins: None,
+            pins_cache: session.spotify_pins.clone(),
+            pin_edits: 0,
+            pins_stale_upto: None,
+            pins_live: false,
+            pin_overrides: Vec::new(),
             editable_by_grant: std::collections::BTreeSet::new(),
             pending_link: None,
             prerelease_request: None,
@@ -1269,6 +1317,7 @@ impl App {
             copied_songs: Vec::new(),
             pending_pastes: Vec::new(),
             collapsed_folders: session.collapsed_folders.clone(),
+            library_folder: None,
             update: None,
             last_update_check: None,
             update_checking: false,
@@ -2525,27 +2574,137 @@ impl App {
                     result,
                 } => self.handle_proxy_applied(request, config, result),
                 Event::Error(message) => self.toast_error(message),
-                Event::Rootlist { result } => match result {
-                    Ok(rootlist) => {
-                        let account_id = self.user_id().map(str::to_owned).or_else(|| {
-                            if let AuthStatus::Connected { username } = &self.auth {
-                                Some(username.clone())
-                            } else {
-                                None
-                            }
-                        });
-                        self.rootlist = rootlist.entries;
-                        self.editable_by_grant = rootlist.editable;
-                        if let Some(account_id) = account_id {
-                            self.rootlist_cache = Some(CachedRootlist {
-                                account_id,
-                                entries: self.rootlist.clone(),
-                            });
-                            self.session_dirty = true;
-                        }
+                Event::Rootlist { serial, result } => match result {
+                    Ok(_)
+                        if self.folder_edits_pending()
+                            || self.rootlist_stale_upto.is_some_and(|upto| serial <= upto) =>
+                    {
+                        // Asked for before the edit the sidebar already
+                        // shows; the edit's answer carries the tree, and
+                        // a read asked for after it follows.
+                        self.rootlist_wanted = true;
                     }
+                    Ok(rootlist) => self.adopt_rootlist(rootlist),
                     Err(error) => log::warn!("rootlist unavailable: {error}"),
                 },
+                Event::FoldersEdited { result } => {
+                    // A read asked for while the edit was out may have been
+                    // answered before it landed; only reads asked for from
+                    // here on are sure to hold it.
+                    self.rootlist_stale_upto = Some(self.rootlist_asked);
+                    self.folder_edits = self.folder_edits.saturating_sub(1);
+                    if self.folder_edits == 0 {
+                        self.folder_edits_since = None;
+                    }
+                    use crate::folders::{Failure, Refusal};
+                    let reason = match &result {
+                        Ok(_) => None,
+                        // Nothing was left to do, or Spotify took the edit
+                        // and only the read after it failed: neither is a
+                        // failure to report.
+                        Err(Failure::Refused(Refusal::Unchanged) | Failure::Unconfirmed(_)) => None,
+                        Err(Failure::Refused(refusal)) => {
+                            Some(refusal.message(self.locale).into_owned())
+                        }
+                        Err(Failure::Failed(error)) => Some(error.clone()),
+                    };
+                    if let Some(reason) = reason {
+                        self.toast_error(
+                            // Translators: {error} says why Spotify did not take the change.
+                            gettext(
+                                self.locale,
+                                "Couldn't change your folders on Spotify: {error}",
+                            )
+                            .replace("{error}", &reason),
+                        );
+                    }
+                    match result {
+                        Ok(rootlist) if self.folder_edits == 0 => self.adopt_rootlist(rootlist),
+                        Ok(_) => {}
+                        // Show what Spotify really holds, edit or no edit.
+                        Err(_) if self.folder_edits == 0 => self.read_rootlist(),
+                        Err(_) => {}
+                    }
+                }
+                Event::Pins { serial, result } => match result {
+                    Ok(_)
+                        if self.pin_edits > 0
+                            || self.pins_stale_upto.is_some_and(|upto| serial <= upto) =>
+                    {
+                        // Asked for before a pin change the sidebar already
+                        // shows; a read after the change follows it.
+                    }
+                    Ok(uris) => self.adopt_pins(uris),
+                    Err(error) => {
+                        log::warn!("pins unavailable: {error}");
+                        // Pins restored from the last session that cannot be
+                        // read now give way to the ones saved here.
+                        if !self.pins_live {
+                            self.spotify_pins = None;
+                        }
+                    }
+                },
+                Event::PinSet {
+                    uri,
+                    pinned,
+                    result,
+                } => {
+                    self.pin_edits = self.pin_edits.saturating_sub(1);
+                    self.pins_stale_upto = Some(self.rootlist_asked);
+                    if let Some(user) = self.user_id().map(str::to_owned) {
+                        let key = crate::pins::key_of(&uri, &user);
+                        self.pin_overrides.retain(|(held, _, _)| *held != key);
+                        if result.is_ok() {
+                            self.pin_overrides.push((key, pinned, Instant::now()));
+                        }
+                    }
+                    let failed = result.is_err();
+                    if let Err(refusal) = result {
+                        // Show the pins as Spotify still holds them.
+                        if let (Some(user), Some(uris)) = (
+                            self.user_id().map(str::to_owned),
+                            self.spotify_pins.as_mut(),
+                        ) {
+                            let key = crate::pins::key_of(&uri, &user);
+                            if pinned {
+                                uris.retain(|held| crate::pins::key_of(held, &user) != key);
+                            } else if !uris
+                                .iter()
+                                .any(|held| crate::pins::key_of(held, &user) == key)
+                            {
+                                uris.push(uri);
+                            }
+                        }
+                        use crate::pins::PinRefusal;
+                        let message = match refusal {
+                            PinRefusal::Limit(_) => gettext(
+                                self.locale,
+                                "Spotify's pin limit is reached. Unpin something first.",
+                            )
+                            .into_owned(),
+                            PinRefusal::InFolder => gettext(
+                                self.locale,
+                                "Spotify can't pin something that's inside a folder.",
+                            )
+                            .into_owned(),
+                            PinRefusal::NotPinnable => {
+                                gettext(self.locale, "Spotify can't pin this.").into_owned()
+                            }
+                            PinRefusal::Failed(error) => gettext(
+                                self.locale,
+                                // Translators: {error} says why Spotify did not take the change.
+                                "Couldn't change your pins on Spotify: {error}",
+                            )
+                            .replace("{error}", &error),
+                        };
+                        self.toast_error(message);
+                    }
+                    // After a refusal, show what Spotify holds; a change it
+                    // took is held until a read shows it.
+                    if failed && self.pin_edits == 0 {
+                        self.read_pins();
+                    }
+                }
                 Event::Lyrics { uri, result } => {
                     if self.lyrics_uri.as_deref() == Some(uri.as_str()) {
                         self.lyrics = match result {
@@ -2731,6 +2890,17 @@ impl App {
                 self.rootlist.clear();
                 self.rootlist_cache = None;
                 self.device_history = Default::default();
+                self.rootlist_live = false;
+                self.library_folder = None;
+                self.folder_edits = 0;
+                self.folder_edits_since = None;
+                self.rootlist_stale_upto = None;
+                self.spotify_pins = None;
+                self.pins_cache = None;
+                self.pin_edits = 0;
+                self.pins_stale_upto = None;
+                self.pins_live = false;
+                self.pin_overrides.clear();
                 self.editable_by_grant.clear();
                 self.account_caches_due = false;
                 self.session_dirty = true;
@@ -2767,6 +2937,13 @@ impl App {
                         self.load_new_releases();
                     }
                     self.load_hidden_songs();
+                    // The tree is read over this session and spends no Web
+                    // API quota, so folders can be changed without waiting
+                    // for the whole playlist library, which a large one under
+                    // Spotify's rate limits can take minutes to load.
+                    if !self.rootlist_live && self.is_connected() {
+                        self.read_rootlist();
+                    }
                 }
                 self.replay_queued_play();
             }
@@ -4669,7 +4846,272 @@ impl App {
     fn read_rootlist(&mut self) {
         self.rootlist_wanted = false;
         self.rootlist_read_at = Some(Instant::now());
-        self.backend.send(Command::Rootlist);
+        self.rootlist_asked += 1;
+        self.backend.send(Command::Rootlist(self.rootlist_asked));
+        // Pins are read with the tree: both change in Spotify's other apps.
+        self.backend.send(Command::ReadPins(self.rootlist_asked));
+    }
+
+    /// Reads the account's pins again, on their own.
+    fn read_pins(&mut self) {
+        self.rootlist_asked += 1;
+        self.backend.send(Command::ReadPins(self.rootlist_asked));
+    }
+
+    /// The sidebar's pins: Spotify's once they are known, else the ones
+    /// saved on this computer.
+    pub fn library_pins(&self) -> Vec<String> {
+        match (&self.spotify_pins, self.user_id()) {
+            (Some(uris), Some(user)) => uris
+                .iter()
+                .map(|uri| crate::pins::key_of(uri, user))
+                .collect(),
+            _ => self.settings.library_pins(),
+        }
+    }
+
+    /// Whether pins are Spotify's, so pinning changes the account.
+    pub fn pins_synced(&self) -> bool {
+        self.spotify_pins.is_some() && self.user_id().is_some()
+    }
+
+    /// Shows Spotify's pins and remembers them for the next start.
+    fn adopt_pins(&mut self, mut uris: Vec<String>) {
+        self.pins_live = true;
+        if let Some(user) = self.user_id().map(str::to_owned) {
+            // A change Spotify took stands until a read shows it, or for a
+            // minute at most.
+            let shows = |uris: &[String], key: &str| {
+                uris.iter()
+                    .any(|uri| crate::pins::key_of(uri, &user) == key)
+            };
+            self.pin_overrides.retain(|(key, pinned, at)| {
+                at.elapsed() < Duration::from_secs(60) && shows(&uris, key) != *pinned
+            });
+            for (key, pinned, _) in &self.pin_overrides {
+                if *pinned {
+                    uris.push(crate::pins::pinnable_uri(key, &user));
+                } else {
+                    uris.retain(|uri| crate::pins::key_of(uri, &user) != *key);
+                }
+            }
+        }
+        if let Some(account_id) = self.user_id().map(str::to_owned) {
+            self.pins_cache = Some(CachedPins {
+                account_id,
+                uris: uris.clone(),
+            });
+            self.session_dirty = true;
+        }
+        self.spotify_pins = Some(uris);
+    }
+
+    /// Sends the difference between the pins shown and `wanted` to Spotify,
+    /// showing it at once. Spotify keeps its own order, so a change of
+    /// order alone sends nothing and shows nothing.
+    fn change_spotify_pins(&mut self, wanted: &[String]) {
+        let Some(user) = self.user_id().map(str::to_owned) else {
+            return;
+        };
+        let held = self.library_pins();
+        let added: Vec<String> = wanted
+            .iter()
+            .filter(|key| !held.contains(key))
+            .cloned()
+            .collect();
+        let removed: Vec<String> = held
+            .iter()
+            .filter(|key| !wanted.contains(key))
+            .cloned()
+            .collect();
+        if added.is_empty() && removed.is_empty() {
+            return;
+        }
+        let uris = self.spotify_pins.get_or_insert_with(Vec::new);
+        // An unpin names the item as Spotify reported it, as the web player
+        // does; only Liked Songs is unpinned under the account's collection.
+        let unpin: Vec<String> = removed
+            .iter()
+            .map(|key| {
+                uris.iter()
+                    .find(|uri| crate::pins::key_of(uri, &user) == *key)
+                    .filter(|_| key != crate::settings::LIKED_SONGS_KEY)
+                    .cloned()
+                    .unwrap_or_else(|| crate::pins::pinnable_uri(key, &user))
+            })
+            .collect();
+        uris.retain(|uri| !removed.contains(&crate::pins::key_of(uri, &user)));
+        uris.extend(
+            added
+                .iter()
+                .map(|key| crate::pins::pinnable_uri(key, &user)),
+        );
+        self.pins_stale_upto = Some(self.rootlist_asked);
+        for (uri, pinned) in unpin.into_iter().map(|uri| (uri, false)).chain(
+            added
+                .iter()
+                .map(|key| (crate::pins::pinnable_uri(key, &user), true)),
+        ) {
+            self.pin_edits += 1;
+            self.backend.send(Command::SetPin { uri, pinned });
+        }
+    }
+
+    /// An opened folder that is gone, removed here or elsewhere, leaves
+    /// the Library at the top, so it never reopens by surprise.
+    fn forget_missing_library_folder(&mut self) {
+        if self
+            .library_folder
+            .as_ref()
+            .is_some_and(|id| crate::folders::folder_span(&self.rootlist, id).is_none())
+        {
+            self.library_folder = None;
+        }
+    }
+
+    /// Shows the tree Spotify holds and remembers it for the next start.
+    fn adopt_rootlist(&mut self, rootlist: crate::player::Rootlist) {
+        let account_id = self.user_id().map(str::to_owned).or_else(|| {
+            if let AuthStatus::Connected { username } = &self.auth {
+                Some(username.clone())
+            } else {
+                None
+            }
+        });
+        self.rootlist = rootlist.entries;
+        self.forget_missing_library_folder();
+        self.editable_by_grant = rootlist.editable;
+        self.rootlist_live = true;
+        if let Some(account_id) = account_id {
+            self.rootlist_cache = Some(CachedRootlist {
+                account_id,
+                entries: self.rootlist.clone(),
+            });
+            self.session_dirty = true;
+        }
+    }
+
+    /// Whether a folder edit is still out. One that has not been answered
+    /// in a minute is given up on, so reads of the tree are never set
+    /// aside for good.
+    fn folder_edits_pending(&self) -> bool {
+        self.folder_edits > 0
+            && self
+                .folder_edits_since
+                .is_some_and(|since| since.elapsed() < Duration::from_secs(60))
+    }
+
+    /// Folders can be changed once the playback session has read the tree:
+    /// edits are made over that session, which is also the only place
+    /// folders can be read from.
+    pub fn folders_editable(&self) -> bool {
+        self.local_ready && self.rootlist_live && self.is_connected()
+    }
+
+    /// Shows a folder edit at once and sends it to Spotify.
+    fn edit_folders(&mut self, edit: crate::folders::FolderEdit) {
+        if !self.folders_editable() {
+            self.toast(gettext(
+                self.locale,
+                "Set up playback here to change folders. Folders are only reachable through the playback connection.",
+            ));
+            return;
+        }
+        use crate::folders::{FolderEdit, Place};
+        // A new folder that takes a playlist in goes as the folder, then the
+        // move into it, as Spotify's web player sends it; the backend makes
+        // edits one at a time, so the move is planned against the folder.
+        let edits = match edit {
+            FolderEdit::Create {
+                id,
+                name,
+                place,
+                adopt: Some(uri),
+            } => vec![
+                FolderEdit::Create {
+                    id: id.clone(),
+                    name,
+                    place,
+                    adopt: None,
+                },
+                FolderEdit::MovePlaylist {
+                    uri,
+                    place: Place::InFolder(id),
+                },
+            ],
+            edit => vec![edit],
+        };
+        let mut rows = self.rootlist.clone();
+        for edit in &edits {
+            match crate::folders::apply(&rows, edit) {
+                Ok(next) => rows = next,
+                Err(crate::folders::Refusal::Unchanged) => return,
+                Err(refusal) => {
+                    self.toast_error(refusal.message(self.locale).into_owned());
+                    return;
+                }
+            }
+        }
+        self.rootlist = rows;
+        self.forget_missing_library_folder();
+        if !self.folder_edits_pending() {
+            self.folder_edits = 0;
+            self.folder_edits_since = Some(Instant::now());
+        }
+        self.rootlist_stale_upto = Some(self.rootlist_asked);
+        // Spotify pins nothing inside a folder, so a pinned row the edit
+        // moves into one is unpinned with the move.
+        if let Some(user) = self.user_id().map(str::to_owned)
+            && self.pins_synced()
+        {
+            use crate::folders::Row;
+            let moved: Vec<(String, Row)> = edits
+                .iter()
+                .filter_map(|edit| match edit {
+                    FolderEdit::MovePlaylist { uri, .. } => {
+                        Some((uri.clone(), Row::Playlist(uri.clone())))
+                    }
+                    FolderEdit::MoveFolder { id, .. } => {
+                        Some((crate::pins::folder_uri(&user, id), Row::Folder(id.clone())))
+                    }
+                    _ => None,
+                })
+                .collect();
+            let pins = self.library_pins();
+            let wanted: Vec<String> = pins
+                .iter()
+                .filter(|key| {
+                    !moved.iter().any(|(moved, row)| {
+                        moved == *key && crate::folders::parent(&self.rootlist, row).is_some()
+                    })
+                })
+                .cloned()
+                .collect();
+            if wanted.len() != pins.len() {
+                self.change_spotify_pins(&wanted);
+            }
+        }
+        for edit in edits {
+            if let FolderEdit::Remove { id } = &edit {
+                self.collapsed_folders.retain(|held| held != id);
+                self.session_dirty = true;
+            }
+            self.folder_edits += 1;
+            self.backend.send(Command::EditFolders(edit));
+        }
+    }
+
+    /// The session's read of the tree, for tests outside this module.
+    #[cfg(test)]
+    pub(crate) fn receive_rootlist(&mut self, entries: Vec<crate::player::RootlistEntry>) {
+        self.rootlist_asked += 1;
+        self.handle_backend_events(vec![Event::Rootlist {
+            serial: self.rootlist_asked,
+            result: Ok(crate::player::Rootlist {
+                entries,
+                editable: Default::default(),
+            }),
+        }]);
     }
 
     /// Spotify's own apps can reorder playlists and folders while Spotifast
@@ -6545,12 +6987,18 @@ impl App {
                     let due = std::mem::take(&mut self.account_caches_due);
                     let changed = self.user_id() != Some(user.id.as_str());
                     if changed {
+                        self.library_folder = None;
                         self.rootlist = self
                             .rootlist_cache
                             .as_ref()
                             .filter(|cached| cached.account_id == user.id)
                             .map(|cached| cached.entries.clone())
                             .unwrap_or_default();
+                        self.spotify_pins = self
+                            .pins_cache
+                            .as_ref()
+                            .filter(|cached| cached.account_id == user.id)
+                            .map(|cached| cached.uris.clone());
                         self.editable_by_grant.clear();
                     }
                     if changed || due {
@@ -11395,14 +11843,28 @@ impl App {
                 }
                 self.session_dirty = true;
             }
+            Action::EnterLibraryFolder(folder) => self.library_folder = folder,
+            Action::EditFolders(edit) => {
+                if matches!(
+                    self.dialog,
+                    Some(Dialog::NameFolder { .. } | Dialog::ConfirmRemoveFolder { .. })
+                ) {
+                    self.dialog = None;
+                }
+                self.edit_folders(edit);
+            }
             Action::ArrangeLibrary {
                 pinned,
                 playlist_order,
             } => {
-                self.settings.liked_songs_pinned = pinned
-                    .iter()
-                    .any(|key| key == crate::settings::LIKED_SONGS_KEY);
-                self.settings.pinned_contexts = pinned;
+                if self.pins_synced() {
+                    self.change_spotify_pins(&pinned);
+                } else {
+                    self.settings.liked_songs_pinned = pinned
+                        .iter()
+                        .any(|key| key == crate::settings::LIKED_SONGS_KEY);
+                    self.settings.pinned_contexts = pinned;
+                }
                 if let Some(order) = playlist_order {
                     // Spotify doesn't let apps change the playlist order it
                     // keeps, so a drag in that order starts a local one.
@@ -11422,9 +11884,13 @@ impl App {
                         crate::settings::LibrarySort::Local,
                     );
                 }
-                self.settings
-                    .sidebar_order
-                    .retain(|key| !self.settings.pinned_contexts.contains(key));
+                // Spotify's pins leave the order saved on this computer as
+                // it was; the pins saved here are kept out of it, as ever.
+                if !self.pins_synced() {
+                    self.settings
+                        .sidebar_order
+                        .retain(|key| !self.settings.pinned_contexts.contains(key));
+                }
                 self.mark_settings_dirty();
             }
             Action::SetTheme(choice) => {
@@ -12633,6 +13099,7 @@ impl App {
                 last_position_ms: self.resume_position_ms,
                 collapsed_folders: self.collapsed_folders.clone(),
                 rootlist: self.rootlist_cache.clone(),
+                spotify_pins: self.pins_cache.clone(),
                 last_added_queue: if self.resume_queue.is_empty() {
                     self.manual_queue.clone()
                 } else {
@@ -29550,6 +30017,517 @@ mod tests {
         );
     }
 
+    fn folder_tree() -> Vec<crate::player::RootlistEntry> {
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        vec![
+            FolderStart {
+                id: "f1".into(),
+                name: "Gym".into(),
+            },
+            Playlist("spotify:playlist:a".into()),
+            FolderEnd,
+            Playlist("spotify:playlist:b".into()),
+        ]
+    }
+
+    fn folder_app() -> App {
+        let mut app = headless_app();
+        app.auth = AuthStatus::Connected {
+            username: "me".into(),
+        };
+        app.backend.take_folder_edit_requests();
+        app
+    }
+
+    /// The sidebar shows a folder edit the moment it is made, and a read of
+    /// the tree that left before the edit cannot take it back.
+    #[test]
+    fn a_folder_edit_shows_at_once_and_a_stale_read_cannot_undo_it() {
+        use crate::folders::{FolderEdit, Place};
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+
+        // #given the session has read a tree with one folder
+        let mut app = folder_app();
+        app.receive_rootlist(folder_tree());
+        assert!(app.folders_editable());
+
+        // #when a playlist is moved into the folder
+        let edit = FolderEdit::MovePlaylist {
+            uri: "spotify:playlist:b".into(),
+            place: Place::InFolder("f1".into()),
+        };
+        app.apply(Action::EditFolders(edit.clone()), &egui::Context::default());
+
+        // #then it is first in the folder at once, and the edit went to Spotify
+        let moved = vec![
+            FolderStart {
+                id: "f1".into(),
+                name: "Gym".into(),
+            },
+            Playlist("spotify:playlist:b".into()),
+            Playlist("spotify:playlist:a".into()),
+            FolderEnd,
+        ];
+        assert_eq!(app.rootlist, moved);
+        assert_eq!(app.backend.take_folder_edit_requests(), [edit]);
+
+        // #when a read asked for before the edit lands, it is set aside
+        let stale = Event::Rootlist {
+            serial: app.rootlist_asked,
+            result: Ok(crate::player::Rootlist {
+                entries: folder_tree(),
+                editable: Default::default(),
+            }),
+        };
+        let stale_again = Event::Rootlist {
+            serial: app.rootlist_asked,
+            result: Ok(crate::player::Rootlist {
+                entries: folder_tree(),
+                editable: Default::default(),
+            }),
+        };
+        app.handle_backend_events(vec![stale]);
+        assert_eq!(app.rootlist, moved);
+
+        // #when the edit's own read comes back, it is the tree from then on
+        let mut confirmed = moved.clone();
+        confirmed.push(Playlist("spotify:playlist:new-elsewhere".into()));
+        app.handle_backend_events(vec![Event::FoldersEdited {
+            result: Ok(crate::player::Rootlist {
+                entries: confirmed.clone(),
+                editable: Default::default(),
+            }),
+        }]);
+        assert_eq!(app.rootlist, confirmed);
+        // and an old read that lands even later still cannot undo it
+        app.handle_backend_events(vec![stale_again]);
+        assert_eq!(app.rootlist, confirmed);
+        // while a read asked for after the edit is taken
+        app.receive_rootlist(folder_tree());
+        assert_eq!(app.rootlist, folder_tree());
+    }
+
+    fn pins_app() -> App {
+        let mut app = folder_app();
+        app.user = Some(User {
+            id: "me".into(),
+            ..User::default()
+        });
+        app.backend.take_pin_requests();
+        app
+    }
+
+    fn receive_pins(app: &mut App, uris: &[&str]) {
+        app.rootlist_asked += 1;
+        app.handle_backend_events(vec![Event::Pins {
+            serial: app.rootlist_asked,
+            result: Ok(uris.iter().map(|uri| uri.to_string()).collect()),
+        }]);
+    }
+
+    /// Once Spotify's pins are read they are the sidebar's, folders and
+    /// Liked Songs included, and they are kept for the next start; the pins
+    /// saved on this computer are left as they were.
+    #[test]
+    fn spotify_pins_replace_the_local_ones_and_are_kept() {
+        let mut app = pins_app();
+        app.settings.pinned_contexts = vec!["spotify:playlist:local".into()];
+        assert!(!app.pins_synced());
+        receive_pins(
+            &mut app,
+            &["spotify:user:me:folder:f1", "spotify:collection:tracks"],
+        );
+        assert!(app.pins_synced());
+        assert_eq!(
+            app.library_pins(),
+            [
+                "spotify:user:me:folder:f1",
+                crate::settings::LIKED_SONGS_KEY
+            ]
+        );
+        assert_eq!(app.settings.pinned_contexts, ["spotify:playlist:local"]);
+        assert_eq!(
+            app.pins_cache,
+            Some(CachedPins {
+                account_id: "me".into(),
+                uris: vec![
+                    "spotify:user:me:folder:f1".into(),
+                    "spotify:collection:tracks".into()
+                ],
+            })
+        );
+    }
+
+    /// Pinning shows at once and goes to Spotify; a read from before it
+    /// cannot take it back; a pin Spotify refuses is undone and explained;
+    /// a change of order alone sends nothing.
+    #[test]
+    fn pins_change_on_spotify_and_a_refusal_is_undone() {
+        let folder = "spotify:user:me:folder:f1";
+        let mut app = pins_app();
+        receive_pins(&mut app, &[folder]);
+        let ctx = egui::Context::default();
+
+        app.apply(
+            Action::ArrangeLibrary {
+                pinned: vec![folder.into(), "spotify:playlist:b".into()],
+                playlist_order: None,
+            },
+            &ctx,
+        );
+        assert_eq!(app.library_pins(), [folder, "spotify:playlist:b"]);
+        assert_eq!(
+            app.backend.take_pin_requests(),
+            [("spotify:playlist:b".to_string(), true)]
+        );
+        assert!(app.settings.pinned_contexts.is_empty());
+
+        // A read asked for before the change lands late.
+        app.handle_backend_events(vec![Event::Pins {
+            serial: app.rootlist_asked,
+            result: Ok(vec![folder.into()]),
+        }]);
+        assert_eq!(app.library_pins(), [folder, "spotify:playlist:b"]);
+
+        let toasts = app.toasts.len();
+        app.handle_backend_events(vec![Event::PinSet {
+            uri: "spotify:playlist:b".into(),
+            pinned: true,
+            result: Err(crate::pins::PinRefusal::Limit(4)),
+        }]);
+        assert_eq!(app.library_pins(), [folder]);
+        assert_eq!(app.toasts.len(), toasts + 1);
+        assert!(app.toasts.last().unwrap().message.contains("limit"));
+
+        // Spotify keeps its own order.
+        app.apply(
+            Action::ArrangeLibrary {
+                pinned: vec![folder.into()],
+                playlist_order: None,
+            },
+            &ctx,
+        );
+        assert!(app.backend.take_pin_requests().is_empty());
+
+        // Liked Songs is unpinned under the URI Spotify pins it by.
+        receive_pins(&mut app, &[folder, "spotify:collection:tracks"]);
+        app.apply(
+            Action::ArrangeLibrary {
+                pinned: vec![folder.into()],
+                playlist_order: None,
+            },
+            &ctx,
+        );
+        assert_eq!(
+            app.backend.take_pin_requests(),
+            [("spotify:user:me:collection".to_string(), false)]
+        );
+        assert_eq!(app.library_pins(), [folder]);
+    }
+
+    /// A folder is unpinned under the URI Spotify reported for it, whatever
+    /// form that takes, as the web player unpins it.
+    #[test]
+    fn a_folder_is_unpinned_as_spotify_named_it() {
+        let reported = "spotify:user:me:folder:f1:Late+Night";
+        let mut app = pins_app();
+        receive_pins(&mut app, &[reported, "spotify:playlist:b"]);
+        assert_eq!(
+            app.library_pins(),
+            ["spotify:user:me:folder:f1", "spotify:playlist:b"]
+        );
+        app.apply(
+            Action::ArrangeLibrary {
+                pinned: vec!["spotify:playlist:b".into()],
+                playlist_order: None,
+            },
+            &egui::Context::default(),
+        );
+        assert_eq!(
+            app.backend.take_pin_requests(),
+            [(reported.to_string(), false)]
+        );
+    }
+
+    /// Spotify's library can answer from before a pin it has already taken;
+    /// the pin stays shown until a read shows it too.
+    #[test]
+    fn a_pin_spotify_took_survives_a_read_that_lags_behind_it() {
+        let folder = "spotify:user:me:folder:f1";
+        let mut app = pins_app();
+        receive_pins(&mut app, &[folder]);
+        app.apply(
+            Action::ArrangeLibrary {
+                pinned: vec![folder.into(), "spotify:playlist:b".into()],
+                playlist_order: None,
+            },
+            &egui::Context::default(),
+        );
+        app.handle_backend_events(vec![Event::PinSet {
+            uri: "spotify:playlist:b".into(),
+            pinned: true,
+            result: Ok(()),
+        }]);
+        // Asked for after the change, answered from before it.
+        receive_pins(&mut app, &[folder]);
+        assert_eq!(app.library_pins(), [folder, "spotify:playlist:b"]);
+        // Once Spotify shows it, its own order stands and the hold ends.
+        receive_pins(&mut app, &["spotify:playlist:b", folder]);
+        assert_eq!(app.library_pins(), ["spotify:playlist:b", folder]);
+        assert!(app.pin_overrides.is_empty());
+    }
+
+    /// Pins restored from the last session give way to the ones saved on
+    /// this computer when Spotify's cannot be read now; once read, a later
+    /// failure keeps them.
+    #[test]
+    fn restored_pins_give_way_when_spotify_cannot_be_read() {
+        let mut app = pins_app();
+        app.settings.pinned_contexts = vec!["spotify:playlist:local".into()];
+        app.spotify_pins = Some(vec!["spotify:playlist:old".into()]);
+        let fail = |app: &mut App| {
+            app.rootlist_asked += 1;
+            app.handle_backend_events(vec![Event::Pins {
+                serial: app.rootlist_asked,
+                result: Err("PersistedQueryNotFound".into()),
+            }]);
+        };
+        fail(&mut app);
+        assert!(!app.pins_synced());
+        assert!(
+            app.library_pins()
+                .contains(&"spotify:playlist:local".to_string())
+        );
+        receive_pins(&mut app, &["spotify:playlist:x"]);
+        fail(&mut app);
+        assert!(app.pins_synced());
+        assert_eq!(app.library_pins(), ["spotify:playlist:x"]);
+    }
+
+    /// Spotify pins nothing inside a folder: a pinned playlist moved into
+    /// one is unpinned with the move, and one moved at the top level keeps
+    /// its pin.
+    #[test]
+    fn a_pinned_playlist_moved_into_a_folder_is_unpinned() {
+        use crate::folders::{FolderEdit, Place};
+        let mut app = pins_app();
+        app.receive_rootlist(folder_tree());
+        receive_pins(&mut app, &["spotify:playlist:b"]);
+        let ctx = egui::Context::default();
+        app.apply(
+            Action::EditFolders(FolderEdit::MovePlaylist {
+                uri: "spotify:playlist:b".into(),
+                place: Place::Start,
+            }),
+            &ctx,
+        );
+        assert!(app.backend.take_pin_requests().is_empty());
+        app.apply(
+            Action::EditFolders(FolderEdit::MovePlaylist {
+                uri: "spotify:playlist:b".into(),
+                place: Place::InFolder("f1".into()),
+            }),
+            &ctx,
+        );
+        assert_eq!(
+            app.backend.take_pin_requests(),
+            [("spotify:playlist:b".to_string(), false)]
+        );
+        assert!(app.library_pins().is_empty());
+    }
+
+    /// A new folder made around a playlist goes to Spotify as the folder,
+    /// then the move into it, as the web player sends it; the sidebar shows
+    /// both at once.
+    #[test]
+    fn a_folder_made_around_a_playlist_goes_as_two_edits() {
+        use crate::folders::{FolderEdit, Place, Row};
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        let mut app = folder_app();
+        app.receive_rootlist(folder_tree());
+        app.apply(
+            Action::EditFolders(FolderEdit::Create {
+                id: "f2".into(),
+                name: "Focus".into(),
+                place: Place::Before(Row::Playlist("spotify:playlist:b".into())),
+                adopt: Some("spotify:playlist:b".into()),
+            }),
+            &egui::Context::default(),
+        );
+        assert_eq!(
+            app.backend.take_folder_edit_requests(),
+            [
+                FolderEdit::Create {
+                    id: "f2".into(),
+                    name: "Focus".into(),
+                    place: Place::Before(Row::Playlist("spotify:playlist:b".into())),
+                    adopt: None,
+                },
+                FolderEdit::MovePlaylist {
+                    uri: "spotify:playlist:b".into(),
+                    place: Place::InFolder("f2".into()),
+                },
+            ]
+        );
+        assert_eq!(
+            app.rootlist[3..],
+            [
+                FolderStart {
+                    id: "f2".into(),
+                    name: "Focus".into(),
+                },
+                Playlist("spotify:playlist:b".into()),
+                FolderEnd,
+            ]
+        );
+        // The first answer alone does not stand in for the tree while the
+        // second edit is still out.
+        let shown = app.rootlist.clone();
+        app.handle_backend_events(vec![Event::FoldersEdited {
+            result: Ok(crate::player::Rootlist {
+                entries: folder_tree(),
+                editable: Default::default(),
+            }),
+        }]);
+        assert_eq!(app.rootlist, shown);
+    }
+
+    /// An edit Spotify found nothing to do for, or took but could not be
+    /// read back after, is not reported as a failure; the tree is read
+    /// again either way.
+    #[test]
+    fn an_edit_with_nothing_to_report_shows_no_error() {
+        use crate::folders::{Failure, Refusal};
+        for failure in [
+            Failure::Refused(Refusal::Unchanged),
+            Failure::Unconfirmed("the read timed out".into()),
+        ] {
+            let mut app = folder_app();
+            app.receive_rootlist(folder_tree());
+            app.apply(
+                Action::EditFolders(crate::folders::FolderEdit::Remove { id: "f1".into() }),
+                &egui::Context::default(),
+            );
+            let asked = app.rootlist_asked;
+            let toasts = app.toasts.len();
+            app.handle_backend_events(vec![Event::FoldersEdited {
+                result: Err(failure.clone()),
+            }]);
+            assert_eq!(app.toasts.len(), toasts, "{failure:?}");
+            assert_eq!(app.rootlist_asked, asked + 1, "{failure:?} reads again");
+        }
+    }
+
+    /// A folder edit Spotify did not take says why and shows the tree as
+    /// Spotify still holds it.
+    #[test]
+    fn a_failed_folder_edit_says_why_and_reads_the_tree_again() {
+        let mut app = folder_app();
+        app.receive_rootlist(folder_tree());
+        app.apply(
+            Action::EditFolders(crate::folders::FolderEdit::Rename {
+                id: "f1".into(),
+                name: "Cardio".into(),
+            }),
+            &egui::Context::default(),
+        );
+        assert!(matches!(
+            &app.rootlist[0],
+            crate::player::RootlistEntry::FolderStart { name, .. } if name == "Cardio"
+        ));
+        let read_before = app.rootlist_read_at;
+        let toasts = app.toasts.len();
+        app.handle_backend_events(vec![Event::FoldersEdited {
+            result: Err(crate::folders::Failure::Failed(
+                "Spotify did not accept the folder change (HTTP 403)".into(),
+            )),
+        }]);
+        assert_eq!(app.toasts.len(), toasts + 1);
+        let toast = app.toasts.last().unwrap();
+        assert_eq!(toast.kind, ToastKind::Error);
+        assert!(toast.message.contains("HTTP 403"), "{}", toast.message);
+        assert_ne!(app.rootlist_read_at, read_before, "the tree is read again");
+        assert!(!app.folder_edits_pending());
+    }
+
+    /// Playback becoming ready reads the tree straight away, so folders can
+    /// be changed before a large playlist library has finished loading.
+    #[test]
+    fn playback_ready_reads_the_tree_without_waiting_for_the_library() {
+        let mut app = folder_app();
+        app.local_ready = false;
+        assert!(!matches!(app.library.playlists, Loadable::Loaded(_)));
+        let asked = app.rootlist_asked;
+        app.handle_backend_events(vec![Event::Playback(LocalPlayback::Ready {
+            device_id: "this-computer".into(),
+        })]);
+        assert_eq!(app.rootlist_asked, asked + 1);
+        app.receive_rootlist(folder_tree());
+        assert!(app.folders_editable());
+
+        // Once the tree is live, a reconnect does not ask again.
+        app.local_ready = false;
+        let asked = app.rootlist_asked;
+        app.handle_backend_events(vec![Event::Playback(LocalPlayback::Ready {
+            device_id: "this-computer".into(),
+        })]);
+        assert_eq!(app.rootlist_asked, asked);
+    }
+
+    /// Nothing is sent before the session has read the tree: the cached
+    /// copy shown at start-up may be out of date.
+    #[test]
+    fn folders_wait_for_the_session_to_read_the_tree() {
+        let mut app = folder_app();
+        app.rootlist = folder_tree();
+        assert!(!app.folders_editable());
+        let toasts = app.toasts.len();
+        app.apply(
+            Action::EditFolders(crate::folders::FolderEdit::Remove { id: "f1".into() }),
+            &egui::Context::default(),
+        );
+        assert_eq!(app.rootlist, folder_tree());
+        assert!(app.backend.take_folder_edit_requests().is_empty());
+        assert_eq!(app.toasts.len(), toasts + 1);
+    }
+
+    /// Removing a folder keeps its playlists and forgets it was rolled up;
+    /// a refused edit is explained and never sent.
+    #[test]
+    fn removing_a_folder_keeps_its_playlists_and_refusals_are_not_sent() {
+        let mut app = folder_app();
+        app.receive_rootlist(folder_tree());
+        app.collapsed_folders = vec!["f1".into()];
+        app.dialog = Some(Dialog::ConfirmRemoveFolder {
+            id: "f1".into(),
+            name: "Gym".into(),
+        });
+        app.apply(
+            Action::EditFolders(crate::folders::FolderEdit::Remove { id: "f1".into() }),
+            &egui::Context::default(),
+        );
+        assert!(app.dialog.is_none());
+        assert_eq!(
+            app.rootlist,
+            ["a", "b"]
+                .map(|id| crate::player::RootlistEntry::Playlist(format!("spotify:playlist:{id}")))
+                .to_vec()
+        );
+        assert!(app.collapsed_folders.is_empty());
+        assert_eq!(app.backend.take_folder_edit_requests().len(), 1);
+
+        let toasts = app.toasts.len();
+        app.apply(
+            Action::EditFolders(crate::folders::FolderEdit::Rename {
+                id: "gone".into(),
+                name: "Nope".into(),
+            }),
+            &egui::Context::default(),
+        );
+        assert!(app.backend.take_folder_edit_requests().is_empty());
+        assert_eq!(app.toasts.len(), toasts + 1);
+    }
+
     /// A playlist shared by invitation takes songs once Spotify's rootlist
     /// says so, though the Web API calls it neither owned nor collaborative.
     #[test]
@@ -29589,6 +30567,7 @@ mod tests {
 
         // #when the rootlist names the friend's playlist among the editable
         app.handle_backend_events(vec![Event::Rootlist {
+            serial: 0,
             result: Ok(crate::player::Rootlist {
                 entries: vec![crate::player::RootlistEntry::Playlist(
                     "spotify:playlist:shared".into(),
@@ -29807,6 +30786,7 @@ mod tests {
             ..User::default()
         });
         app.handle_backend_events(vec![Event::Rootlist {
+            serial: 0,
             result: Ok(crate::player::Rootlist {
                 entries: entries.clone(),
                 editable: ["spotify:playlist:one".to_string()].into_iter().collect(),

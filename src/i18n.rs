@@ -227,12 +227,52 @@ impl Locale {
         .replace("{count}", &count.to_string())
     }
 
+    pub fn folder_count(self, count: u32) -> String {
+        ngettext(
+            self,
+            // Translators: Keep {count} exactly as written. It becomes the number of folders a folder holds.
+            "{count} folder",
+            "{count} folders",
+            count,
+        )
+        .replace("{count}", &count.to_string())
+    }
+
+    /// What a folder holds, as Spotify words it: its own playlists, then its
+    /// own folders when it has any, and only the folders when it holds no
+    /// playlist.
+    pub fn folder_contents(self, playlists: u32, folders: u32) -> String {
+        match (playlists, folders) {
+            (_, 0) => self.playlist_count(playlists),
+            (0, _) => self.folder_count(folders),
+            _ => gettext(
+                self,
+                // Translators: What a folder holds. {playlists} becomes a number of playlists and {folders} a number of folders, such as "7 playlists" and "3 folders".
+                "{playlists}, {folders}",
+            )
+            .replace("{playlists}", &self.playlist_count(playlists))
+            .replace("{folders}", &self.folder_count(folders)),
+        }
+    }
+
     pub fn folder_state_label(self, name: &str, collapsed: bool) -> String {
         // Translators: Keep {name} exactly as written. It becomes the folder name.
         let label = if collapsed {
             gettext(self, "{name}, folder, collapsed")
         } else {
             gettext(self, "{name}, folder, expanded")
+        };
+        label.replace("{name}", name)
+    }
+
+    /// What the arrow beside a folder does: show or hide its contents in
+    /// place.
+    pub fn folder_toggle_label(self, name: &str, collapsed: bool) -> String {
+        // Translators: Keep {name} exactly as written. It becomes the folder name. The arrow beside a folder shows or hides its playlists in place.
+        let label = if collapsed {
+            gettext(self, "Expand {name}")
+        } else {
+            gettext(self, "Collapse {name}")
         };
         label.replace("{name}", name)
     }

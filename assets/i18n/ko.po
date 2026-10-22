@@ -3496,3 +3496,118 @@ msgstr ""
 
 #~ msgid "PulseAudio also covers PipeWire. Rodio talks to ALSA directly."
 #~ msgstr "PulseAudio는 PipeWire도 지원합니다. Rodio는 ALSA와 직접 통신합니다."
+
+#: src/folders.rs:1
+msgid "That folder or playlist has changed on Spotify. Try again."
+msgstr "해당 폴더 또는 플레이리스트가 Spotify에서 변경되었습니다. 다시 시도하세요."
+
+#: src/folders.rs:1
+msgid "A folder can't go inside itself."
+msgstr "폴더를 자기 자신 안으로 옮길 수 없습니다."
+
+#: src/folders.rs:1
+msgid "Spotify's copy of this folder looks damaged, so Spotifast left it alone."
+msgstr "Spotify에 저장된 이 폴더가 손상된 것으로 보여 Spotifast가 변경하지 않았습니다."
+
+#: src/folders.rs:1
+msgid "A folder needs a name."
+msgstr "폴더에는 이름이 필요합니다."
+
+#. Translators: {error} says why Spotify did not take the change.
+#: src/app.rs:2612
+#, rust-format
+msgid "Couldn't change your folders on Spotify: {error}"
+msgstr "Spotify에서 폴더를 변경하지 못했습니다: {error}"
+
+#: src/app.rs:4998
+msgid "Set up playback here to change folders. Folders are only reachable through the playback connection."
+msgstr "폴더를 변경하려면 여기에서 재생을 설정하세요. 폴더는 재생 연결을 통해서만 접근할 수 있습니다."
+
+#: src/ui/dialogs.rs:68
+msgid "Remove folder?"
+msgstr "폴더를 삭제하시겠습니까?"
+
+#. Translators: {name} is a folder name.
+#: src/ui/dialogs.rs:71
+#, rust-format
+msgid "“{name}” will be removed from Your Library on Spotify. The playlists in it stay where they are."
+msgstr "“{name}”이(가) Spotify의 내 라이브러리에서 삭제됩니다. 안에 있는 플레이리스트는 그대로 남습니다."
+
+#: src/ui/dialogs.rs:480
+msgid "Rename folder"
+msgstr "폴더 이름 변경"
+
+#: src/ui/dialogs.rs:482
+msgid "New folder"
+msgstr "새 폴더"
+
+#: src/ui/dialogs.rs:500
+msgid "My folder"
+msgstr "내 폴더"
+
+#: src/ui/sidebar.rs:1129
+msgid "Create a playlist or folder"
+msgstr "플레이리스트 또는 폴더 만들기"
+
+#: src/app.rs:14456
+msgid "Rename"
+msgstr "이름 변경"
+
+#: src/ui/sidebar.rs:2171
+msgid "New folder inside"
+msgstr "안에 새 폴더 만들기"
+
+#: src/ui/dialogs.rs:68
+msgid "Remove folder"
+msgstr "폴더 삭제"
+
+#: src/ui/sidebar.rs:2268
+msgid "Move to folder"
+msgstr "폴더로 이동"
+
+#: src/ui/sidebar.rs:2290
+msgid "Remove from folder"
+msgstr "폴더에서 빼기"
+
+#: src/app.rs:2678
+msgid "Spotify's pin limit is reached. Unpin something first."
+msgstr "Spotify의 고정 개수 한도에 도달했습니다. 먼저 다른 항목의 고정을 해제하세요."
+
+#: src/app.rs:2683
+msgid "Spotify can't pin something that's inside a folder."
+msgstr "Spotify에서는 폴더 안에 있는 항목을 고정할 수 없습니다."
+
+#: src/app.rs:2687
+msgid "Spotify can't pin this."
+msgstr "Spotify에서 이 항목을 고정할 수 없습니다."
+
+#. Translators: {error} says why Spotify did not take the change.
+#: src/app.rs:2692
+#, rust-format
+msgid "Couldn't change your pins on Spotify: {error}"
+msgstr "Spotify에서 고정 항목을 변경하지 못했습니다: {error}"
+
+#. Translators: Keep {count} exactly as written. It becomes the number of folders a folder holds.
+#: src/i18n.rs:234
+#, rust-format
+msgid "{count} folder"
+msgid_plural "{count} folders"
+msgstr[0] "폴더 {count}개"
+
+#. Translators: What a folder holds. {playlists} becomes a number of playlists and {folders} a number of folders, such as "7 playlists" and "3 folders".
+#: src/i18n.rs:251
+#, rust-format
+msgid "{playlists}, {folders}"
+msgstr "{playlists}, {folders}"
+
+#. Translators: Keep {name} exactly as written. It becomes the folder name. The arrow beside a folder shows or hides its playlists in place.
+#: src/i18n.rs:273
+#, rust-format
+msgid "Expand {name}"
+msgstr "{name} 펼치기"
+
+#. Translators: Keep {name} exactly as written. It becomes the folder name. The arrow beside a folder shows or hides its playlists in place.
+#: src/i18n.rs:275
+#, rust-format
+msgid "Collapse {name}"
+msgstr "{name} 접기"

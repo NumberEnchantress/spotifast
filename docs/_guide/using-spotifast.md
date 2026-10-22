@@ -391,8 +391,13 @@ Gear Lever work as well, from the update information inside it.
 Select **By You** under Playlists to show only playlists owned by your signed-in
 account, alongside Liked Songs. Followed playlists and collaborative playlists
 owned by someone else are hidden, including pinned ones. Search and the selected
-sort still apply. Matching playlists appear in a flat list, including those in
-collapsed folders. Turn By You off to restore the full list and folder view.
+sort still apply. In **Spotify custom order** and **Name**, your folders
+stay, open or closed as you left them, holding only your playlists; a folder
+with none of yours is hidden, and its subtitle still counts all it holds,
+as Spotify's does.
+With a search or another sort, matching playlists appear in a flat list,
+including those in collapsed folders. Turn By You off to restore the full
+list.
 The choice is remembered on this computer and only affects the Playlists shelf.
 It uses the ownership information already loaded with your library and makes no
 additional Spotify requests.
@@ -406,16 +411,46 @@ dates come last.
 
 **Name** keeps your Spotify playlist folders, as Spotify does: playlists sort
 by name inside each folder, and folders sort by name among the playlists
-beside them. A search or **By You** still lists matching playlists flat.
+beside them. **By You** keeps the folders that hold your playlists; a search
+still lists matching playlists flat.
 
 **Spotify custom order** follows your playlist order and folders from Spotify.
+A folder's arrow opens or closes it in place; selecting the rest of the row
+opens the folder on its own, as in Spotify, listing only what it holds, with
+**Back** above it to return to the folder around it or to your whole library.
+In the grid, a folder is a card that opens the same way.
+Inside an opened folder, a new **Folder** from the **+** button goes inside it,
+and a playlist dragged below the last row stays in it. A folder's subtitle
+counts the playlists and folders it holds itself, as Spotify's does.
 Set up playback on this computer to load that order. Your playlists stay
 visible while it loads, and Spotifast remembers the last order for your account.
 When you rearrange your library in another Spotify app, Spotifast picks up the
 new order when you switch back to it.
 Items you pin in Spotifast remain at the top, including items from a closed
-folder. Sorting or dragging Library items changes their order only in
-Spotifast; it does not rearrange your Spotify library.
+folder. In Spotify custom order, with playback set up on this computer,
+dragging a playlist or folder moves it in your Spotify library, inside the
+folder of the row it lands above, also with **By You** on. Other sorts and a
+search only change the order in Spotifast.
+
+With playback set up, folders can be changed from Spotifast too. The **+**
+button offers a new **Folder**. A playlist's menu has **Move to folder**,
+with a new folder, any other folder (the playlist goes first inside it), or
+**Remove from folder**, which puts it just above the folder it leaves. A
+folder's menu renames it, makes a folder inside it, moves it, or removes
+it. Removing a folder keeps its playlists, one level up; it never removes a
+playlist from your library. Each change shows at once and is sent to Spotify, and if
+Spotify refuses it, Spotifast says why and shows your library as Spotify
+holds it.
+
+With playback set up, pins are the ones in your Spotify account, the same as
+in Spotify's own apps, and **Pin to top** and **Unpin** change them there.
+Folders can be pinned from their menu or by dragging them into the pinned
+group; a pinned folder sits at the top with its playlists. Spotify pins only
+items that are not inside a folder and caps how many you can have; when it
+refuses a pin, Spotifast says why. Spotify keeps the order of its pins, so
+dragging within the pinned group does not change it. Until playback is set
+up, and if Spotify's pins cannot be read, the pins saved on this computer
+are used.
 
 Drag playlists to choose **Local custom order**. New playlists appear below the
 pinned group. Selecting **Name**, **Recently played** or **Spotify custom order**
@@ -435,8 +470,8 @@ and **Pin to top**; pinning adds it after your existing pins. The arrangement
 survives restarting Spotifast and switching sort choices.
 
 When unpinned, Liked Songs follows **Name** or **Recently played** like the other
-rows. In **Spotify custom order**, it appears after the playlists because it
-has no place in Spotify's playlist tree. Returning to **Local custom order**
+rows. In **Spotify custom order**, it comes first after the pins, where
+Spotify's own apps show it. Returning to **Local custom order**
 restores its saved position. Dragging a song onto Liked Songs still saves that
 song, wherever the row sits.
 

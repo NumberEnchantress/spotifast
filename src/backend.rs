@@ -44,6 +44,10 @@ const MAX_PENDING_ALBUM_TYPES: usize = 50;
 const AUDIOBOOK_BATCH: usize = 50;
 /// How long resolving a radio station and its songs may take.
 const RADIO_TIMEOUT: Duration = Duration::from_secs(20);
+/// The longest a folder edit may run in all, past the limits `send` keeps
+/// for each of its own steps. Past it the edit may or may not have reached
+/// Spotify, so the app reads the tree again rather than report it.
+const FOLDER_EDIT_TIMEOUT: Duration = Duration::from_secs(90);
 
 /// The songs in `folder` and its subfolders by the `spotify:local:` URIs
 /// they play for, found exactly as the player finds them, so the songs a
@@ -810,12 +814,42 @@ pub enum Command {
     },
     /// The words of a track, from LRCLIB.
     Lyrics(Box<LyricsRequest>),
-    /// The account's playlist tree, folders and all, from the session.
-    Rootlist,
+    /// The account's playlist tree, folders and all, from the session. The
+    /// number is the app's, counting its reads, and comes back with the tree.
+    Rootlist(u64),
     /// Internal: a rootlist read completed for this signed-in session.
     RootlistFinished {
         generation: u64,
+        serial: u64,
         result: Result<crate::player::Rootlist, String>,
+    },
+    /// Make a change to the account's playlist folders on Spotify.
+    EditFolders(crate::folders::FolderEdit),
+    /// Read the account's pins from Spotify's library; the number is the
+    /// app's, as with the tree.
+    ReadPins(u64),
+    /// Internal: a pin read finished for this signed-in session.
+    PinsRead {
+        generation: u64,
+        serial: u64,
+        result: Result<Vec<String>, String>,
+    },
+    /// Pin or unpin one item on Spotify, by the URI Spotify pins it under.
+    SetPin {
+        uri: String,
+        pinned: bool,
+    },
+    /// Internal: a pin change finished for this signed-in session.
+    PinSet {
+        generation: u64,
+        uri: String,
+        pinned: bool,
+        result: Result<(), crate::pins::PinRefusal>,
+    },
+    /// Internal: a folder edit finished for this signed-in session.
+    FoldersEdited {
+        generation: u64,
+        result: Result<crate::player::Rootlist, crate::folders::Failure>,
     },
     /// Check that a reconnect's pickup really started, and try again if not.
     VerifyResume,
@@ -1016,7 +1050,26 @@ pub enum Event {
     /// The account's playlist tree, folders and all, and which of its
     /// playlists take songs from this account.
     Rootlist {
+        /// The newest read the app had asked for when this one started.
+        serial: u64,
         result: Result<crate::player::Rootlist, String>,
+    },
+    /// A folder edit reached Spotify, with the tree read back after it, or
+    /// did not.
+    FoldersEdited {
+        result: Result<crate::player::Rootlist, crate::folders::Failure>,
+    },
+    /// The account's pins, by URI in Spotify's order, or why they could not
+    /// be read.
+    Pins {
+        serial: u64,
+        result: Result<Vec<String>, String>,
+    },
+    /// A pin change reached Spotify, or did not.
+    PinSet {
+        uri: String,
+        pinned: bool,
+        result: Result<(), crate::pins::PinRefusal>,
     },
     /// The result of reading a playlist cache for this load generation.
     PlaylistCache {
@@ -1161,6 +1214,10 @@ pub struct Backend {
     #[cfg(test)]
     home_cache_stores:
         std::sync::Mutex<Vec<crate::account_cache::Cache<crate::model::HomeSnapshot>>>,
+    #[cfg(test)]
+    folder_edit_requests: std::sync::Mutex<Vec<crate::folders::FolderEdit>>,
+    #[cfg(test)]
+    pin_requests: std::sync::Mutex<Vec<(String, bool)>>,
 }
 
 impl Backend {
@@ -1257,6 +1314,10 @@ impl Backend {
             playlist_row_removals: std::sync::Mutex::new(Vec::new()),
             #[cfg(test)]
             home_cache_stores: std::sync::Mutex::new(Vec::new()),
+            #[cfg(test)]
+            folder_edit_requests: std::sync::Mutex::new(Vec::new()),
+            #[cfg(test)]
+            pin_requests: std::sync::Mutex::new(Vec::new()),
         }
     }
 
@@ -1273,6 +1334,20 @@ impl Backend {
     }
 
     pub fn send(&self, command: Command) {
+        #[cfg(test)]
+        if let Command::SetPin { uri, pinned } = &command {
+            self.pin_requests
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .push((uri.clone(), *pinned));
+        }
+        #[cfg(test)]
+        if let Command::EditFolders(edit) = &command {
+            self.folder_edit_requests
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .push(edit.clone());
+        }
         #[cfg(test)]
         if let Command::StoreLibraryCache(cache) = &command {
             self.library_cache_stores
@@ -1448,6 +1523,26 @@ impl Backend {
         std::mem::take(
             &mut *self
                 .library_cache_stores
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn take_pin_requests(&self) -> Vec<(String, bool)> {
+        std::mem::take(
+            &mut *self
+                .pin_requests
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner()),
+        )
+    }
+
+    #[cfg(test)]
+    pub(crate) fn take_folder_edit_requests(&self) -> Vec<crate::folders::FolderEdit> {
+        std::mem::take(
+            &mut *self
+                .folder_edit_requests
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner()),
         )
@@ -1795,6 +1890,12 @@ struct Worker {
     /// does. The rootlist carries invitation edit permissions, which no
     /// other request reports.
     rootlist_pending: bool,
+    /// The newest read of the tree the app has asked for.
+    rootlist_serial: u64,
+    /// Folder edits run here one after another, in the order they were
+    /// asked for, so each is planned against the tree the one before it
+    /// left. Started with the first edit.
+    folder_edit_queue: Option<tokio::sync::mpsc::UnboundedSender<crate::folders::Job>>,
     album_type_lookup: AlbumTypeLookup,
     /// Saved shows waiting for the streaming session to say which are audiobooks.
     audiobook_lookup: BTreeSet<String>,
@@ -1910,6 +2011,8 @@ impl Worker {
             engine: None,
             heard: None,
             rootlist_pending: false,
+            rootlist_serial: 0,
+            folder_edit_queue: None,
             album_type_lookup: AlbumTypeLookup::default(),
             audiobook_lookup: BTreeSet::new(),
             playlist_header_lookup: PlaylistHeaderLookup::default(),
@@ -2540,9 +2643,44 @@ impl Worker {
                     });
                 }
                 Command::Lyrics(request) => self.fetch_lyrics(*request),
-                Command::Rootlist => self.fetch_rootlist(),
-                Command::RootlistFinished { generation, result } => {
-                    self.on_rootlist_finished(generation, result);
+                Command::Rootlist(serial) => self.fetch_rootlist(serial),
+                Command::EditFolders(edit) => self.edit_folders(edit),
+                Command::ReadPins(serial) => self.read_pins(serial),
+                Command::PinsRead {
+                    generation,
+                    serial,
+                    result,
+                } => {
+                    if self.signed_in && generation == *self.session.borrow() {
+                        self.emit(Event::Pins { serial, result });
+                    }
+                }
+                Command::SetPin { uri, pinned } => self.set_pin(uri, pinned),
+                Command::PinSet {
+                    generation,
+                    uri,
+                    pinned,
+                    result,
+                } => {
+                    if self.signed_in && generation == *self.session.borrow() {
+                        self.emit(Event::PinSet {
+                            uri,
+                            pinned,
+                            result,
+                        });
+                    }
+                }
+                Command::FoldersEdited { generation, result } => {
+                    if self.signed_in && generation == *self.session.borrow() {
+                        self.emit(Event::FoldersEdited { result });
+                    }
+                }
+                Command::RootlistFinished {
+                    generation,
+                    serial,
+                    result,
+                } => {
+                    self.on_rootlist_finished(generation, serial, result);
                 }
                 Command::VerifyResume => self.verify_resume(),
                 Command::LoadPlaylistCache { id, generation } => {
@@ -4039,10 +4177,11 @@ impl Worker {
         });
     }
 
-    fn fetch_rootlist(&mut self) {
+    fn fetch_rootlist(&mut self, serial: u64) {
         if !self.signed_in {
             return;
         }
+        self.rootlist_serial = self.rootlist_serial.max(serial);
         self.rootlist_pending = true;
         self.start_rootlist();
     }
@@ -4072,6 +4211,7 @@ impl Worker {
             return;
         };
         self.rootlist_pending = false;
+        let serial = self.rootlist_serial;
         let commands = self.commands.clone();
         let mut session = self.session.subscribe();
         let generation = *session.borrow_and_update();
@@ -4080,17 +4220,145 @@ impl Worker {
                 _ = session.changed() => return,
                 result = fetch => result,
             };
-            let _ = commands.send(Command::RootlistFinished { generation, result });
+            let _ = commands.send(Command::RootlistFinished {
+                generation,
+                serial,
+                result,
+            });
         });
+    }
+
+    /// Sends a folder edit over the playback session. The edit is planned
+    /// against a fresh read, posted once through a client that never
+    /// retries, and confirmed by reading the tree back.
+    fn edit_folders(&mut self, edit: crate::folders::FolderEdit) {
+        use crate::folders::Failure;
+        let generation = *self.session.borrow();
+        let Some(engine) = self.engine.clone().filter(|_| self.signed_in) else {
+            self.emit(Event::FoldersEdited {
+                result: Err(Failure::Failed(
+                    "Local playback is unavailable. Try again when connected.".into(),
+                )),
+            });
+            return;
+        };
+        let http = crate::http::build_collection_client(&self.engine_config.proxy);
+        let commands = self.commands.clone();
+        let mut cancelled = self.session.subscribe();
+        let job: crate::folders::Job = Box::pin(async move {
+            let result = match http {
+                Err(error) => Err(Failure::Failed(error)),
+                Ok(http) => tokio::select! {
+                    biased;
+                    _ = cancelled.changed() => return,
+                    // `send` limits its own steps; this only ends a request
+                    // that hangs past them, by then perhaps already taken.
+                    result = tokio::time::timeout(
+                        FOLDER_EDIT_TIMEOUT,
+                        crate::folders::send(&engine, &http, &edit),
+                    ) => result.unwrap_or_else(|_| {
+                        Err(Failure::Unconfirmed("Spotify took too long to answer.".into()))
+                    }),
+                },
+            };
+            let _ = commands.send(Command::FoldersEdited { generation, result });
+        });
+        self.queue_edit(job);
+    }
+
+    /// Reads the account's pins from Spotify's library over the playback
+    /// session. Without the session the app keeps the pins it has.
+    fn read_pins(&self, serial: u64) {
+        let generation = *self.session.borrow();
+        let Some(engine) = self.engine.clone().filter(|_| self.signed_in) else {
+            return;
+        };
+        let http = crate::http::build_collection_client(&self.engine_config.proxy);
+        let commands = self.commands.clone();
+        let mut cancelled = self.session.subscribe();
+        tokio::spawn(async move {
+            let read = async {
+                let http = http?;
+                let answer = pathfinder(&engine, &http, &crate::pins::library_query()).await?;
+                crate::pins::pinned_uris(&answer)
+            };
+            let result = tokio::select! {
+                biased;
+                _ = cancelled.changed() => return,
+                result = tokio::time::timeout(RADIO_TIMEOUT, read) => result
+                    .unwrap_or_else(|_| Err("Spotify took too long to answer.".into())),
+            };
+            let _ = commands.send(Command::PinsRead {
+                generation,
+                serial,
+                result,
+            });
+        });
+    }
+
+    /// Pins or unpins one item on Spotify, in turn with folder edits.
+    fn set_pin(&mut self, uri: String, pinned: bool) {
+        use crate::pins::PinRefusal;
+        let generation = *self.session.borrow();
+        let Some(engine) = self.engine.clone().filter(|_| self.signed_in) else {
+            self.emit(Event::PinSet {
+                uri,
+                pinned,
+                result: Err(PinRefusal::Failed(
+                    "Local playback is unavailable. Try again when connected.".into(),
+                )),
+            });
+            return;
+        };
+        let http = crate::http::build_collection_client(&self.engine_config.proxy);
+        let commands = self.commands.clone();
+        let mut cancelled = self.session.subscribe();
+        let job: crate::folders::Job = Box::pin(async move {
+            let change = async {
+                let http = http.map_err(PinRefusal::Failed)?;
+                let answer = pathfinder(&engine, &http, &crate::pins::pin_query(&uri, pinned))
+                    .await
+                    .map_err(PinRefusal::Failed)?;
+                crate::pins::pin_outcome(&answer, pinned)
+            };
+            let result = tokio::select! {
+                biased;
+                _ = cancelled.changed() => return,
+                result = tokio::time::timeout(RADIO_TIMEOUT, change) => result.unwrap_or_else(|_| {
+                    Err(PinRefusal::Failed("Spotify took too long to answer.".into()))
+                }),
+            };
+            let _ = commands.send(Command::PinSet {
+                generation,
+                uri,
+                pinned,
+                result,
+            });
+        });
+        self.queue_edit(job);
+    }
+
+    /// Queues a change to the account behind the ones before it.
+    fn queue_edit(&mut self, job: crate::folders::Job) {
+        let queue = self
+            .folder_edit_queue
+            .get_or_insert_with(crate::folders::queue);
+        if let Err(refused) = queue.send(job) {
+            // The queue's task is gone; start another for this and the rest.
+            let queue = crate::folders::queue();
+            let _ = queue.send(refused.0);
+            self.folder_edit_queue = Some(queue);
+        }
     }
 
     fn on_rootlist_finished(
         &self,
         generation: u64,
+        serial: u64,
         result: Result<crate::player::Rootlist, String>,
     ) {
         if self.signed_in && generation == *self.session.borrow() {
-            self.emit(Event::Rootlist { result });
+            self.emit(Event::Rootlist { serial, result });
         }
     }
 
@@ -6466,6 +6734,42 @@ fn write_playlist_manifest(
     )
 }
 
+/// One request to Spotify's private Pathfinder GraphQL endpoint, with the
+/// playback session's Login5 bearer and client token, sent once.
+async fn pathfinder(
+    engine: &crate::player::Engine,
+    http: &reqwest::Client,
+    query: &serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let session = engine.session();
+    let login = session
+        .login5()
+        .auth_token()
+        .await
+        .map_err(|error| error.to_string())?;
+    let client_token = session
+        .spclient()
+        .client_token()
+        .await
+        .map_err(|error| error.to_string())?;
+    let response = http
+        .post(crate::pins::ENDPOINT)
+        .bearer_auth(&login.access_token)
+        .header("client-token", client_token)
+        .json(query)
+        .send()
+        .await
+        .map_err(|error| error.without_url().to_string())?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(format!("Spotify answered HTTP {}", status.as_u16()));
+    }
+    response
+        .json()
+        .await
+        .map_err(|error| error.without_url().to_string())
+}
+
 #[cfg(test)]
 mod album_type_lookup_tests {
     use super::AlbumTypeLookup;
@@ -8689,8 +8993,8 @@ mod authorization_tests {
         assert!(worker.engine.is_none());
 
         worker.signed_in = true;
-        worker.fetch_rootlist();
-        worker.fetch_rootlist();
+        worker.fetch_rootlist(1);
+        worker.fetch_rootlist(2);
         assert!(worker.rootlist_pending);
 
         let (commands, mut results) = mpsc::unbounded_channel();
@@ -8706,7 +9010,11 @@ mod authorization_tests {
             };
             worker.start_pending_rootlist(Some(fetched()));
             worker.start_pending_rootlist(Some(fetched()));
-            let Command::RootlistFinished { generation, result } = results.recv().await.unwrap()
+            let Command::RootlistFinished {
+                generation,
+                serial,
+                result,
+            } = results.recv().await.unwrap()
             else {
                 panic!("expected the deferred rootlist");
             };
@@ -8717,7 +9025,8 @@ mod authorization_tests {
                     .editable
                     .contains("spotify:playlist:shared")
             );
-            worker.on_rootlist_finished(generation, result);
+            assert_eq!(serial, 2, "the read answers the newest request");
+            worker.on_rootlist_finished(generation, serial, result);
             tokio::task::yield_now().await;
             assert!(
                 results.try_recv().is_err(),
@@ -8727,7 +9036,10 @@ mod authorization_tests {
         });
         assert!(matches!(
             events.try_recv(),
-            Ok(Event::Rootlist { result: Ok(_) })
+            Ok(Event::Rootlist {
+                serial: 2,
+                result: Ok(_)
+            })
         ));
     }
 
@@ -8736,18 +9048,18 @@ mod authorization_tests {
         let (runtime, mut worker, events) = worker("rootlist-signout");
         let _entered = runtime.enter();
         worker.signed_in = true;
-        worker.fetch_rootlist();
+        worker.fetch_rootlist(1);
         let generation = *worker.session.borrow();
         worker.sign_out();
         assert!(!worker.rootlist_pending);
-        worker.fetch_rootlist();
+        worker.fetch_rootlist(2);
         assert!(
             !worker.rootlist_pending,
             "signed-out work must not be deferred"
         );
         events.try_iter().for_each(drop);
         worker.signed_in = true;
-        worker.on_rootlist_finished(generation, Err("previous account".into()));
+        worker.on_rootlist_finished(generation, 1, Err("previous account".into()));
         assert!(
             events.try_recv().is_err(),
             "late results cannot reach a new account"

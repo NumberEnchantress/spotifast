@@ -3550,3 +3550,118 @@ msgstr ""
 
 #~ msgid "Reduce lyrics motion"
 #~ msgstr "歌詞の動きを減らす"
+
+#: src/folders.rs:1
+msgid "That folder or playlist has changed on Spotify. Try again."
+msgstr "そのフォルダまたはプレイリストはSpotify上で変更されました。もう一度お試しください。"
+
+#: src/folders.rs:1
+msgid "A folder can't go inside itself."
+msgstr "フォルダをそれ自体の中に移動することはできません。"
+
+#: src/folders.rs:1
+msgid "Spotify's copy of this folder looks damaged, so Spotifast left it alone."
+msgstr "Spotify上のこのフォルダのデータが壊れているようなので、Spotifastは変更しませんでした。"
+
+#: src/folders.rs:1
+msgid "A folder needs a name."
+msgstr "フォルダには名前が必要です。"
+
+#. Translators: {error} says why Spotify did not take the change.
+#: src/app.rs:2612
+#, rust-format
+msgid "Couldn't change your folders on Spotify: {error}"
+msgstr "Spotify上のフォルダを変更できませんでした: {error}"
+
+#: src/app.rs:4998
+msgid "Set up playback here to change folders. Folders are only reachable through the playback connection."
+msgstr "フォルダを変更するには、ここで再生を設定してください。フォルダには再生接続を通じてのみアクセスできます。"
+
+#: src/ui/dialogs.rs:68
+msgid "Remove folder?"
+msgstr "フォルダを削除しますか？"
+
+#. Translators: {name} is a folder name.
+#: src/ui/dialogs.rs:71
+#, rust-format
+msgid "“{name}” will be removed from Your Library on Spotify. The playlists in it stay where they are."
+msgstr "「{name}」はSpotifyのマイライブラリから削除されます。中のプレイリストはそのまま残ります。"
+
+#: src/ui/dialogs.rs:480
+msgid "Rename folder"
+msgstr "フォルダ名を変更"
+
+#: src/ui/dialogs.rs:482
+msgid "New folder"
+msgstr "新しいフォルダ"
+
+#: src/ui/dialogs.rs:500
+msgid "My folder"
+msgstr "マイフォルダ"
+
+#: src/ui/sidebar.rs:1129
+msgid "Create a playlist or folder"
+msgstr "プレイリストまたはフォルダを作成"
+
+#: src/app.rs:14456
+msgid "Rename"
+msgstr "名前を変更"
+
+#: src/ui/sidebar.rs:2171
+msgid "New folder inside"
+msgstr "この中に新しいフォルダ"
+
+#: src/ui/dialogs.rs:68
+msgid "Remove folder"
+msgstr "フォルダを削除"
+
+#: src/ui/sidebar.rs:2268
+msgid "Move to folder"
+msgstr "フォルダに移動"
+
+#: src/ui/sidebar.rs:2290
+msgid "Remove from folder"
+msgstr "フォルダから出す"
+
+#: src/app.rs:2678
+msgid "Spotify's pin limit is reached. Unpin something first."
+msgstr "Spotifyの固定数の上限に達しました。先にどれかの固定を解除してください。"
+
+#: src/app.rs:2683
+msgid "Spotify can't pin something that's inside a folder."
+msgstr "Spotifyではフォルダ内の項目を固定できません。"
+
+#: src/app.rs:2687
+msgid "Spotify can't pin this."
+msgstr "Spotifyではこれを固定できません。"
+
+#. Translators: {error} says why Spotify did not take the change.
+#: src/app.rs:2692
+#, rust-format
+msgid "Couldn't change your pins on Spotify: {error}"
+msgstr "Spotify上の固定を変更できませんでした: {error}"
+
+#. Translators: Keep {count} exactly as written. It becomes the number of folders a folder holds.
+#: src/i18n.rs:234
+#, rust-format
+msgid "{count} folder"
+msgid_plural "{count} folders"
+msgstr[0] "{count}件のフォルダ"
+
+#. Translators: What a folder holds. {playlists} becomes a number of playlists and {folders} a number of folders, such as "7 playlists" and "3 folders".
+#: src/i18n.rs:251
+#, rust-format
+msgid "{playlists}, {folders}"
+msgstr "{playlists}、{folders}"
+
+#. Translators: Keep {name} exactly as written. It becomes the folder name. The arrow beside a folder shows or hides its playlists in place.
+#: src/i18n.rs:273
+#, rust-format
+msgid "Expand {name}"
+msgstr "{name}を展開"
+
+#. Translators: Keep {name} exactly as written. It becomes the folder name. The arrow beside a folder shows or hides its playlists in place.
+#: src/i18n.rs:275
+#, rust-format
+msgid "Collapse {name}"
+msgstr "{name}を折りたたむ"

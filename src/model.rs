@@ -994,6 +994,21 @@ pub enum Dialog {
         name: String,
         owned: bool,
     },
+    /// Name a new folder, or rename the folder `id` names.
+    NameFolder {
+        /// The folder being renamed; `None` makes a new one.
+        id: Option<String>,
+        name: String,
+        /// Where a new folder goes.
+        place: crate::folders::Place,
+        /// A playlist a new folder takes in straight away.
+        adopt: Option<String>,
+    },
+    /// Ask before taking a folder away; its playlists stay.
+    ConfirmRemoveFolder {
+        id: String,
+        name: String,
+    },
     ConfirmPlaylistDuplicates {
         playlist_id: String,
         playlist_name: String,
@@ -1274,6 +1289,12 @@ pub enum Action {
     },
     SetLibraryGrid(bool),
     ToggleLibraryFolder(String),
+    /// Show only what a folder holds in the sidebar, as Spotify does when a
+    /// folder is opened; `None` goes back to the whole library.
+    EnterLibraryFolder(Option<String>),
+    /// Change the account's playlist folders, shown at once and sent to
+    /// Spotify.
+    EditFolders(crate::folders::FolderEdit),
     ArrangeLibrary {
         pinned: Vec<String>,
         /// A drag outside the pin block selects this local playlist order.

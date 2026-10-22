@@ -1789,6 +1789,15 @@ pub struct CachedRootlist {
     pub entries: Vec<crate::player::RootlistEntry>,
 }
 
+/// The pins Spotify last reported for an account, by URI in its order, so
+/// the sidebar shows them from the start rather than switch over once the
+/// session reads them again.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CachedPins {
+    pub account_id: String,
+    pub uris: Vec<String>,
+}
+
 /// Restorable UI session: what was open when the app last closed.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -1815,6 +1824,9 @@ pub struct SessionState {
     /// Last good playlist tree, scoped to the account that supplied it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rootlist: Option<CachedRootlist>,
+    /// Last pins read from Spotify, scoped to the account that has them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spotify_pins: Option<CachedPins>,
     /// Shuffle mode saved across contexts and restarts.
     pub shuffle_on: bool,
     /// Local repeat mode ("off", "context" or "track") saved across

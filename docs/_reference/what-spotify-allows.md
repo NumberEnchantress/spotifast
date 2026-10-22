@@ -48,8 +48,16 @@ session while local playback is signed in. See [How It Connects](/how-it-connect
 librespot signs in to Spotify and uses the same protocol as Spotify's own
 clients. Spotifast uses its session for:
 
-- **Playlist folders and order.** Spotifast can read them from Spotify's
-  rootlist. librespot cannot create, rename, or move folders.
+- **Playlist folders and order.** Spotifast reads them from Spotify's
+  rootlist and changes them through the rootlist's `changes` endpoint, as
+  Spotify's web player does: it creates, renames, moves, and removes
+  folders, and moves playlists and folders within the tree. Removing a
+  folder keeps the playlists it held; Spotify's own apps remove them too.
+- **Pins shared with the Spotify apps.** There is no Web API for pins.
+  Spotifast reads and changes them through the private library queries
+  Spotify's web player uses, with this session's token. Spotify pins only
+  items outside folders and caps their number. When the pins cannot be read,
+  Spotifast uses the pins saved in `settings.json`.
 - **Playlist permissions.** The rootlist shows when a playlist shared by
   invitation can be edited. The Web API's `collaborative` flag does not cover
   these playlists. Spotifast cannot manage collaborators.
@@ -185,11 +193,6 @@ visualisers and an event for rejected audio keys. They are listed in
 
 The Web API and librespot do not provide these features:
 
-- **Pins shared with the Spotify app.** Spotify stores pins in its private
-  `your-library` service. There is no Web API for it, and librespot does not
-  support its protocol. Spotifast's pins are local and are stored in
-  `settings.json`. See [issue #31](https://github.com/crmne/spotifast/issues/31).
-- **Editing playlist folders.** librespot can only read them.
 - **Smart Shuffle, Jam, Blend, and similar Spotify features.** Spotify
   generates these for its own clients. Spotifast only has plain shuffle.
   A Blend that a Spotify app already made opens like any playlist, with

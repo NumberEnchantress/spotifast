@@ -63,6 +63,33 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                 }
                 Dialog::CreatePlaylist { .. } => create_playlist(app, ui),
                 Dialog::EditPlaylist { .. } => edit_playlist(app, ui),
+                Dialog::NameFolder { .. } => name_folder(app, ui),
+                Dialog::ConfirmRemoveFolder { id, name } => {
+                    theme::text(ui, gettext(locale, "Remove folder?"), theme::bold(20.0), palette.text);
+                    ui.add_space(8.0);
+                    // Translators: {name} is a folder name.
+                    let body = gettext(locale, "“{name}” will be removed from Your Library on Spotify. The playlists in it stay where they are.")
+                        .replace("{name}", &name);
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(body)
+                                .font(theme::regular(14.0))
+                                .color(palette.secondary),
+                        )
+                        .wrap(),
+                    );
+                    ui.add_space(20.0);
+                    buttons(ui, |ui| {
+                        if theme::pill_button(ui, &palette, &gettext(locale, "Remove"), true).clicked() {
+                            app.actions.push(Action::EditFolders(
+                                crate::folders::FolderEdit::Remove { id: id.clone() },
+                            ));
+                        }
+                        if theme::pill_button(ui, &palette, &gettext(locale, "Cancel"), false).clicked() {
+                            app.actions.push(Action::CloseDialog);
+                        }
+                    });
+                }
                 Dialog::ConfirmDeletePlaylist { id, name, owned } => {
                     theme::text(
                         ui,
@@ -431,6 +458,75 @@ fn create_playlist(app: &mut App, ui: &mut egui::Ui) {
             if theme::pill_button(ui, &palette, &gettext(locale, "Cancel"), false).clicked() {
                 app.actions.push(Action::CloseDialog);
             }
+        }
+    });
+}
+
+fn name_folder(app: &mut App, ui: &mut egui::Ui) {
+    let palette = app.palette;
+    let locale = app.locale;
+    let Some(Dialog::NameFolder {
+        id,
+        name,
+        place,
+        adopt,
+    }) = &mut app.dialog
+    else {
+        return;
+    };
+    theme::text(
+        ui,
+        if id.is_some() {
+            gettext(locale, "Rename folder")
+        } else {
+            gettext(locale, "New folder")
+        },
+        theme::bold(20.0),
+        palette.text,
+    );
+    ui.add_space(12.0);
+    theme::text(
+        ui,
+        gettext(locale, "Name"),
+        theme::medium(13.0),
+        palette.secondary,
+    );
+    let field = text_field(
+        ui,
+        &palette,
+        locale,
+        "folder-name",
+        name,
+        &gettext(locale, "My folder"),
+        true,
+    );
+    ui.add_space(20.0);
+    let submit = field.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter));
+    let edit = crate::folders::folder_name(name).map(|name| match id {
+        Some(id) => crate::folders::FolderEdit::Rename {
+            id: id.clone(),
+            name,
+        },
+        None => crate::folders::FolderEdit::Create {
+            id: crate::folders::new_id(),
+            name,
+            place: place.clone(),
+            adopt: adopt.clone(),
+        },
+    });
+    let label = if id.is_some() {
+        gettext(locale, "Save")
+    } else {
+        gettext(locale, "Create")
+    };
+    buttons(ui, |ui| {
+        if (theme::pill_button(ui, &palette, &label, true).clicked() || submit)
+            && let Some(edit) = edit
+        {
+            app.actions.push(Action::EditFolders(edit));
+        }
+        if theme::pill_button(ui, &palette, &gettext(locale, "Cancel"), false).clicked() {
+            app.actions.push(Action::CloseDialog);
         }
     });
 }

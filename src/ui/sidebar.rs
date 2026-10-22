@@ -4,8 +4,10 @@ use egui::{Align, CornerRadius, Frame, Layout, Margin, Rect, Sense, Vec2, pos2, 
 
 use crate::api::models::pick_image;
 use crate::app::App;
+use crate::folders::{FolderEdit, Place, Row};
 use crate::i18n::{Locale, gettext};
 use crate::model::{Action, Dialog, DragEntry, DragTrack, Loadable, Page};
+use crate::player::RootlistEntry;
 use crate::settings::{LIKED_SONGS_KEY, LibraryShelf as Filter, LibrarySort};
 use crate::theme::{self, Icon, Palette};
 
@@ -33,12 +35,17 @@ struct Entry {
     /// How deep inside folders the row sits, for the indent.
     depth: u8,
     added_at: Option<i64>,
+    /// The key a row without a URI of its own is pinned by: a folder's
+    /// library URI.
+    pin_key: Option<String>,
 }
 
 impl Entry {
     fn ordering_key(&self) -> &str {
         if self.liked {
             LIKED_SONGS_KEY
+        } else if let Some(key) = &self.pin_key {
+            key
         } else {
             &self.uri
         }
@@ -213,6 +220,11 @@ fn grid_play_button(
     if !button.clicked() {
         return false;
     }
+    // The second click of a double click plays nothing: either the first
+    // played, or it opened a folder and this card slid under the pointer.
+    if button.double_clicked() {
+        return true;
+    }
     if playing_here {
         app.actions.push(Action::TogglePlay);
     } else {
@@ -239,11 +251,20 @@ fn finish_entry_interaction(
     {
         app.actions.push(Action::PrepareTint(image.clone()));
     }
-    if !entry.ordering_key().is_empty() && response.drag_started_by(egui::PointerButton::Primary) {
+    // A folder rides as its start marker, and only where folders can move.
+    let drag_key = match &entry.folder {
+        Some((id, _, _)) => app
+            .folders_editable()
+            .then(|| crate::folders::start_marker(id, None)),
+        None => (!entry.ordering_key().is_empty()).then(|| entry.ordering_key().to_string()),
+    };
+    if let Some(key) = drag_key
+        && response.drag_started_by(egui::PointerButton::Primary)
+    {
         egui::DragAndDrop::set_payload(
             ui.ctx(),
             DragEntry {
-                uri: entry.ordering_key().to_string(),
+                uri: key,
                 title: entry.name.clone(),
                 image: entry.image.clone(),
             },
@@ -272,10 +293,18 @@ fn finish_entry_interaction(
         }
     }
     theme::focus_ring(ui, response);
-    if response.clicked() && !cover_took_click {
+    // Opening a folder, or going back, moves other rows under the pointer:
+    // the second click of a double click that lands on a row the first did
+    // not touch neither opens nor plays it.
+    let stray = (response.double_clicked() || response.triple_clicked())
+        && ui.data(|data| data.get_temp::<egui::Id>(last_click_id())) != Some(response.id);
+    if response.clicked() && !stray {
+        ui.data_mut(|data| data.insert_temp(last_click_id(), response.id));
+    }
+    if response.clicked() && !cover_took_click && !stray {
         if let Some((folder_id, _, _)) = &entry.folder {
             app.actions
-                .push(Action::ToggleLibraryFolder(folder_id.clone()));
+                .push(Action::EnterLibraryFolder(Some(folder_id.clone())));
         } else {
             app.actions.push(Action::Open(entry.page.clone()));
         }
@@ -284,6 +313,7 @@ fn finish_entry_interaction(
         && response.double_clicked()
         && entry.folder.is_none()
         && !cover_took_click
+        && !stray
         && let Some(uri) = entry_play_uri(app, entry)
     {
         app.actions.push(Action::PlayContext {
@@ -294,6 +324,12 @@ fn finish_entry_interaction(
     }
     entry_menu(app, response, entry, custom_order);
     crate::autoscroll::row(ui, response);
+}
+
+/// Where the sidebar remembers the last row or Back button clicked, so
+/// the second click of a double click knows whether it hit the same one.
+fn last_click_id() -> egui::Id {
+    egui::Id::new("sidebar-last-click")
 }
 
 fn liked_entry(app: &App) -> Entry {
@@ -322,6 +358,7 @@ fn liked_entry(app: &App) -> Entry {
         folder: None,
         depth: 0,
         added_at: None,
+        pin_key: None,
     }
 }
 
@@ -497,27 +534,45 @@ fn order_entries(app: &App, shelf: Filter, sort: LibrarySort, entries: &mut [Ent
                 crate::player::RootlistEntry::Playlist(uri) => Some(uri.as_str()),
                 _ => None,
             }));
+            // Spotify's custom order puts Liked Songs ahead of the playlist
+            // tree, after the pins.
             entries.sort_by_cached_key(|entry| {
                 (
-                    entry.liked,
+                    !entry.liked,
                     ranks.get(entry.uri.as_str()).copied().unwrap_or(usize::MAX),
                 )
             });
         }
-        LibrarySort::Spotify => entries.sort_by_key(|entry| entry.liked),
+        LibrarySort::Spotify => entries.sort_by_key(|entry| !entry.liked),
         LibrarySort::Library => {}
     }
-    let pins = app.settings.library_pins();
+    let pins = app.library_pins();
     let ranks = first_ranks(pins.iter().map(String::as_str));
-    entries.sort_by_cached_key(|entry| {
-        ranks
+    // A pinned folder takes what it holds up with it: the rows after it
+    // that sit deeper share its rank.
+    let mut block: Option<(u8, usize)> = None;
+    let mut order = Vec::with_capacity(entries.len());
+    for entry in entries.iter() {
+        if let Some((depth, rank)) = block
+            && entry.depth > depth
+        {
+            order.push(rank);
+            continue;
+        }
+        block = None;
+        let rank = ranks
             .get(entry.ordering_key())
             .copied()
-            .unwrap_or(usize::MAX)
-    });
+            .unwrap_or(usize::MAX);
+        if entry.folder.is_some() && rank != usize::MAX {
+            block = Some((entry.depth, rank));
+        }
+        order.push(rank);
+    }
+    sort_by_ranks(entries, &order);
     if shelf == Filter::Playlists {
         for entry in entries {
-            if app.settings.pinned_contexts.contains(&entry.uri) {
+            if entry.folder.is_none() && ranks.contains_key(entry.ordering_key()) {
                 entry.depth = 0;
             }
         }
@@ -537,6 +592,34 @@ fn permute<T>(entries: &mut [T], order: &[usize]) {
             place.swap(start, to);
         }
     }
+}
+
+/// Puts `entries` in the order of `ranks`, keeping equals in their order.
+fn sort_by_ranks<T>(entries: &mut [T], ranks: &[usize]) {
+    let mut order: Vec<usize> = (0..entries.len()).collect();
+    order.sort_by_key(|&index| ranks[index]);
+    permute(entries, &order);
+}
+
+/// How many rows at the top belong to pins, a pinned folder's rows with it.
+fn pinned_rows(entries: &[Entry], pins: &[String]) -> usize {
+    let mut block: Option<u8> = None;
+    let mut count = 0;
+    for entry in entries {
+        if block.is_some_and(|depth| entry.depth > depth) {
+            count += 1;
+            continue;
+        }
+        block = None;
+        if !pins.iter().any(|key| key == entry.ordering_key()) {
+            break;
+        }
+        if entry.folder.is_some() {
+            block = Some(entry.depth);
+        }
+        count += 1;
+    }
+    count
 }
 
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
@@ -716,8 +799,9 @@ fn paint_expanded_art(app: &mut App, ui: &mut egui::Ui, rect: Rect) {
 /// Ownership filtering is flat, like text search, so matching playlists in
 /// collapsed folders remain reachable. Liked Songs belongs to the account.
 fn playlist_rows(app: &App, sort: LibrarySort, needle: &str, entries: &mut Vec<Entry>) {
+    let entered = entered_span(app);
     let liked = liked_entry(app);
-    if needle.is_empty() || liked.name.to_lowercase().contains(needle) {
+    if entered.is_none() && (needle.is_empty() || liked.name.to_lowercase().contains(needle)) {
         entries.push(liked);
     }
     let user_id = app.user_id().filter(|id| !id.is_empty());
@@ -731,10 +815,27 @@ fn playlist_rows(app: &App, sort: LibrarySort, needle: &str, entries: &mut Vec<E
             .any(|row| matches!(row, crate::player::RootlistEntry::FolderStart { .. })),
         _ => false,
     };
-    if folders && needle.is_empty() && !app.settings.library_by_you {
+    if folders && needle.is_empty() {
         folder_rows(app, user_id.unwrap_or(""), entries);
     } else if let Some(playlists) = app.library.playlists.get() {
+        // Opened into a folder, a flat list holds only what the folder holds,
+        // in folders inside it too.
+        let inside: Option<std::collections::HashSet<&str>> = entered.map(|(start, end)| {
+            app.rootlist[start..=end]
+                .iter()
+                .filter_map(|row| match row {
+                    crate::player::RootlistEntry::Playlist(uri) => Some(uri.as_str()),
+                    _ => None,
+                })
+                .collect()
+        });
         for (index, playlist) in playlists.iter().enumerate() {
+            if inside
+                .as_ref()
+                .is_some_and(|inside| !inside.contains(playlist.uri.as_str()))
+            {
+                continue;
+            }
             if app.settings.library_by_you && !user_id.is_some_and(|id| playlist.owned_by(id)) {
                 continue;
             }
@@ -755,6 +856,9 @@ fn playlist_rows(app: &App, sort: LibrarySort, needle: &str, entries: &mut Vec<E
 }
 
 /// Playlist rows in account order, including collapsible folders (#95).
+/// With By You on, the tree keeps its shape and its open and closed
+/// folders but holds only the account's own playlists; a folder holding
+/// none of them leaves the view.
 fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
     use crate::player::RootlistEntry;
     let Some(playlists) = app.library.playlists.get() else {
@@ -765,17 +869,42 @@ fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
         .enumerate()
         .map(|(index, playlist)| (playlist.uri.as_str(), (index, playlist)))
         .collect();
+    let by_you = app.settings.library_by_you;
+    let keep = |uri: &str| {
+        !by_you
+            || by_uri
+                .get(uri)
+                .is_some_and(|(_, playlist)| playlist.owned_by(user_id))
+    };
+    let counts = folder_counts(&app.rootlist, keep);
+    let holdings = folder_holdings(&app.rootlist);
+    let pins = app.library_pins();
+    // Opened into a folder, only what it holds is listed, from its own rows
+    // down, whether or not it is rolled up in the tree.
+    let entered = entered_span(app);
+    let rows = match entered {
+        Some((start, end)) => &app.rootlist[start + 1..end],
+        None => &app.rootlist[..],
+    };
     let mut depth = 0u8;
     // Rows inside a rolled-up folder stay off the list; the stack knows
     // how deep the rolled-up one sits.
     let mut hidden_from: Option<u8> = None;
     let mut seen: std::collections::HashSet<&str> = std::collections::HashSet::new();
-    for row in &app.rootlist {
+    for row in rows {
         match row {
             RootlistEntry::FolderStart { id, name } => {
-                let collapsed = app.collapsed_folders.contains(id);
-                if hidden_from.is_none() {
-                    let count = folder_playlists(&app.rootlist, id);
+                // The grid has no arrows: a folder there is a card that
+                // opens, its contents inside it, as in Spotify's grid.
+                let collapsed = app.settings.sidebar_grid || app.collapsed_folders.contains(id);
+                let count = counts.get(id.as_str()).copied().unwrap_or(0);
+                let (own_playlists, own_folders) =
+                    holdings.get(id.as_str()).copied().unwrap_or_default();
+                if by_you && count == 0 && hidden_from.is_none() {
+                    // Nothing of the account's inside: the folder and all it
+                    // holds stay off the list.
+                    hidden_from = Some(depth);
+                } else if hidden_from.is_none() {
                     entries.push(Entry {
                         image: None,
                         grid_image: None,
@@ -784,8 +913,17 @@ fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
                         } else {
                             name.clone()
                         },
-                        subtitle: app.locale.folder_playlist_count(count as u32),
-                        grid_subtitle: app.locale.playlist_count(count as u32),
+                        // What the folder holds itself, as Spotify counts
+                        // it: its own playlists and folders.
+                        subtitle: format!(
+                            "{} \u{2022} {}",
+                            gettext(app.locale, "Folder"),
+                            app.locale
+                                .folder_contents(own_playlists as u32, own_folders as u32)
+                        ),
+                        grid_subtitle: app
+                            .locale
+                            .folder_contents(own_playlists as u32, own_folders as u32),
                         page: Page::Home,
                         uri: String::new(),
                         round: false,
@@ -796,6 +934,8 @@ fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
                         folder: Some((id.clone(), collapsed, count)),
                         depth,
                         added_at: None,
+                        pin_key: (!user_id.is_empty())
+                            .then(|| crate::pins::folder_uri(user_id, id)),
                     });
                     if collapsed {
                         hidden_from = Some(depth);
@@ -816,7 +956,10 @@ fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
                 if !seen.insert(uri.as_str()) {
                     continue;
                 }
-                if hidden_from.is_some() && !app.settings.pinned_contexts.contains(uri) {
+                if !keep(uri) {
+                    continue;
+                }
+                if hidden_from.is_some() && !pins.contains(uri) {
                     continue;
                 }
                 entries.push(playlist_entry(
@@ -832,9 +975,9 @@ fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
         }
     }
     // Playlists the rootlist has not met yet, the newly followed, wait at
-    // the end rather than vanish.
+    // the end rather than vanish; they are in no folder.
     for (index, playlist) in playlists.iter().enumerate() {
-        if !seen.contains(playlist.uri.as_str()) {
+        if entered.is_none() && !seen.contains(playlist.uri.as_str()) && keep(&playlist.uri) {
             entries.push(playlist_entry(
                 app.locale,
                 playlist,
@@ -848,33 +991,151 @@ fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
     }
 }
 
-/// How many playlists a folder holds, nested ones included.
-fn folder_playlists(rootlist: &[crate::player::RootlistEntry], id: &str) -> usize {
+/// The rows of the folder the playlists are opened into, its markers
+/// included; `None` at the top level, or once that folder is gone.
+fn entered_span(app: &App) -> Option<(usize, usize)> {
+    let id = app.library_folder.as_ref()?;
+    crate::folders::folder_span(&app.rootlist, id)
+}
+
+/// Where a drop below the last row goes: the end of the library, or, in an
+/// opened folder, the end of that folder. A folder whose last row is
+/// another folder takes the drop just before that one.
+fn end_place(app: &App) -> Place {
     use crate::player::RootlistEntry;
-    let mut counting = false;
-    let mut depth = 0usize;
-    let mut count = 0;
+    let Some((start, end)) = entered_span(app) else {
+        return Place::End;
+    };
+    match &app.rootlist[end - 1] {
+        RootlistEntry::Playlist(uri) => Place::AfterPlaylist(uri.clone()),
+        RootlistEntry::FolderEnd => crate::folders::folders(&app.rootlist[start + 1..end])
+            .into_iter()
+            .rev()
+            .find(|folder| {
+                crate::folders::folder_span(&app.rootlist, &folder.id)
+                    .is_some_and(|(_, last)| last == end - 1)
+            })
+            .map_or_else(
+                || inside_opened(app, start),
+                |folder| Place::Before(Row::Folder(folder.id)),
+            ),
+        RootlistEntry::FolderStart { .. } => inside_opened(app, start),
+    }
+}
+
+/// First inside the opened folder whose start marker is at `start`.
+fn inside_opened(app: &App, start: usize) -> Place {
+    match &app.rootlist[start] {
+        RootlistEntry::FolderStart { id, .. } => Place::InFolder(id.clone()),
+        _ => Place::End,
+    }
+}
+
+/// The slot a drop line shows: where the row will land. Below an opened
+/// folder that ends in a folder, Spotify's anchors place a playlist just
+/// above that folder, so the line shows there.
+fn landing_slot(app: &App, entries: &[Entry], slot: usize) -> usize {
+    if slot != entries.len() || !shows_spotify_tree(app) {
+        return slot;
+    }
+    // A pinned folder sits in the pin block, not where the tree has it;
+    // the drop then stays at the end.
+    let pinned = pinned_rows(entries, &app.library_pins());
+    match end_place(app) {
+        Place::Before(Row::Folder(id)) => entries
+            .iter()
+            .skip(pinned)
+            .position(|entry| {
+                entry
+                    .folder
+                    .as_ref()
+                    .is_some_and(|(held, _, _)| *held == id)
+            })
+            .map_or(slot, |at| pinned + at),
+        _ => slot,
+    }
+}
+
+/// The folder the Playlists shelf is opened into, while it still exists.
+fn opened_folder(app: &App, filter: Filter) -> Option<String> {
+    (filter == Filter::Playlists && entered_span(app).is_some())
+        .then(|| app.library_folder.clone())
+        .flatten()
+}
+
+/// Where Back leads from an opened folder: the folder around it, or the
+/// whole library.
+fn way_back(app: &App, id: &str) -> Option<String> {
+    crate::folders::parent(&app.rootlist, &Row::Folder(id.to_string()))
+}
+
+/// Where the + button's new folder goes: inside the opened folder, else at
+/// the top of the library.
+fn new_folder_place(app: &App, filter: Filter) -> Place {
+    match opened_folder(app, filter) {
+        Some(id) => Place::InFolder(id),
+        None => Place::Start,
+    }
+}
+
+/// What each folder holds itself, its own playlists and its own folders,
+/// as Spotify counts them.
+fn folder_holdings(
+    rootlist: &[crate::player::RootlistEntry],
+) -> std::collections::HashMap<&str, (usize, usize)> {
+    use crate::player::RootlistEntry;
+    let mut open: Vec<&str> = Vec::new();
+    let mut holdings = std::collections::HashMap::new();
     for row in rootlist {
         match row {
-            RootlistEntry::FolderStart { id: this, .. } => {
-                if counting {
-                    depth += 1;
-                } else if this == id {
-                    counting = true;
-                    depth = 1;
+            RootlistEntry::FolderStart { id, .. } => {
+                if let Some(parent) = open.last() {
+                    holdings.entry(*parent).or_insert((0, 0)).1 += 1;
+                }
+                holdings.entry(id.as_str()).or_insert((0, 0));
+                open.push(id);
+            }
+            RootlistEntry::FolderEnd => {
+                open.pop();
+            }
+            RootlistEntry::Playlist(_) => {
+                if let Some(parent) = open.last() {
+                    holdings.entry(*parent).or_insert((0, 0)).0 += 1;
                 }
             }
-            RootlistEntry::FolderEnd if counting => {
-                depth -= 1;
-                if depth == 0 {
-                    return count;
-                }
-            }
-            RootlistEntry::Playlist(_) if counting => count += 1,
-            _ => {}
         }
     }
-    count
+    holdings
+}
+
+/// How many playlists each folder holds, nested ones included, counting
+/// only those `keep` lets through. One pass over the tree, so a library of
+/// many folders does not walk it once for each.
+fn folder_counts(
+    rootlist: &[crate::player::RootlistEntry],
+    keep: impl Fn(&str) -> bool,
+) -> std::collections::HashMap<&str, usize> {
+    use crate::player::RootlistEntry;
+    let mut open: Vec<&str> = Vec::new();
+    let mut counts = std::collections::HashMap::new();
+    for row in rootlist {
+        match row {
+            RootlistEntry::FolderStart { id, .. } => {
+                counts.entry(id.as_str()).or_insert(0);
+                open.push(id);
+            }
+            RootlistEntry::FolderEnd => {
+                open.pop();
+            }
+            RootlistEntry::Playlist(uri) if keep(uri) => {
+                for id in &open {
+                    *counts.entry(*id).or_insert(0) += 1;
+                }
+            }
+            RootlistEntry::Playlist(_) => {}
+        }
+    }
+    counts
 }
 
 /// The artwork widths a row and a grid card ask for on this display.
@@ -919,6 +1180,7 @@ fn playlist_entry(
         folder: None,
         depth,
         added_at: None,
+        pin_key: None,
     }
 }
 
@@ -1034,7 +1296,46 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                 app.actions.push(Action::SetLibraryGrid(!grid));
             }
             // One item never deserved a menu: the plus creates directly.
-            if theme::icon_button(
+            // Where folders can be made there are two, as in Spotify's apps.
+            if app.folders_editable() {
+                let response = theme::icon_button(
+                    ui,
+                    Icon::Plus,
+                    16.0,
+                    palette.secondary,
+                    palette.text,
+                    &gettext(locale, "Create a playlist or folder"),
+                );
+                egui::Popup::menu(&response)
+                    .frame(super::widgets::menu_frame(&palette))
+                    .show(|ui| {
+                        ui.set_min_width(200.0);
+                        ui.set_max_width(300.0);
+                        if super::widgets::menu_item(
+                            ui,
+                            &palette,
+                            Some(Icon::ListMusic),
+                            &gettext(locale, "Playlist"),
+                        ) {
+                            app.actions.push(Action::ShowDialog(Dialog::CreatePlaylist {
+                                name: String::new(),
+                                public: false,
+                                add_uris: Vec::new(),
+                            }));
+                        }
+                        if super::widgets::menu_item(
+                            ui,
+                            &palette,
+                            Some(Icon::Library),
+                            &gettext(locale, "Folder"),
+                        ) {
+                            app.actions.push(Action::ShowDialog(new_folder(
+                                new_folder_place(app, filter),
+                                None,
+                            )));
+                        }
+                    });
+            } else if theme::icon_button(
                 ui,
                 Icon::Plus,
                 16.0,
@@ -1177,6 +1478,37 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
         }
     }
 
+    // Opened into a folder: its name, and the way back to the folder that
+    // holds it, or to the whole library.
+    if filter == Filter::Playlists
+        && let Some((start, _)) = entered_span(app)
+        && let crate::player::RootlistEntry::FolderStart { id, name } = &app.rootlist[start]
+    {
+        let back = way_back(app, id);
+        let name = if name.is_empty() {
+            gettext(locale, "Folder").into_owned()
+        } else {
+            name.clone()
+        };
+        ui.horizontal(|ui| {
+            ui.add_space(2.0);
+            let response = theme::icon_button(
+                ui,
+                Icon::ArrowLeft,
+                16.0,
+                palette.secondary,
+                palette.text,
+                &gettext(locale, "Back"),
+            );
+            if response.clicked() {
+                ui.data_mut(|data| data.insert_temp(last_click_id(), response.id));
+                app.actions.push(Action::EnterLibraryFolder(back));
+            }
+            theme::icon(ui, Icon::Library, 18.0, palette.secondary);
+            theme::text(ui, name, theme::bold(14.0), palette.text);
+        });
+        ui.add_space(4.0);
+    }
     let needle = app.library.filter.trim().to_lowercase();
     let mut entries: Vec<Entry> = Vec::new();
     let art = EntryArt::of(app);
@@ -1223,6 +1555,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                     folder: None,
                     depth: 0,
                     added_at: saved_time(saved.added_at.as_deref()),
+                    pin_key: None,
                 });
             }
             loading = app.library.albums.loading && app.library.albums.items.is_empty();
@@ -1252,6 +1585,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                     folder: None,
                     depth: 0,
                     added_at: None,
+                    pin_key: None,
                 });
             }
             loading = app.library.artists.loading && app.library.artists.items.is_empty();
@@ -1288,6 +1622,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                     folder: None,
                     depth: 0,
                     added_at: saved_time(saved.added_at.as_deref()),
+                    pin_key: None,
                 });
             }
             loading = app.library.shows.loading && app.library.shows.items.is_empty();
@@ -1300,19 +1635,19 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
 
     order_entries(app, filter, sort, &mut entries);
     let custom_order = filter == Filter::Playlists && sort == LibrarySort::Local;
-    let pins = app.settings.library_pins();
-    let pinned_rows = entries
-        .iter()
-        .take_while(|entry| pins.iter().any(|key| key == entry.ordering_key()))
-        .count();
+    let pins = app.library_pins();
+    let pinned_rows = pinned_rows(&entries, &pins);
     let playing_context = app.playing_context_uri();
     let context_playing = app.believed_playing();
     let current_page = app.page().clone();
 
+    // Each opened folder starts at its top, and the library keeps its own
+    // place for the way back.
+    let opened = opened_folder(app, filter);
     crate::autoscroll::show(
         ui,
         egui::ScrollArea::vertical()
-            .id_salt("sidebar-list")
+            .id_salt(("sidebar-list", opened))
             .auto_shrink([false, false]),
         egui::Vec2b::new(false, true),
         |ui| {
@@ -1381,7 +1716,9 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
             // Sidebar entries, including Liked Songs, drop between rows.
             let reordering = egui::DragAndDrop::has_payload_of_type::<DragEntry>(ui.ctx());
             let reorder_slot = reordering.then_some(pointer).flatten().map(|pos| {
-                (((pos.y - list_top) / row_height).round().max(0.0) as usize).min(entries.len())
+                let slot = (((pos.y - list_top) / row_height).round().max(0.0) as usize)
+                    .min(entries.len());
+                landing_slot(app, &entries, slot)
             });
             let art = app.backend.art().clone();
             super::widgets::virtual_rows(ui, entries.len(), row_height, |ui, index| {
@@ -1468,20 +1805,48 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                         palette.text
                     };
                     let indent = f32::from(entry.depth) * 14.0;
-                    if let Some((_, collapsed, _)) = &entry.folder {
+                    if let Some((folder_id, collapsed, _)) = &entry.folder {
                         let chevron = if *collapsed {
                             Icon::ChevronRight
                         } else {
                             Icon::ChevronDown
                         };
                         let left = rect.left() + LIBRARY_ITEM_PADDING + indent;
-                        chevron.image(palette.secondary, 16.0).paint_at(
-                            ui,
-                            Rect::from_center_size(
-                                pos2(left + 8.0, rect.center().y),
-                                Vec2::splat(16.0),
-                            ),
+                        let chevron_rect = Rect::from_center_size(
+                            pos2(left + 8.0, rect.center().y),
+                            Vec2::splat(16.0),
                         );
+                        // The chevron rolls the folder up or out in place; the
+                        // rest of the row opens it.
+                        let toggle = ui.interact(
+                            chevron_rect.expand(6.0),
+                            id.with("chevron"),
+                            Sense::click(),
+                        );
+                        let locale = app.locale;
+                        toggle.widget_info(|| {
+                            egui::WidgetInfo::labeled(
+                                egui::WidgetType::Button,
+                                ui.is_enabled(),
+                                locale.folder_toggle_label(&entry.name, *collapsed),
+                            )
+                        });
+                        theme::focus_ring(ui, &toggle);
+                        if toggle.clicked() {
+                            app.actions
+                                .push(Action::ToggleLibraryFolder(folder_id.clone()));
+                            cover_took_click = true;
+                        }
+                        chevron
+                            .image(
+                                if toggle.hovered() {
+                                    palette.text
+                                } else {
+                                    palette.secondary
+                                },
+                                16.0,
+                            )
+                            .paint_at(ui, chevron_rect);
                         Icon::Library.image(palette.secondary, 20.0).paint_at(
                             ui,
                             Rect::from_center_size(
@@ -1731,7 +2096,7 @@ fn library_grid(
         return;
     }
     let palette = app.palette;
-    let pins = app.settings.library_pins();
+    let pins = app.library_pins();
     let playing_context = app.playing_context_uri();
     let context_playing = app.believed_playing();
     let current_page = app.page().clone();
@@ -1747,7 +2112,8 @@ fn library_grid(
     let reorder_slot = reordering
         .then_some(pointer)
         .flatten()
-        .map(|pointer| grid_reorder_slot(pointer, origin, layout, entries.len()));
+        .map(|pointer| grid_reorder_slot(pointer, origin, layout, entries.len()))
+        .map(|slot| landing_slot(app, entries, slot));
     let row_count = entries.len().div_ceil(layout.columns);
     let grid_id = ui.unique_id().with("library-grid");
 
@@ -1958,7 +2324,19 @@ fn entry_menu(app: &mut App, response: &egui::Response, entry: &Entry, custom_or
                     &entry.name,
                     owned_playlist.as_ref(),
                 );
-                pin_menu(app, ui, entry.ordering_key());
+                move_to_folder_menu(app, ui, &Row::Playlist(entry.uri.clone()));
+                // Spotify pins nothing inside a folder; one already pinned
+                // can still be unpinned.
+                let in_folder = app.pins_synced()
+                    && crate::folders::parent(&app.rootlist, &Row::Playlist(entry.uri.clone()))
+                        .is_some();
+                let pinned = app
+                    .library_pins()
+                    .iter()
+                    .any(|key| key == entry.ordering_key());
+                if !in_folder || pinned {
+                    pin_menu(app, ui, entry.ordering_key());
+                }
                 if custom_order
                     && super::widgets::menu_item(
                         ui,
@@ -1996,11 +2374,191 @@ fn entry_menu(app: &mut App, response: &egui::Response, entry: &Entry, custom_or
                 }
                 pin_menu(app, ui, entry.ordering_key());
             });
+    } else if let Some((id, _, _)) = &entry.folder
+        && app.folders_editable()
+    {
+        let palette = app.palette;
+        let locale = app.locale;
+        // The row shows "Folder" for a folder with no name; the dialog
+        // starts from the name Spotify really holds.
+        let held = app
+            .rootlist
+            .iter()
+            .find_map(|row| match row {
+                RootlistEntry::FolderStart { id: found, name } if found == id => Some(name.clone()),
+                _ => None,
+            })
+            .unwrap_or_default();
+        egui::Popup::context_menu(response)
+            .frame(super::widgets::menu_frame(&palette))
+            .show(|ui| {
+                ui.set_min_width(200.0);
+                ui.set_max_width(300.0);
+                if super::widgets::menu_item(
+                    ui,
+                    &palette,
+                    Some(Icon::Pencil),
+                    &gettext(locale, "Rename"),
+                ) {
+                    app.actions.push(Action::ShowDialog(Dialog::NameFolder {
+                        id: Some(id.clone()),
+                        name: held.clone(),
+                        place: Place::Start,
+                        adopt: None,
+                    }));
+                }
+                if super::widgets::menu_item(
+                    ui,
+                    &palette,
+                    Some(Icon::Plus),
+                    &gettext(locale, "New folder inside"),
+                ) {
+                    app.actions.push(Action::ShowDialog(new_folder(
+                        Place::InFolder(id.clone()),
+                        None,
+                    )));
+                }
+                move_to_folder_menu(app, ui, &Row::Folder(id.clone()));
+                if app.pins_synced()
+                    && crate::folders::parent(&app.rootlist, &Row::Folder(id.clone())).is_none()
+                    && let Some(key) = &entry.pin_key
+                {
+                    pin_menu(app, ui, key);
+                }
+                if super::widgets::menu_item(
+                    ui,
+                    &palette,
+                    Some(Icon::Trash),
+                    &gettext(locale, "Remove folder"),
+                ) {
+                    app.actions
+                        .push(Action::ShowDialog(Dialog::ConfirmRemoveFolder {
+                            id: id.clone(),
+                            name: entry.name.clone(),
+                        }));
+                }
+            });
+    }
+}
+
+/// The dialog that names a new folder at `place`, taking in `adopt`.
+fn new_folder(place: Place, adopt: Option<String>) -> Dialog {
+    Dialog::NameFolder {
+        id: None,
+        name: String::new(),
+        place,
+        adopt,
+    }
+}
+
+/// Where a playlist or folder can go: into any other folder, out of the
+/// one it is in, or, for a playlist, into a new folder made where it is.
+/// A folder never goes into itself or a folder inside it.
+/// Where a row can be moved from its menu: out of its folder, to just past
+/// it, when it is in one, and into each folder by id, name and depth. A
+/// folder is never offered itself, a folder inside it, or the folder it is
+/// already in. `None` when the row is not in the tree.
+fn folder_targets(
+    rows: &[RootlistEntry],
+    row: &Row,
+) -> Option<(Option<Place>, Vec<crate::folders::Folder>)> {
+    let present = match row {
+        Row::Playlist(uri) => rows
+            .iter()
+            .any(|held| matches!(held, RootlistEntry::Playlist(held) if held == uri)),
+        Row::Folder(id) => crate::folders::folder_span(rows, id).is_some(),
+    };
+    if !present {
+        return None;
+    }
+    let parent = crate::folders::parent(rows, row);
+    let out = crate::folders::out_of_folder(rows, row);
+    let targets = crate::folders::folders(rows)
+        .into_iter()
+        .filter(|folder| Some(&folder.id) != parent.as_ref())
+        .filter(|folder| match row {
+            Row::Folder(moving) => !crate::folders::within(rows, &folder.id, moving),
+            Row::Playlist(_) => true,
+        })
+        .collect();
+    Some((out, targets))
+}
+
+fn move_to_folder_menu(app: &mut App, ui: &mut egui::Ui, row: &Row) {
+    if !app.folders_editable() {
+        return;
+    }
+    let Some((out, targets)) = folder_targets(&app.rootlist, row) else {
+        return;
+    };
+    let edit = |place: Place| match row {
+        Row::Playlist(uri) => FolderEdit::MovePlaylist {
+            uri: uri.clone(),
+            place,
+        },
+        Row::Folder(id) => FolderEdit::MoveFolder {
+            id: id.clone(),
+            place,
+        },
+    };
+    let palette = app.palette;
+    let locale = app.locale;
+    let mut chosen = None;
+    super::widgets::menu_submenu(
+        ui,
+        &palette,
+        Some(Icon::Library),
+        &gettext(locale, "Move to folder"),
+        |ui| {
+            ui.set_min_width(200.0);
+            ui.set_max_width(300.0);
+            if let Row::Playlist(uri) = row
+                && super::widgets::menu_item(
+                    ui,
+                    &palette,
+                    Some(Icon::Plus),
+                    &gettext(locale, "New folder"),
+                )
+            {
+                chosen = Some(Action::ShowDialog(new_folder(
+                    Place::Before(Row::Playlist(uri.clone())),
+                    Some(uri.clone()),
+                )));
+            }
+            if let Some(place) = out
+                && super::widgets::menu_item(
+                    ui,
+                    &palette,
+                    Some(Icon::ArrowLeft),
+                    &gettext(locale, "Remove from folder"),
+                )
+            {
+                chosen = Some(Action::EditFolders(edit(place)));
+            }
+            egui::ScrollArea::vertical()
+                .max_height(360.0)
+                .show(ui, |ui| {
+                    for crate::folders::Folder { id, name, depth } in &targets {
+                        let name = if name.is_empty() {
+                            gettext(locale, "Folder").into_owned()
+                        } else {
+                            name.clone()
+                        };
+                        let label = format!("{}{name}", "\u{2003}".repeat(*depth));
+                        if super::widgets::menu_item(ui, &palette, None, &label) {
+                            chosen = Some(Action::EditFolders(edit(Place::InFolder(id.clone()))));
+                        }
+                    }
+                });
+        },
+    );
+    if let Some(action) = chosen {
+        app.actions.push(action);
     }
 }
 
 fn pin_menu(app: &mut App, ui: &mut egui::Ui, key: &str) {
-    let mut pins = app.settings.library_pins();
+    let mut pins = app.library_pins();
     let pinned = pins.iter().any(|held| held == key);
     let label = if pinned {
         gettext(app.locale, "Unpin")
@@ -2028,6 +2586,35 @@ fn pin_menu(app: &mut App, ui: &mut egui::Ui, key: &str) {
 /// Drops within the pin block arrange pins. Below it, a drop unpins the
 /// moved row and saves the full playlist arrangement at the chosen gap.
 fn drop_playlist_row(app: &mut App, entries: &[Entry], pinned_rows: usize, slot: usize, key: &str) {
+    // A folder rides as its start marker; among the pins it is known by its
+    // library URI.
+    let folder = crate::folders::start_id(key).map(str::to_owned);
+    let pin_key = match (&folder, app.user_id()) {
+        (Some(id), Some(user)) => crate::pins::folder_uri(user, id),
+        _ => key.to_string(),
+    };
+    let was_pinned = app.library_pins().contains(&pin_key);
+    let into_pins = slot < pinned_rows || (was_pinned && slot == pinned_rows);
+    if !into_pins && let Some(edit) = tree_drop(app, entries, slot, key) {
+        if was_pinned {
+            let mut pins = app.library_pins();
+            pins.retain(|held| *held != pin_key);
+            app.actions.push(Action::ArrangeLibrary {
+                pinned: pins,
+                playlist_order: None,
+            });
+        }
+        app.actions.push(Action::EditFolders(edit));
+        return;
+    }
+    if folder.is_some() {
+        // A folder joins the pins only where they are Spotify's, and has no
+        // place in a local order.
+        if into_pins && app.pins_synced() {
+            drop_row(app, entries, pinned_rows, slot, &pin_key);
+        }
+        return;
+    }
     if key != LIKED_SONGS_KEY
         && !app
             .library
@@ -2037,12 +2624,11 @@ fn drop_playlist_row(app: &mut App, entries: &[Entry], pinned_rows: usize, slot:
     {
         return;
     }
-    let was_pinned = app.settings.library_pins().iter().any(|held| held == key);
-    if slot < pinned_rows || (was_pinned && slot == pinned_rows) {
+    if into_pins {
         drop_row(app, entries, pinned_rows, slot, key);
         return;
     }
-    let mut pins = app.settings.library_pins();
+    let mut pins = app.library_pins();
     pins.retain(|held| held != key);
     let mut order = full_playlist_order(app);
     let anchor = entries
@@ -2074,6 +2660,70 @@ fn drop_playlist_row(app: &mut App, entries: &[Entry], pinned_rows: usize, slot:
     });
 }
 
+/// Whether the playlist shelf shows Spotify's own tree, folders and all,
+/// so a drag there arranges the account rather than this computer. By You
+/// keeps the tree, and every row it shows is a real row to drop beside.
+fn shows_spotify_tree(app: &App) -> bool {
+    selected_sort(app, Filter::Playlists) == LibrarySort::Spotify
+        && app.library.filter.trim().is_empty()
+        && app.folders_editable()
+}
+
+/// A drop in Spotify's tree moves the row on Spotify: before the row that
+/// now stands at the gap, in whatever folder that row is in, or to the end
+/// when nothing below belongs to the tree. `None` leaves the drop to the
+/// local arrangement.
+fn tree_drop(app: &App, entries: &[Entry], slot: usize, key: &str) -> Option<FolderEdit> {
+    if !shows_spotify_tree(app) {
+        return None;
+    }
+    let in_tree = |uri: &str| {
+        app.rootlist
+            .iter()
+            .any(|row| matches!(row, RootlistEntry::Playlist(held) if held == uri))
+    };
+    let moving = match crate::folders::start_id(key) {
+        Some(id) => Row::Folder(id.to_string()),
+        None if in_tree(key) => Row::Playlist(key.to_string()),
+        None => return None,
+    };
+    // A folder's own rows are no place to land it: a drop among them lands
+    // past them, which leaves the folder where it was.
+    let span = match &moving {
+        Row::Folder(id) => crate::folders::folder_span(&app.rootlist, id),
+        Row::Playlist(_) => None,
+    };
+    let own = |entry: &Entry| {
+        let Some((start, end)) = span else {
+            return false;
+        };
+        let at = match &entry.folder {
+            Some((id, _, _)) => crate::folders::folder_span(&app.rootlist, id).map(|(at, _)| at),
+            None => app
+                .rootlist
+                .iter()
+                .position(|row| matches!(row, RootlistEntry::Playlist(held) if *held == entry.uri)),
+        };
+        at.is_some_and(|at| (start..=end).contains(&at))
+    };
+    let place = entries
+        .iter()
+        .skip(slot)
+        .filter(|entry| !own(entry))
+        .find_map(|entry| match &entry.folder {
+            Some((id, _, _)) => Some(Place::Before(Row::Folder(id.clone()))),
+            None if !entry.liked && entry.uri != key && in_tree(&entry.uri) => {
+                Some(Place::Before(Row::Playlist(entry.uri.clone())))
+            }
+            None => None,
+        })
+        .unwrap_or_else(|| end_place(app));
+    Some(match moving {
+        Row::Playlist(uri) => FolderEdit::MovePlaylist { uri, place },
+        Row::Folder(id) => FolderEdit::MoveFolder { id, place },
+    })
+}
+
 /// Every unpinned loaded playlist in the selected shelf order, including
 /// rows hidden by a search or collapsed folder. A drag snapshots this
 /// whole arrangement before applying its new local position.
@@ -2103,7 +2753,7 @@ fn full_playlist_order(app: &App) -> Vec<String> {
         selected_sort(app, Filter::Playlists),
         &mut entries,
     );
-    let pins = app.settings.library_pins();
+    let pins = app.library_pins();
     entries
         .iter()
         .map(|entry| entry.ordering_key().to_string())
@@ -2113,7 +2763,7 @@ fn full_playlist_order(app: &App) -> Vec<String> {
 
 /// Reorders the pin block without disturbing pins on another shelf.
 fn drop_row(app: &mut App, entries: &[Entry], pinned_rows: usize, slot: usize, key: &str) {
-    let mut pins = app.settings.library_pins();
+    let mut pins = app.library_pins();
     pins.retain(|held| held != key);
     if slot <= pinned_rows {
         let anchor = entries[..pinned_rows]
@@ -2372,56 +3022,142 @@ mod ordering_tests {
         app.backend.shutdown();
     }
 
-    /// Ensure the flat owned view reveals matching rows inside collapsed folders
-    /// and disabling it restores the tree without changing folder expansion state.
+    /// By You keeps Spotify's tree: folders stay, rolled up or open as they
+    /// were, holding only the account's own playlists, and a folder with
+    /// none of them leaves the view. Turning it off restores the full tree
+    /// without touching which folders are rolled up.
     #[test]
-    fn by_you_reveals_owned_playlists_in_collapsed_folders_and_restores_the_tree() {
-        use crate::player::RootlistEntry;
+    fn by_you_keeps_folders_as_they_were_and_drops_the_empty_ones() {
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
         let mut app = ownership_app("by-you-folders");
+        let folder = |id: &str| FolderStart {
+            id: id.into(),
+            name: id.into(),
+        };
+        // a and c are the account's own; b is someone else's.
         app.rootlist = vec![
-            RootlistEntry::FolderStart {
-                id: "folder".into(),
-                name: "Folder".into(),
-            },
-            RootlistEntry::Playlist(uri("c")),
-            RootlistEntry::FolderEnd,
+            folder("mine"),
+            Playlist(uri("a")),
+            Playlist(uri("b")),
+            FolderEnd,
+            folder("theirs"),
+            Playlist(uri("b")),
+            FolderEnd,
+            folder("rolled"),
+            Playlist(uri("c")),
+            FolderEnd,
         ];
-        app.collapsed_folders = vec!["folder".into()];
+        app.collapsed_folders = vec!["rolled".into()];
+        app.settings.liked_songs_pinned = false;
         app.settings
             .library_sort
             .insert(Filter::Playlists, LibrarySort::Spotify);
-        assert!(
-            projected(&app, "")
-                .iter()
-                .any(|entry| entry.folder.is_some())
-        );
-        assert!(
-            !projected(&app, "")
-                .iter()
-                .any(|entry| entry.uri == uri("c"))
-        );
-        app.settings.library_by_you = true;
-        let entries = projected(&app, "");
-        assert!(
+        let folders = |entries: &[Entry]| {
             entries
                 .iter()
-                .all(|entry| entry.folder.is_none() && entry.depth == 0)
+                .filter_map(|entry| entry.folder.as_ref())
+                .map(|(id, collapsed, count)| (id.clone(), *collapsed, *count))
+                .collect::<Vec<_>>()
+        };
+
+        app.settings.library_by_you = true;
+        let entries = projected(&app, "");
+        assert_eq!(
+            folders(&entries),
+            [
+                ("mine".to_string(), false, 1),
+                ("rolled".to_string(), true, 1)
+            ]
         );
-        assert!(entries.iter().any(|entry| entry.uri == uri("c")));
-        app.settings.library_by_you = false;
+        // a shows inside its open folder; c stays inside the rolled-up one.
+        let a = entries.iter().find(|entry| entry.uri == uri("a")).unwrap();
+        assert_eq!(a.depth, 1);
+        assert!(!entries.iter().any(|entry| entry.uri == uri("b")));
+        assert!(!entries.iter().any(|entry| entry.uri == uri("c")));
+
+        // Opening the folder under the filter shows what it holds.
+        app.collapsed_folders.clear();
         assert!(
             projected(&app, "")
                 .iter()
-                .any(|entry| entry.folder.is_some())
+                .any(|entry| entry.uri == uri("c") && entry.depth == 1)
         );
-        assert_eq!(app.collapsed_folders, ["folder"]);
+        app.collapsed_folders = vec!["rolled".into()];
+
+        app.settings.library_by_you = false;
+        assert_eq!(
+            folders(&projected(&app, "")),
+            [
+                ("mine".to_string(), false, 2),
+                ("theirs".to_string(), false, 1),
+                ("rolled".to_string(), true, 1)
+            ]
+        );
+        assert_eq!(app.collapsed_folders, ["rolled"]);
+        app.backend.shutdown();
+    }
+
+    /// Name order keeps folders too, and By You keeps them there as it does
+    /// in Spotify's order: rolled up or open as they were, holding only the
+    /// account's own playlists, a folder without any of them left out.
+    #[test]
+    fn by_you_keeps_folders_in_name_order() {
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        let mut app = ownership_app("by-you-name-folders");
+        let folder = |id: &str| FolderStart {
+            id: id.into(),
+            name: id.into(),
+        };
+        // a ("Zebra") and c are the account's own; b is someone else's.
+        app.rootlist = vec![
+            folder("mine"),
+            Playlist(uri("a")),
+            Playlist(uri("b")),
+            FolderEnd,
+            folder("theirs"),
+            Playlist(uri("b")),
+            FolderEnd,
+            folder("rolled"),
+            Playlist(uri("c")),
+            FolderEnd,
+        ];
+        app.collapsed_folders = vec!["rolled".into()];
+        app.settings.liked_songs_pinned = false;
+        app.settings.library_by_you = true;
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::Name);
+        // Name, depth, and for a folder whether it is rolled up and its count.
+        type Row = (String, u8, Option<(bool, usize)>);
+        let rows: Vec<Row> = projected(&app, "")
+            .iter()
+            .map(|entry| {
+                (
+                    entry.name.clone(),
+                    entry.depth,
+                    entry
+                        .folder
+                        .as_ref()
+                        .map(|(_, collapsed, count)| (*collapsed, *count)),
+                )
+            })
+            .collect();
+        assert_eq!(
+            rows,
+            [
+                ("Liked Songs".to_string(), 0, None),
+                ("mine".to_string(), 0, Some((false, 1))),
+                ("Zebra".to_string(), 1, None),
+                ("rolled".to_string(), 0, Some((true, 1))),
+            ]
+        );
         app.backend.shutdown();
     }
 
     /// Verify indexed Spotify ordering uses the first duplicate rootlist entry,
     /// keeps unlisted playlists visible, and applies pins without rewriting data.
     #[test]
-    fn flat_by_you_spotify_order_keeps_first_occurrences_missing_rows_and_pins() {
+    fn by_you_spotify_order_keeps_first_occurrences_missing_rows_and_pins() {
         use crate::player::RootlistEntry;
         let mut app = ownership_app("by-you-rootlist-index");
         let owner = app.user_id().unwrap().to_string();
@@ -2443,9 +3179,11 @@ mod ordering_tests {
             RootlistEntry::Playlist(uri("c")),
         ];
         let rootlist = app.rootlist.clone();
-        assert_eq!(ids(&projected(&app, "")), ["c", "a", "d", ""]);
+        // The folder stays, holding the account's c; b is someone else's.
+        // Liked Songs leads, as in Spotify's custom order.
+        assert_eq!(ids(&projected(&app, "")), ["", "", "c", "a", "d"]);
         app.settings.pinned_contexts = vec![uri("a")];
-        assert_eq!(ids(&projected(&app, "")), ["a", "c", "d", ""]);
+        assert_eq!(ids(&projected(&app, "")), ["a", "", "", "c", "d"]);
         assert_eq!(app.rootlist, rootlist);
         assert_eq!(
             app.library
@@ -2811,6 +3549,518 @@ mod ordering_tests {
         app.backend.shutdown();
     }
 
+    fn tree_rows(app: &App) -> Vec<Entry> {
+        let mut entries = vec![];
+        folder_rows(app, "", &mut entries);
+        order_entries(app, Filter::Playlists, LibrarySort::Spotify, &mut entries);
+        entries
+    }
+
+    /// With the session's tree shown in Spotify's order, a drag moves the
+    /// row on Spotify: into the folder of the row it lands before, or a
+    /// whole folder to the end. Nothing turns into a local order.
+    #[test]
+    fn dragging_in_spotifys_tree_moves_rows_on_spotify() {
+        use crate::folders::{FolderEdit, start_marker};
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        // #given Spotify's order with a folder holding b and c
+        let mut app = app("folder-tree-drop");
+        app.settings.sidebar_order.clear();
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::Spotify);
+        // Demo data stands in for the library; the tree arrives as the
+        // session's read would, so the app must take events.
+        app.offline = false;
+        app.receive_rootlist(vec![
+            FolderStart {
+                id: "folder".into(),
+                name: "Folder".into(),
+            },
+            Playlist(uri("b")),
+            Playlist(uri("c")),
+            FolderEnd,
+            Playlist(uri("d")),
+            Playlist(uri("a")),
+        ]);
+        app.backend.take_folder_edit_requests();
+        assert!(shows_spotify_tree(&app));
+
+        // #when a is dropped in the gap above c
+        let entries = tree_rows(&app);
+        drop_playlist_row(&mut app, &entries, 0, 2, &uri("a"));
+        apply_actions(&mut app);
+
+        // #then it moves into the folder, on Spotify and on screen
+        assert_eq!(
+            app.backend.take_folder_edit_requests(),
+            [FolderEdit::MovePlaylist {
+                uri: uri("a"),
+                place: Place::Before(Row::Playlist(uri("c"))),
+            }]
+        );
+        assert_eq!(
+            crate::folders::parent(&app.rootlist, &Row::Playlist(uri("a"))),
+            Some("folder".into())
+        );
+        assert!(app.settings.sidebar_order.is_empty());
+        assert_eq!(selected_sort(&app, Filter::Playlists), LibrarySort::Spotify);
+
+        // #when the folder is dropped below the last row, it moves whole
+        let entries = tree_rows(&app);
+        drop_playlist_row(
+            &mut app,
+            &entries,
+            0,
+            entries.len(),
+            &start_marker("folder", None),
+        );
+        apply_actions(&mut app);
+        assert_eq!(
+            app.backend.take_folder_edit_requests(),
+            [FolderEdit::MoveFolder {
+                id: "folder".into(),
+                place: Place::End,
+            }]
+        );
+        assert_eq!(app.rootlist.first(), Some(&Playlist(uri("d"))));
+        assert_eq!(app.rootlist.last(), Some(&FolderEnd));
+
+        // #when the folder is dropped among its own rows, it stays put
+        let before = app.rootlist.clone();
+        let entries = tree_rows(&app);
+        let inside = entries
+            .iter()
+            .position(|entry| entry.uri == uri("a"))
+            .unwrap();
+        let toasts = app.toasts.len();
+        drop_playlist_row(&mut app, &entries, 0, inside, &start_marker("folder", None));
+        apply_actions(&mut app);
+        assert!(app.backend.take_folder_edit_requests().is_empty());
+        assert_eq!(app.rootlist, before);
+        assert_eq!(app.toasts.len(), toasts, "staying put is not an error");
+        app.backend.shutdown();
+    }
+
+    /// Before the session has read the tree, a drag keeps the local order it
+    /// always made.
+    #[test]
+    fn without_the_sessions_tree_a_drag_stays_local() {
+        let mut app = app("folder-tree-cached");
+        app.settings.sidebar_order.clear();
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::Spotify);
+        app.rootlist = vec![
+            RootlistEntry::Playlist(uri("b")),
+            RootlistEntry::Playlist(uri("a")),
+        ];
+        assert!(!shows_spotify_tree(&app));
+        let entries = tree_rows(&app);
+        drop_playlist_row(&mut app, &entries, 0, 0, &uri("a"));
+        apply_actions(&mut app);
+        assert!(app.backend.take_folder_edit_requests().is_empty());
+        assert!(!app.settings.sidebar_order.is_empty());
+        app.backend.shutdown();
+    }
+
+    /// Name each row by its folder id or its playlist id, with its depth.
+    fn tree_shape(entries: &[Entry]) -> Vec<(String, u8)> {
+        entries
+            .iter()
+            .map(|entry| match &entry.folder {
+                Some((id, _, _)) => (id.clone(), entry.depth),
+                None => (
+                    entry.uri.rsplit(':').next().unwrap().to_string(),
+                    entry.depth,
+                ),
+            })
+            .collect()
+    }
+
+    /// A folder opens to what it holds, from its own rows down, however it
+    /// is rolled up in the tree; Liked Songs and the rest of the library stay
+    /// outside. Its subtitle counts what it holds itself, as Spotify does.
+    #[test]
+    fn an_opened_folder_shows_only_what_it_holds() {
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        let mut app = app("opened-folder");
+        app.settings.sidebar_order.clear();
+        app.settings.pinned_contexts.clear();
+        app.settings.liked_songs_pinned = false;
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::Spotify);
+        let folder = |id: &str| FolderStart {
+            id: id.into(),
+            name: id.into(),
+        };
+        // d is newly followed: the tree has not met it yet.
+        app.rootlist = vec![
+            Playlist(uri("a")),
+            folder("outer"),
+            Playlist(uri("b")),
+            folder("inner"),
+            Playlist(uri("c")),
+            FolderEnd,
+            FolderEnd,
+            folder("shelf"),
+            folder("x"),
+            FolderEnd,
+            folder("y"),
+            FolderEnd,
+            FolderEnd,
+        ];
+
+        // #then a folder counts its own playlists and its own folders
+        let top = projected(&app, "");
+        let row = |id: &str| {
+            top.iter()
+                .find(|entry| entry.folder.as_ref().is_some_and(|(held, _, _)| held == id))
+                .unwrap()
+        };
+        assert_eq!(
+            row("outer").subtitle,
+            "Folder \u{2022} 1 playlist, 1 folder"
+        );
+        assert_eq!(row("outer").grid_subtitle, "1 playlist, 1 folder");
+        assert_eq!(row("inner").subtitle, "Folder \u{2022} 1 playlist");
+        assert_eq!(row("inner").grid_subtitle, "1 playlist");
+        assert_eq!(row("shelf").subtitle, "Folder \u{2022} 2 folders");
+        assert_eq!(row("shelf").grid_subtitle, "2 folders");
+        assert_eq!(row("x").subtitle, "Folder \u{2022} 0 playlists");
+        assert_eq!(ids(&top).last(), Some(&"d"), "d waits at the end");
+
+        // #when the folder, rolled up in the tree, is opened
+        app.collapsed_folders = vec!["outer".into()];
+        app.actions
+            .push(Action::EnterLibraryFolder(Some("outer".into())));
+        apply_actions(&mut app);
+
+        // #then only what it holds is listed, from its own depth; d, in no
+        // folder, stays outside
+        assert_eq!(
+            tree_shape(&projected(&app, "")),
+            [("b".into(), 0), ("inner".into(), 0), ("c".into(), 1)]
+        );
+
+        // #then a flat sort lists everything inside it, nested rows too
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::RecentlyPlayed);
+        let flat = projected(&app, "");
+        let mut flat = ids(&flat);
+        flat.sort_unstable();
+        assert_eq!(flat, ["b", "c"]);
+        // Every fixture name holds an "a"; only the folder's are found.
+        let found = projected(&app, "a");
+        let mut found = ids(&found);
+        found.sort_unstable();
+        assert_eq!(found, ["b", "c"], "a search stays in the folder");
+
+        // #then a folder that is gone opens nothing: the library is back
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::Spotify);
+        app.rootlist
+            .retain(|row| !matches!(row, FolderStart { id, .. } if id == "outer"));
+        app.rootlist.remove(
+            app.rootlist
+                .iter()
+                .rposition(|row| *row == FolderEnd)
+                .unwrap(),
+        );
+        let back = projected(&app, "");
+        assert!(back[0].liked);
+        assert_eq!(back.len(), 9);
+
+        // #then the way back leads up to the whole library
+        app.actions.push(Action::EnterLibraryFolder(None));
+        apply_actions(&mut app);
+        assert_eq!(app.library_folder, None);
+        app.backend.shutdown();
+    }
+
+    /// Dropped below the last row of an opened folder, a playlist stays in
+    /// that folder: after its last playlist, or just before a last folder,
+    /// as near as Spotify's anchors reach.
+    #[test]
+    fn a_drop_below_an_opened_folder_stays_in_it() {
+        use crate::folders::FolderEdit;
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        let mut app = app("opened-folder-drop");
+        app.settings.sidebar_order.clear();
+        app.settings.pinned_contexts.clear();
+        app.settings.liked_songs_pinned = false;
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::Spotify);
+        app.offline = false;
+        let folder = |id: &str| FolderStart {
+            id: id.into(),
+            name: id.into(),
+        };
+        app.receive_rootlist(vec![
+            folder("outer"),
+            folder("inner"),
+            Playlist(uri("c")),
+            FolderEnd,
+            Playlist(uri("b")),
+            FolderEnd,
+            Playlist(uri("d")),
+            Playlist(uri("a")),
+        ]);
+        app.backend.take_folder_edit_requests();
+        app.library_folder = Some("outer".into());
+
+        // #when c leaves its folder for the bottom of the opened one
+        let entries = projected(&app, "");
+        assert_eq!(
+            tree_shape(&entries),
+            [("inner".into(), 0), ("c".into(), 1), ("b".into(), 0)]
+        );
+        drop_playlist_row(&mut app, &entries, 0, entries.len(), &uri("c"));
+        apply_actions(&mut app);
+
+        // #then it lands after b, still in the opened folder
+        assert_eq!(
+            app.backend.take_folder_edit_requests(),
+            [FolderEdit::MovePlaylist {
+                uri: uri("c"),
+                place: Place::AfterPlaylist(uri("b")),
+            }]
+        );
+        assert_eq!(
+            crate::folders::parent(&app.rootlist, &Row::Playlist(uri("c"))),
+            Some("outer".into())
+        );
+
+        // #when the opened folder ends in a folder, a drop below lands
+        // just before that folder
+        app.library_folder = Some("outer".into());
+        app.rootlist = vec![
+            folder("outer"),
+            Playlist(uri("b")),
+            Playlist(uri("c")),
+            folder("inner"),
+            FolderEnd,
+            FolderEnd,
+            Playlist(uri("d")),
+            Playlist(uri("a")),
+        ];
+        let entries = projected(&app, "");
+        drop_playlist_row(&mut app, &entries, 0, entries.len(), &uri("b"));
+        apply_actions(&mut app);
+        assert_eq!(
+            app.backend.take_folder_edit_requests(),
+            [FolderEdit::MovePlaylist {
+                uri: uri("b"),
+                place: Place::Before(Row::Folder("inner".into())),
+            }]
+        );
+        assert_eq!(
+            crate::folders::parent(&app.rootlist, &Row::Playlist(uri("b"))),
+            Some("outer".into())
+        );
+        app.backend.shutdown();
+    }
+
+    /// Back leads to the folder around the opened one, then to the top.
+    /// The + button's folder goes inside the opened one, an empty opened
+    /// folder takes a drop first inside it, and below a folder that ends in
+    /// a folder the drop line shows above that folder, where a row lands.
+    /// A folder that goes away closes.
+    #[test]
+    fn an_opened_folder_knows_its_way_back_and_where_rows_go() {
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        let mut app = app("opened-folder-ways");
+        app.settings.sidebar_order.clear();
+        app.settings.pinned_contexts.clear();
+        app.settings.liked_songs_pinned = false;
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::Spotify);
+        app.offline = false;
+        let folder = |id: &str| FolderStart {
+            id: id.into(),
+            name: id.into(),
+        };
+        app.receive_rootlist(vec![
+            folder("outer"),
+            Playlist(uri("b")),
+            folder("inner"),
+            FolderEnd,
+            FolderEnd,
+            Playlist(uri("d")),
+            Playlist(uri("a")),
+        ]);
+        app.backend.take_folder_edit_requests();
+        assert_eq!(way_back(&app, "inner"), Some("outer".into()));
+        assert_eq!(way_back(&app, "outer"), None);
+        assert_eq!(new_folder_place(&app, Filter::Playlists), Place::Start);
+
+        app.library_folder = Some("inner".into());
+        assert_eq!(
+            new_folder_place(&app, Filter::Playlists),
+            Place::InFolder("inner".into())
+        );
+        assert_eq!(new_folder_place(&app, Filter::Albums), Place::Start);
+        assert_eq!(end_place(&app), Place::InFolder("inner".into()));
+
+        app.library_folder = Some("outer".into());
+        let entries = projected(&app, "");
+        assert_eq!(tree_shape(&entries), [("b".into(), 0), ("inner".into(), 0)]);
+        assert_eq!(landing_slot(&app, &entries, entries.len()), 1);
+        assert_eq!(landing_slot(&app, &entries, 0), 0);
+        app.library_folder = None;
+        let entries = projected(&app, "");
+        assert_eq!(landing_slot(&app, &entries, entries.len()), entries.len());
+
+        app.library_folder = Some("inner".into());
+        app.receive_rootlist(vec![
+            folder("outer"),
+            Playlist(uri("b")),
+            FolderEnd,
+            Playlist(uri("d")),
+            Playlist(uri("a")),
+        ]);
+        assert_eq!(app.library_folder, None);
+        app.backend.shutdown();
+    }
+
+    /// A pinned folder rises to the top with what it holds, open or rolled
+    /// up as it was, and the pin block counts its rows; a folder dropped
+    /// among the pins is pinned on Spotify.
+    #[test]
+    fn a_pinned_folder_rises_with_what_it_holds() {
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        let mut app = app("pinned-folder");
+        app.offline = false;
+        app.settings.sidebar_order.clear();
+        app.settings.pinned_contexts.clear();
+        app.settings.liked_songs_pinned = false;
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::Spotify);
+        let folder = |id: &str| FolderStart {
+            id: id.into(),
+            name: id.into(),
+        };
+        app.receive_rootlist(vec![
+            Playlist(uri("a")),
+            folder("f1"),
+            Playlist(uri("b")),
+            folder("f2"),
+            Playlist(uri("c")),
+            FolderEnd,
+            FolderEnd,
+            folder("f3"),
+            FolderEnd,
+            Playlist(uri("d")),
+        ]);
+        let user = app.user_id().unwrap().to_string();
+        app.spotify_pins = Some(vec![crate::pins::folder_uri(&user, "f1")]);
+        app.backend.take_pin_requests();
+
+        let entries = projected(&app, "");
+        let shape: Vec<(&str, u8)> = entries
+            .iter()
+            .map(|entry| match &entry.folder {
+                Some((id, _, _)) => (id.as_str(), entry.depth),
+                None => (entry.uri.rsplit(':').next().unwrap(), entry.depth),
+            })
+            .collect();
+        assert_eq!(
+            shape,
+            [
+                ("f1", 0),
+                ("b", 1),
+                ("f2", 1),
+                ("c", 2),
+                ("", 0),
+                ("a", 0),
+                ("f3", 0),
+                ("d", 0)
+            ]
+        );
+        assert_eq!(pinned_rows(&entries, &app.library_pins()), 4);
+
+        app.collapsed_folders = vec!["f1".into()];
+        let entries = projected(&app, "");
+        assert_eq!(pinned_rows(&entries, &app.library_pins()), 1);
+
+        // f3 dropped into the pin block is pinned, by its library URI.
+        drop_playlist_row(
+            &mut app,
+            &entries,
+            1,
+            0,
+            &crate::folders::start_marker("f3", None),
+        );
+        apply_actions(&mut app);
+        assert_eq!(
+            app.backend.take_pin_requests(),
+            [(crate::pins::folder_uri(&user, "f3"), true)]
+        );
+        app.backend.shutdown();
+    }
+
+    /// Ranking keeps everything unpinned in its order. Unstable sorts keep
+    /// small lists in order by chance; a library is large.
+    #[test]
+    fn ranking_keeps_a_large_library_in_its_order() {
+        let mut items: Vec<usize> = (0..500).collect();
+        let mut ranks = vec![usize::MAX; 500];
+        ranks[321] = 0;
+        ranks[7] = 1;
+        sort_by_ranks(&mut items, &ranks);
+        let mut expected = vec![321, 7];
+        expected.extend((0..500).filter(|item| *item != 321 && *item != 7));
+        assert_eq!(items, expected);
+    }
+
+    #[test]
+    fn a_menu_never_offers_a_folder_itself_or_where_it_already_is() {
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        let folder = |id: &str| FolderStart {
+            id: id.into(),
+            name: id.into(),
+        };
+        let rows = vec![
+            folder("outer"),
+            folder("inner"),
+            Playlist(uri("a")),
+            FolderEnd,
+            FolderEnd,
+            folder("other"),
+            FolderEnd,
+            Playlist(uri("b")),
+        ];
+        let ids = |targets: &[crate::folders::Folder]| {
+            targets
+                .iter()
+                .map(|folder| folder.id.clone())
+                .collect::<Vec<_>>()
+        };
+        // A playlist in "inner" can leave it, or go anywhere else.
+        let (out, targets) = folder_targets(&rows, &Row::Playlist(uri("a"))).unwrap();
+        assert_eq!(out, Some(Place::Before(Row::Folder("inner".into()))));
+        assert_eq!(ids(&targets), ["outer", "other"]);
+        // A top-level playlist has nothing to leave.
+        let (out, targets) = folder_targets(&rows, &Row::Playlist(uri("b"))).unwrap();
+        assert_eq!(out, None);
+        assert_eq!(ids(&targets), ["outer", "inner", "other"]);
+        // "outer" can go only into "other": not itself, not "inner".
+        let (out, targets) = folder_targets(&rows, &Row::Folder("outer".into())).unwrap();
+        assert_eq!(out, None);
+        assert_eq!(ids(&targets), ["other"]);
+        // "inner" can leave "outer", or go into "other".
+        let (out, targets) = folder_targets(&rows, &Row::Folder("inner".into())).unwrap();
+        assert_eq!(out, Some(Place::Before(Row::Folder("outer".into()))));
+        assert_eq!(ids(&targets), ["other"]);
+        assert!(folder_targets(&rows, &Row::Playlist(uri("gone"))).is_none());
+    }
+
     #[test]
     fn folder_names_and_subtitles_follow_the_locale() {
         use crate::i18n::Locale;
@@ -3016,8 +4266,9 @@ mod ordering_tests {
         let mut entries = vec![liked_entry(&app)];
         folder_rows(&app, "", &mut entries);
         order_entries(&app, Filter::Playlists, LibrarySort::Spotify, &mut entries);
-        assert!(entries.last().unwrap().liked);
-        assert_eq!(entries.last().unwrap().depth, 0);
+        // Spotify's custom order puts an unpinned Liked Songs first.
+        assert!(entries[0].liked);
+        assert_eq!(entries[0].depth, 0);
         drop_playlist_row(&mut app, &entries, 0, 0, LIKED_SONGS_KEY);
         apply_actions(&mut app);
         assert_eq!(

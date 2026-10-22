@@ -3586,3 +3586,119 @@ msgstr ""
 
 #~ msgid "Reduce lyrics motion"
 #~ msgstr "Reducir movimiento de la letra"
+
+#: src/folders.rs:1
+msgid "That folder or playlist has changed on Spotify. Try again."
+msgstr "Esa carpeta o playlist ha cambiado en Spotify. Inténtalo de nuevo."
+
+#: src/folders.rs:1
+msgid "A folder can't go inside itself."
+msgstr "Una carpeta no puede ir dentro de sí misma."
+
+#: src/folders.rs:1
+msgid "Spotify's copy of this folder looks damaged, so Spotifast left it alone."
+msgstr "La copia de esta carpeta en Spotify parece dañada, así que Spotifast no la ha tocado."
+
+#: src/folders.rs:1
+msgid "A folder needs a name."
+msgstr "Una carpeta necesita un nombre."
+
+#. Translators: {error} says why Spotify did not take the change.
+#: src/app.rs:2612
+#, rust-format
+msgid "Couldn't change your folders on Spotify: {error}"
+msgstr "No se han podido cambiar tus carpetas en Spotify: {error}"
+
+#: src/app.rs:4998
+msgid "Set up playback here to change folders. Folders are only reachable through the playback connection."
+msgstr "Configura la reproducción aquí para cambiar carpetas. Las carpetas solo están disponibles a través de la conexión de reproducción."
+
+#: src/ui/dialogs.rs:68
+msgid "Remove folder?"
+msgstr "¿Quitar la carpeta?"
+
+#. Translators: {name} is a folder name.
+#: src/ui/dialogs.rs:71
+#, rust-format
+msgid "“{name}” will be removed from Your Library on Spotify. The playlists in it stay where they are."
+msgstr "“{name}” se quitará de Tu biblioteca en Spotify. Las playlists que contiene se quedan donde están."
+
+#: src/ui/dialogs.rs:480
+msgid "Rename folder"
+msgstr "Cambiar el nombre de la carpeta"
+
+#: src/ui/dialogs.rs:482
+msgid "New folder"
+msgstr "Nueva carpeta"
+
+#: src/ui/dialogs.rs:500
+msgid "My folder"
+msgstr "Mi carpeta"
+
+#: src/ui/sidebar.rs:1129
+msgid "Create a playlist or folder"
+msgstr "Crear una playlist o carpeta"
+
+#: src/app.rs:14456
+msgid "Rename"
+msgstr "Cambiar nombre"
+
+#: src/ui/sidebar.rs:2171
+msgid "New folder inside"
+msgstr "Nueva carpeta dentro"
+
+#: src/ui/dialogs.rs:68
+msgid "Remove folder"
+msgstr "Quitar carpeta"
+
+#: src/ui/sidebar.rs:2268
+msgid "Move to folder"
+msgstr "Mover a carpeta"
+
+#: src/ui/sidebar.rs:2290
+msgid "Remove from folder"
+msgstr "Quitar de la carpeta"
+
+#: src/app.rs:2678
+msgid "Spotify's pin limit is reached. Unpin something first."
+msgstr "Se ha alcanzado el límite de elementos fijados de Spotify. Deja de fijar algo primero."
+
+#: src/app.rs:2683
+msgid "Spotify can't pin something that's inside a folder."
+msgstr "Spotify no puede fijar algo que está dentro de una carpeta."
+
+#: src/app.rs:2687
+msgid "Spotify can't pin this."
+msgstr "Spotify no puede fijar esto."
+
+#. Translators: {error} says why Spotify did not take the change.
+#: src/app.rs:2692
+#, rust-format
+msgid "Couldn't change your pins on Spotify: {error}"
+msgstr "No se han podido cambiar tus elementos fijados en Spotify: {error}"
+
+#. Translators: Keep {count} exactly as written. It becomes the number of folders a folder holds.
+#: src/i18n.rs:234
+#, rust-format
+msgid "{count} folder"
+msgid_plural "{count} folders"
+msgstr[0] "{count} carpeta"
+msgstr[1] "{count} carpetas"
+
+#. Translators: What a folder holds. {playlists} becomes a number of playlists and {folders} a number of folders, such as "7 playlists" and "3 folders".
+#: src/i18n.rs:251
+#, rust-format
+msgid "{playlists}, {folders}"
+msgstr "{playlists}, {folders}"
+
+#. Translators: Keep {name} exactly as written. It becomes the folder name. The arrow beside a folder shows or hides its playlists in place.
+#: src/i18n.rs:273
+#, rust-format
+msgid "Expand {name}"
+msgstr "Expandir {name}"
+
+#. Translators: Keep {name} exactly as written. It becomes the folder name. The arrow beside a folder shows or hides its playlists in place.
+#: src/i18n.rs:275
+#, rust-format
+msgid "Collapse {name}"
+msgstr "Contraer {name}"

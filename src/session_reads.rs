@@ -691,6 +691,18 @@ fn page(items: Vec<PlaylistItem>, total: u32, offset: u32, limit: u32) -> Page<P
 /// 500 rows, each row decorated with its playlist's name, cover, owner,
 /// length, and what the account may do to it.
 pub async fn rootlist(session: &Session) -> anyhow::Result<Vec<ListItems>> {
+    Ok(rootlist_pages(session)
+        .await?
+        .into_iter()
+        .map(|(_, contents)| contents)
+        .collect())
+}
+
+/// [`rootlist`], with the revision each page was read at. Folder edits
+/// count rows only across pages that all carry one revision.
+pub async fn rootlist_pages(
+    session: &Session,
+) -> anyhow::Result<Vec<(Option<Vec<u8>>, ListItems)>> {
     let mut pages = Vec::new();
     let mut from = 0usize;
     loop {
@@ -699,13 +711,13 @@ pub async fn rootlist(session: &Session) -> anyhow::Result<Vec<ListItems>> {
             .get_rootlist(from, Some(ROOTLIST_PAGE))
             .await
             .map_err(|error| anyhow::anyhow!("rootlist: {error}"))?;
-        let Some((contents, more)) =
-            rootlist_answer_page(SelectedListContent::parse_from_bytes(&bytes)?, from)?
-        else {
+        let response = SelectedListContent::parse_from_bytes(&bytes)?;
+        let revision = response.revision.clone();
+        let Some((contents, more)) = rootlist_answer_page(response, from)? else {
             break;
         };
         let count = contents.items.len();
-        pages.push(contents);
+        pages.push((revision, contents));
         if !more {
             break;
         }
