@@ -1197,27 +1197,6 @@ msgstr "Voorinstelling opslaan"
 msgid "Delete “{name}”"
 msgstr "‘{name}’ verwijderen"
 
-#: src/ui/settings.rs:340
-msgid ""
-"Play the local files your playlists list from a folder on this computer."
-msgstr ""
-"Speel de lokale bestanden uit je playlists af vanuit een map op deze "
-"computer."
-
-#. Translators: {count} is a number of songs, {folder} a folder on this computer.
-#: src/ui/settings.rs:349
-#, rust-format
-msgid "{count} song in {folder}"
-msgid_plural "{count} songs in {folder}"
-msgstr[0] "{count} nummer in {folder}"
-msgstr[1] "{count} nummers in {folder}"
-
-#. Translators: {folder} is a folder on this computer.
-#: src/ui/settings.rs:356
-#, rust-format
-msgid "Looking for songs in {folder}…"
-msgstr "Nummers zoeken in {folder}…"
-
 #: src/ui/settings.rs:366 src/ui/keys.rs:296 src/ui/topbar.rs:471
 #: src/ui/topbar.rs:531
 msgid "Settings"
@@ -1552,10 +1531,6 @@ msgstr "Wit"
 msgctxt "tray icon"
 msgid "Black"
 msgstr "Zwart"
-
-#: src/ui/settings.rs:992
-msgid "Choose folder"
-msgstr "Map kiezen"
 
 #: src/ui/settings.rs:1082
 msgid "Playback settings applied."
@@ -3698,3 +3673,116 @@ msgstr "{name} uitvouwen"
 #, rust-format
 msgid "Collapse {name}"
 msgstr "{name} samenvouwen"
+
+#. Translators: Reads the equalizer presets saved in Spotify's desktop app on this computer.
+#: src/ui/settings.rs:140
+msgid "Import from Spotify"
+msgstr "Importeren uit Spotify"
+
+#. Translators: Keep {count} exactly as written. It becomes the number of equalizer presets read from Spotify's desktop app.
+#: src/app.rs:10496
+#, rust-format
+msgid "Imported {count} preset from Spotify"
+msgid_plural "Imported {count} presets from Spotify"
+msgstr[0] "{count} voorinstelling geïmporteerd uit Spotify"
+msgstr[1] "{count} voorinstellingen geïmporteerd uit Spotify"
+
+#: src/app.rs:10510
+msgid "Spotify's app on this computer has no saved equalizer presets."
+msgstr "De Spotify-app op deze computer heeft geen opgeslagen equalizervoorinstellingen."
+
+#: src/app.rs:10515
+msgid "Couldn't find Spotify's app on this computer."
+msgstr "De Spotify-app is niet gevonden op deze computer."
+
+#: src/app.rs:10521
+msgid "Couldn't read the presets in Spotify's app."
+msgstr "De voorinstellingen van de Spotify-app konden niet worden gelezen."
+
+#. Translators: Library order menu, when it lists more than one kind: keep playlists, albums, artists and podcasts each together.
+#: src/ui/sidebar.rs:796
+msgid "Group by kind"
+msgstr "Groeperen per soort"
+
+#. Translators: Library order menu, when it lists more than one kind: list playlists, albums, artists and podcasts in one list.
+#: src/ui/sidebar.rs:798
+msgid "Mix together"
+msgstr "Alles door elkaar"
+
+#: src/demo.rs:2730
+msgid "Local Files"
+msgstr "Lokale bestanden"
+
+#. Translators: Adds a folder of songs to local files.
+#: src/ui/collection.rs:1923
+msgid "Add folder"
+msgstr "Map toevoegen"
+
+#. Translators: Adds songs to local files one at a time, as copies.
+#: src/ui/collection.rs:1935
+msgid "Add files"
+msgstr "Bestanden toevoegen"
+
+#: src/ui/settings.rs:364
+msgid "Play songs from folders and files on this computer, and the local files your playlists list."
+msgstr "Speel nummers uit mappen en bestanden op deze computer, en de lokale bestanden in je playlists."
+
+#. Translators: Keep {count} exactly as written. It becomes a number of songs found in local files.
+#: src/ui/settings.rs:372
+#, rust-format
+msgid "{count} song on this computer"
+msgid_plural "{count} songs on this computer"
+msgstr[0] "{count} nummer op deze computer"
+msgstr[1] "{count} nummers op deze computer"
+
+#: src/ui/collection.rs:1742
+msgid "Looking for songs…"
+msgstr "Nummers zoeken…"
+
+#. Translators: The copies of the songs added to local files one at a time.
+#: src/ui/settings.rs:413
+msgid "Songs you added"
+msgstr "Nummers die je hebt toegevoegd"
+
+#. Translators: {folder} is a folder local files play from.
+#: src/ui/settings.rs:424
+#, rust-format
+msgid "Remove {folder}"
+msgstr "{folder} verwijderen"
+
+#: src/ui/collection.rs:1755
+msgid "Songs from the folders and files you added, played on this computer."
+msgstr "Nummers uit de mappen en bestanden die je hebt toegevoegd, afgespeeld op deze computer."
+
+#: src/ui/collection.rs:1808
+msgid "No local files yet"
+msgstr "Nog geen lokale bestanden"
+
+#: src/ui/collection.rs:1811
+msgid "Add a folder or songs to play them here. Spotifast looks nowhere else."
+msgstr "Voeg een map of nummers toe om ze hier af te spelen. Spotifast zoekt nergens anders."
+
+#. Translators: Reads the local files folders again, for songs added or removed.
+#: src/ui/collection.rs:1950
+msgid "Look for new songs"
+msgstr "Zoeken naar nieuwe nummers"
+
+#: src/app.rs:9241
+msgid "Set up playback on this computer to play local files."
+msgstr "Stel afspelen op deze computer in om lokale bestanden af te spelen."
+
+#. Translators: Keep {count} exactly as written. It becomes the number of songs added to local files.
+#: src/app.rs:10598
+#, rust-format
+msgid "Added {count} song to local files"
+msgid_plural "Added {count} songs to local files"
+msgstr[0] "{count} nummer toegevoegd aan lokale bestanden"
+msgstr[1] "{count} nummers toegevoegd aan lokale bestanden"
+
+#. Translators: Keep {count} exactly as written. It becomes the number of picked files that could not be added.
+#: src/app.rs:10610
+#, rust-format
+msgid "Couldn't add {count} file. Spotifast plays MP3, FLAC, MP4 and M4P files."
+msgid_plural "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P files."
+msgstr[0] "Kan {count} bestand niet toevoegen. Spotifast speelt MP3-, FLAC-, MP4- en M4P-bestanden af."
+msgstr[1] "Kan {count} bestanden niet toevoegen. Spotifast speelt MP3-, FLAC-, MP4- en M4P-bestanden af."

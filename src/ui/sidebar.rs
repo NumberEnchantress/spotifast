@@ -332,6 +332,33 @@ fn last_click_id() -> egui::Id {
     egui::Id::new("sidebar-last-click")
 }
 
+/// The Library's Local Files row. It has no Spotify address, so it is
+/// neither dragged, pinned nor played from the list; it opens its page.
+fn local_files_entry(app: &App) -> Entry {
+    let count = app.local_files.as_ref().map(|(_, uris)| uris.len() as u32);
+    Entry {
+        image: None,
+        grid_image: None,
+        name: gettext(app.locale, "Local Files").into_owned(),
+        subtitle: count.map_or_else(
+            || gettext(app.locale, "Playlist").into_owned(),
+            |count| app.locale.liked_song_count(count),
+        ),
+        grid_subtitle: count.map_or_else(String::new, |count| app.locale.song_count(count)),
+        page: Page::LocalFiles,
+        uri: String::new(),
+        round: false,
+        liked: false,
+        owned: false,
+        editable: false,
+        playlist_index: None,
+        folder: None,
+        depth: 0,
+        added_at: None,
+        pin_key: None,
+    }
+}
+
 fn liked_entry(app: &App) -> Entry {
     let subtitle = match app.library.liked.total {
         Some(total) => app.locale.liked_song_count(total),
@@ -360,6 +387,323 @@ fn liked_entry(app: &App) -> Entry {
         added_at: None,
         pin_key: None,
     }
+}
+
+/// The Library's kinds, in the order the filters and the groups list them.
+const SHELVES: [Filter; 4] = [
+    Filter::Playlists,
+    Filter::Albums,
+    Filter::Artists,
+    Filter::Podcasts,
+];
+
+/// The kinds ticked in the Library's filters, each one a checkbox. None
+/// ticked lists every kind.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Shown(u8);
+
+impl Default for Shown {
+    fn default() -> Self {
+        Self::only(Filter::Playlists)
+    }
+}
+
+impl Shown {
+    fn bit(shelf: Filter) -> u8 {
+        1 << SHELVES
+            .iter()
+            .position(|held| *held == shelf)
+            .unwrap_or_default()
+    }
+
+    fn only(shelf: Filter) -> Self {
+        Self(Self::bit(shelf))
+    }
+
+    fn has(self, shelf: Filter) -> bool {
+        self.0 & Self::bit(shelf) != 0
+    }
+
+    fn toggled(self, shelf: Filter) -> Self {
+        Self(self.0 ^ Self::bit(shelf))
+    }
+
+    /// The kinds listed: those ticked, or all of them when none is.
+    fn shelves(self) -> Vec<Filter> {
+        let ticked: Vec<Filter> = SHELVES
+            .into_iter()
+            .filter(|shelf| self.has(*shelf))
+            .collect();
+        if ticked.is_empty() {
+            SHELVES.to_vec()
+        } else {
+            ticked
+        }
+    }
+}
+
+/// Where the sidebar keeps the ticked kinds between frames.
+fn shown_id() -> egui::Id {
+    egui::Id::new("sidebar-shelves")
+}
+
+/// The kinds the list holds now. A folder opened into lists only what it
+/// holds, whatever else is ticked.
+fn listed_shelves(app: &App, shown: Shown) -> Vec<Filter> {
+    let shelves = shown.shelves();
+    if shelves.contains(&Filter::Playlists) && entered_span(app).is_some() {
+        vec![Filter::Playlists]
+    } else {
+        shelves
+    }
+}
+
+/// The orders every kind in `shelves` can take, for a Library of several.
+fn mixed_sorts(shelves: &[Filter]) -> Vec<LibrarySort> {
+    [
+        LibrarySort::RecentlyPlayed,
+        LibrarySort::Name,
+        LibrarySort::RecentlyAdded,
+    ]
+    .into_iter()
+    .filter(|sort| shelves.iter().all(|shelf| sort.supports(*shelf)))
+    .collect()
+}
+
+/// The order of a Library of several kinds: the one chosen for such a
+/// Library while they can all take it, else recently played.
+fn mixed_sort(app: &App, shelves: &[Filter]) -> LibrarySort {
+    app.settings
+        .library_mixed_sort
+        .filter(|sort| mixed_sorts(shelves).contains(sort))
+        .unwrap_or(LibrarySort::RecentlyPlayed)
+}
+
+/// What one kind adds to the list, and whether it is still on its way.
+#[derive(Default)]
+struct ShelfStatus {
+    loading: bool,
+    error: Option<String>,
+    more: Option<Page>,
+}
+
+/// The Library's rows for the kinds in `shelves`, in order.
+#[derive(Default)]
+struct LibraryRows {
+    entries: Vec<Entry>,
+    /// Where each kind after the first begins, when the kinds are kept
+    /// together.
+    group_starts: Vec<usize>,
+    loading: bool,
+    error: Option<String>,
+    more_pages: Vec<Page>,
+}
+
+/// Rows of one kind, or of several: kept together a kind at a time, each
+/// in the shared order, or mixed in one list in it, flat.
+fn library_rows(app: &App, shelves: &[Filter], needle: &str) -> LibraryRows {
+    let mut rows = LibraryRows::default();
+    let mixed = shelves.len() > 1;
+    let grouped = !mixed || app.settings.library_group_kinds;
+    let sort_of = |shelf: Filter| {
+        if mixed {
+            mixed_sort(app, shelves)
+        } else {
+            selected_sort(app, shelf)
+        }
+    };
+    for &shelf in shelves {
+        let mut group = Vec::new();
+        let status = shelf_rows(app, shelf, sort_of(shelf), needle, grouped, &mut group);
+        rows.loading |= status.loading;
+        if rows.error.is_none() {
+            rows.error = status.error;
+        }
+        rows.more_pages.extend(status.more);
+        if grouped {
+            order_entries(app, shelf, sort_of(shelf), &mut group);
+            if !group.is_empty() && !rows.entries.is_empty() {
+                rows.group_starts.push(rows.entries.len());
+            }
+        }
+        rows.entries.extend(group);
+    }
+    if !grouped {
+        order_entries(app, shelves[0], mixed_sort(app, shelves), &mut rows.entries);
+    }
+    rows
+}
+
+/// Keeps a kind loading while its first page has not come, and, ordered
+/// other than as Spotify lists it, until all of it has.
+fn keep_shelf_loading(app: &mut App, shelf: Filter, sort: LibrarySort) {
+    let (list, page) = match shelf {
+        Filter::Playlists => return,
+        Filter::Albums => (
+            (
+                app.library.albums.loading,
+                app.library.albums.error.is_none(),
+                app.library.albums.loaded_once,
+                app.library.albums.can_load_more(),
+            ),
+            Page::Albums,
+        ),
+        Filter::Artists => (
+            (
+                app.library.artists.loading,
+                app.library.artists.error.is_none(),
+                app.library.artists.loaded_once,
+                app.library.artists.can_load_more(),
+            ),
+            Page::Artists,
+        ),
+        Filter::Podcasts => (
+            (
+                app.library.shows.loading,
+                app.library.shows.error.is_none(),
+                app.library.shows.loaded_once,
+                app.library.shows.can_load_more(),
+            ),
+            Page::Podcasts,
+        ),
+    };
+    let (loading, ok, loaded_once, more) = list;
+    if !loading && ok && (!loaded_once || (sort != LibrarySort::Library && more)) {
+        app.actions.push(Action::LoadMore(page));
+    }
+}
+
+/// The rows of one kind, unordered; playlists keep their folders where
+/// `tree` lets them.
+fn shelf_rows(
+    app: &App,
+    shelf: Filter,
+    sort: LibrarySort,
+    needle: &str,
+    tree: bool,
+    entries: &mut Vec<Entry>,
+) -> ShelfStatus {
+    let locale = app.locale;
+    let art = EntryArt::of(app);
+    let mut status = ShelfStatus::default();
+    match shelf {
+        Filter::Playlists => {
+            playlist_rows_with(app, sort, needle, tree, entries);
+            match &app.library.playlists {
+                Loadable::Loaded(_) => {}
+                Loadable::Loading | Loadable::NotLoaded => status.loading = true,
+                Loadable::Failed(message) => status.error = Some(message.clone()),
+            }
+        }
+        Filter::Albums => {
+            for saved in &app.library.albums.items {
+                let album = &saved.album;
+                if !needle.is_empty()
+                    && !album.name.to_lowercase().contains(needle)
+                    && !album
+                        .artists
+                        .iter()
+                        .any(|a| a.name.to_lowercase().contains(needle))
+                {
+                    continue;
+                }
+                let artists = crate::api::models::join_names(
+                    album.artists.iter().map(|artist| artist.name.as_str()),
+                );
+                entries.push(Entry {
+                    image: pick_image(&album.images, art.row).map(str::to_string),
+                    grid_image: pick_image(&album.images, art.grid).map(str::to_string),
+                    name: album.name.clone(),
+                    subtitle: format!("{} • {artists}", app.album_kind_label(album)),
+                    grid_subtitle: artists,
+                    page: Page::Album(album.id.clone()),
+                    uri: album.uri.clone(),
+                    round: false,
+                    liked: false,
+                    owned: false,
+                    editable: false,
+                    playlist_index: None,
+                    folder: None,
+                    depth: 0,
+                    added_at: saved_time(saved.added_at.as_deref()),
+                    pin_key: None,
+                });
+            }
+            status.loading = app.library.albums.loading && app.library.albums.items.is_empty();
+            status.error = app.library.albums.error.clone();
+            if app.library.albums.error.is_none() && app.library.albums.can_load_more() {
+                status.more = Some(Page::Albums);
+            }
+        }
+        Filter::Artists => {
+            for artist in &app.library.artists.items {
+                if !needle.is_empty() && !artist.name.to_lowercase().contains(needle) {
+                    continue;
+                }
+                entries.push(Entry {
+                    image: pick_image(&artist.images, art.row).map(str::to_string),
+                    grid_image: pick_image(&artist.images, art.grid).map(str::to_string),
+                    name: artist.name.clone(),
+                    subtitle: gettext(locale, "Artist").into_owned(),
+                    grid_subtitle: String::new(),
+                    page: Page::Artist(artist.id.clone()),
+                    uri: artist.uri.clone(),
+                    round: true,
+                    liked: false,
+                    owned: false,
+                    editable: false,
+                    playlist_index: None,
+                    folder: None,
+                    depth: 0,
+                    added_at: None,
+                    pin_key: None,
+                });
+            }
+            status.loading = app.library.artists.loading && app.library.artists.items.is_empty();
+            status.error = app.library.artists.error.clone();
+            if app.library.artists.error.is_none() && app.library.artists.can_load_more() {
+                status.more = Some(Page::Artists);
+            }
+        }
+        Filter::Podcasts => {
+            for saved in &app.library.shows.items {
+                let show = &saved.show;
+                // Audiobooks arrive as shows, but librespot can't play them.
+                if app.audiobook_shows.contains(&show.uri) {
+                    continue;
+                }
+                if !needle.is_empty() && !show.name.to_lowercase().contains(needle) {
+                    continue;
+                }
+                entries.push(Entry {
+                    image: pick_image(&show.images, art.row).map(str::to_string),
+                    grid_image: pick_image(&show.images, art.grid).map(str::to_string),
+                    name: show.name.clone(),
+                    // Translators: {publisher} is the podcast's publisher.
+                    subtitle: gettext(locale, "Podcast • {publisher}")
+                        .replace("{publisher}", &show.publisher),
+                    grid_subtitle: show.publisher.clone(),
+                    page: Page::Show(show.id.clone()),
+                    uri: show.uri.clone(),
+                    round: false,
+                    liked: false,
+                    owned: false,
+                    editable: false,
+                    playlist_index: None,
+                    folder: None,
+                    depth: 0,
+                    added_at: saved_time(saved.added_at.as_deref()),
+                    pin_key: None,
+                });
+            }
+            status.loading = app.library.shows.loading && app.library.shows.items.is_empty();
+            status.error = app.library.shows.error.clone();
+            if app.library.shows.error.is_none() && app.library.shows.can_load_more() {
+                status.more = Some(Page::Podcasts);
+            }
+        }
+    }
+    status
 }
 
 pub(crate) fn selected_sort(app: &App, shelf: Filter) -> LibrarySort {
@@ -452,6 +796,77 @@ fn sort_menu(app: &mut App, ui: &mut egui::Ui, shelf: Filter, selected: LibraryS
         });
 }
 
+/// The order menu of a Library of several kinds: the orders they all
+/// take, then whether to keep each kind together or mix them.
+fn mixed_sort_menu(app: &mut App, ui: &mut egui::Ui, shelves: &[Filter], selected: LibrarySort) {
+    let locale = app.locale;
+    let label = |sort: LibrarySort| match sort {
+        LibrarySort::Name => gettext(locale, "Name"),
+        LibrarySort::RecentlyAdded => gettext(locale, "Recently added"),
+        _ => gettext(locale, "Recently played"),
+    };
+    let grouped = app.settings.library_group_kinds;
+    let response = ui.add(
+        egui::Button::image_and_text(
+            Icon::ChevronDown.image(app.palette.text, 15.0),
+            egui::RichText::new(label(selected).as_ref()).font(theme::medium(13.0)),
+        )
+        .wrap()
+        .fill(app.palette.surface)
+        .corner_radius(12)
+        .min_size(vec2(0.0, 28.0)),
+    );
+    egui::Popup::menu(&response)
+        .frame(super::widgets::menu_frame(&app.palette))
+        .show(|ui| {
+            // Translators: Library order menu, when it lists more than one kind: keep playlists, albums, artists and podcasts each together.
+            let group = gettext(locale, "Group by kind");
+            // Translators: Library order menu, when it lists more than one kind: list playlists, albums, artists and podcasts in one list.
+            let mix = gettext(locale, "Mix together");
+            let sorts = mixed_sorts(shelves);
+            let width = sorts
+                .iter()
+                .map(|sort| label(*sort))
+                .chain([group.clone(), mix.clone()])
+                .map(|label| {
+                    ui.painter()
+                        .layout_no_wrap(label.to_string(), theme::regular(13.5), app.palette.text)
+                        .size()
+                        .x
+                })
+                .fold(140.0_f32, f32::max)
+                + 52.0;
+            ui.set_width(width.min(ui.ctx().content_rect().width() - 24.0));
+            for sort in sorts {
+                if super::widgets::menu_item(
+                    ui,
+                    &app.palette,
+                    (sort == selected).then_some(Icon::Check),
+                    &label(sort),
+                ) {
+                    app.actions.push(Action::SetLibraryMixedSort(sort));
+                }
+            }
+            ui.separator();
+            for (keep, text) in [(true, &group), (false, &mix)] {
+                if super::widgets::menu_item(
+                    ui,
+                    &app.palette,
+                    (keep == grouped).then_some(Icon::Check),
+                    text,
+                ) {
+                    app.actions.push(Action::SetLibraryGroupKinds(keep));
+                }
+            }
+        });
+}
+
+/// The hairline above the first row of each kind after the first.
+fn group_line(ui: &egui::Ui, palette: &Palette, x: egui::Rangef, y: f32) {
+    ui.painter()
+        .hline(x.shrink(6.0), y, egui::Stroke::new(0.5, palette.outline));
+}
+
 fn saved_time(value: Option<&str>) -> Option<i64> {
     value
         .and_then(|text| text.parse::<jiff::Timestamp>().ok())
@@ -539,11 +954,14 @@ fn order_entries(app: &App, shelf: Filter, sort: LibrarySort, entries: &mut [Ent
             entries.sort_by_cached_key(|entry| {
                 (
                     !entry.liked,
+                    entry.page != Page::LocalFiles,
                     ranks.get(entry.uri.as_str()).copied().unwrap_or(usize::MAX),
                 )
             });
         }
-        LibrarySort::Spotify => entries.sort_by_key(|entry| !entry.liked),
+        LibrarySort::Spotify => {
+            entries.sort_by_key(|entry| (!entry.liked, entry.page != Page::LocalFiles));
+        }
         LibrarySort::Library => {}
     }
     let pins = app.library_pins();
@@ -798,23 +1216,44 @@ fn paint_expanded_art(app: &mut App, ui: &mut egui::Ui, rect: Rect) {
 /// Project the playlist shelf without changing its saved order or pins.
 /// Ownership filtering is flat, like text search, so matching playlists in
 /// collapsed folders remain reachable. Liked Songs belongs to the account.
+#[cfg(test)]
 fn playlist_rows(app: &App, sort: LibrarySort, needle: &str, entries: &mut Vec<Entry>) {
+    playlist_rows_with(app, sort, needle, true, entries);
+}
+
+/// The playlist rows, in Spotify's folders where `tree` keeps them and the
+/// order shows them, or flat.
+fn playlist_rows_with(
+    app: &App,
+    sort: LibrarySort,
+    needle: &str,
+    tree: bool,
+    entries: &mut Vec<Entry>,
+) {
     let entered = entered_span(app);
     let liked = liked_entry(app);
     if entered.is_none() && (needle.is_empty() || liked.name.to_lowercase().contains(needle)) {
         entries.push(liked);
     }
+    // Local Files, once there is a folder or song to play from.
+    if entered.is_none() && !app.local_sources().is_empty() {
+        let local = local_files_entry(app);
+        if needle.is_empty() || local.name.to_lowercase().contains(needle) {
+            entries.push(local);
+        }
+    }
     let user_id = app.user_id().filter(|id| !id.is_empty());
     // Name keeps playlists inside their folders, as Spotify does, and sorts
     // each folder on its own (#651).
-    let folders = match sort {
-        LibrarySort::Spotify => true,
-        LibrarySort::Name => app
-            .rootlist
-            .iter()
-            .any(|row| matches!(row, crate::player::RootlistEntry::FolderStart { .. })),
-        _ => false,
-    };
+    let folders = tree
+        && match sort {
+            LibrarySort::Spotify => true,
+            LibrarySort::Name => app
+                .rootlist
+                .iter()
+                .any(|row| matches!(row, crate::player::RootlistEntry::FolderStart { .. })),
+            _ => false,
+        };
     if folders && needle.is_empty() {
         folder_rows(app, user_id.unwrap_or(""), entries);
     } else if let Some(playlists) = app.library.playlists.get() {
@@ -1253,10 +1692,10 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
     );
     ui.add_space(10.0);
 
-    let filter_id = egui::Id::new("sidebar-filter");
-    let mut filter = ui
-        .data(|data| data.get_temp::<Filter>(filter_id))
+    let mut shown = ui
+        .data(|data| data.get_temp::<Shown>(shown_id()))
         .unwrap_or_default();
+    let filter = listed_shelves(app, shown)[0];
     let show_search_id = egui::Id::new("sidebar-show-search");
     let mut show_search = ui
         .data(|data| data.get_temp::<bool>(show_search_id))
@@ -1392,22 +1831,46 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
 
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(6.0, 6.0);
+        // Each kind is a checkbox: tick several to list them together,
+        // or none to list them all.
         for (value, label) in [
             (Filter::Playlists, gettext(locale, "Playlists")),
             (Filter::Albums, gettext(locale, "Albums")),
             (Filter::Artists, gettext(locale, "Artists")),
             (Filter::Podcasts, gettext(locale, "Podcasts")),
         ] {
-            if theme::soft_button(ui, &palette, None, &label, filter == value).clicked() {
-                filter = value;
+            let ticked = shown.has(value);
+            let response =
+                theme::soft_button(ui, &palette, ticked.then_some(Icon::Check), &label, ticked);
+            response.widget_info(|| {
+                egui::WidgetInfo::selected(
+                    egui::WidgetType::Checkbox,
+                    ui.is_enabled(),
+                    ticked,
+                    &*label,
+                )
+            });
+            if response.clicked() {
+                shown = shown.toggled(value);
             }
         }
     });
-    let sort = selected_sort(app, filter);
+    let shelves = listed_shelves(app, shown);
+    let mixed = shelves.len() > 1;
+    let filter = shelves[0];
+    let sort = if mixed {
+        mixed_sort(app, &shelves)
+    } else {
+        selected_sort(app, filter)
+    };
     ui.add_space(4.0);
     ui.horizontal_wrapped(|ui| {
-        sort_menu(app, ui, filter, sort);
-        if filter == Filter::Playlists {
+        if mixed {
+            mixed_sort_menu(app, ui, &shelves, sort);
+        } else {
+            sort_menu(app, ui, filter, sort);
+        }
+        if shelves.contains(&Filter::Playlists) {
             // Translators: Library filter for playlists created by the signed-in user.
             let label = gettext(locale, "By You");
             let by_you = app.settings.library_by_you;
@@ -1426,7 +1889,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
         }
     });
     ui.data_mut(|data| {
-        data.insert_temp(filter_id, filter);
+        data.insert_temp(shown_id(), shown);
         data.insert_temp(show_search_id, show_search);
     });
     if show_search {
@@ -1446,36 +1909,9 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
     }
     ui.add_space(6.0);
 
-    // Make sure the selected shelf is loading.
-    match filter {
-        Filter::Playlists => {}
-        Filter::Albums => {
-            if !app.library.albums.loading
-                && app.library.albums.error.is_none()
-                && (!app.library.albums.loaded_once
-                    || (sort != LibrarySort::Library && app.library.albums.can_load_more()))
-            {
-                app.actions.push(Action::LoadMore(Page::Albums));
-            }
-        }
-        Filter::Artists => {
-            if !app.library.artists.loading
-                && app.library.artists.error.is_none()
-                && (!app.library.artists.loaded_once
-                    || (sort != LibrarySort::Library && app.library.artists.can_load_more()))
-            {
-                app.actions.push(Action::LoadMore(Page::Artists));
-            }
-        }
-        Filter::Podcasts => {
-            if !app.library.shows.loading
-                && app.library.shows.error.is_none()
-                && (!app.library.shows.loaded_once
-                    || (sort != LibrarySort::Library && app.library.shows.can_load_more()))
-            {
-                app.actions.push(Action::LoadMore(Page::Podcasts));
-            }
-        }
+    // Make sure every listed kind is loading.
+    for &shelf in &shelves {
+        keep_shelf_loading(app, shelf, sort);
     }
 
     // Opened into a folder: its name, and the way back to the folder that
@@ -1510,131 +1946,14 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
         ui.add_space(4.0);
     }
     let needle = app.library.filter.trim().to_lowercase();
-    let mut entries: Vec<Entry> = Vec::new();
-    let art = EntryArt::of(app);
-    let mut loading = false;
-    let mut error: Option<String> = None;
-    let mut more_page: Option<Page> = None;
-    match filter {
-        Filter::Playlists => {
-            playlist_rows(app, sort, &needle, &mut entries);
-            match &app.library.playlists {
-                Loadable::Loaded(_) => {}
-                Loadable::Loading | Loadable::NotLoaded => loading = true,
-                Loadable::Failed(message) => error = Some(message.clone()),
-            }
-        }
-        Filter::Albums => {
-            for saved in &app.library.albums.items {
-                let album = &saved.album;
-                if !needle.is_empty()
-                    && !album.name.to_lowercase().contains(&needle)
-                    && !album
-                        .artists
-                        .iter()
-                        .any(|a| a.name.to_lowercase().contains(&needle))
-                {
-                    continue;
-                }
-                let artists = crate::api::models::join_names(
-                    album.artists.iter().map(|artist| artist.name.as_str()),
-                );
-                entries.push(Entry {
-                    image: pick_image(&album.images, art.row).map(str::to_string),
-                    grid_image: pick_image(&album.images, art.grid).map(str::to_string),
-                    name: album.name.clone(),
-                    subtitle: format!("{} • {artists}", app.album_kind_label(album)),
-                    grid_subtitle: artists,
-                    page: Page::Album(album.id.clone()),
-                    uri: album.uri.clone(),
-                    round: false,
-                    liked: false,
-                    owned: false,
-                    editable: false,
-                    playlist_index: None,
-                    folder: None,
-                    depth: 0,
-                    added_at: saved_time(saved.added_at.as_deref()),
-                    pin_key: None,
-                });
-            }
-            loading = app.library.albums.loading && app.library.albums.items.is_empty();
-            error = app.library.albums.error.clone();
-            if app.library.albums.error.is_none() && app.library.albums.can_load_more() {
-                more_page = Some(Page::Albums);
-            }
-        }
-        Filter::Artists => {
-            for artist in &app.library.artists.items {
-                if !needle.is_empty() && !artist.name.to_lowercase().contains(&needle) {
-                    continue;
-                }
-                entries.push(Entry {
-                    image: pick_image(&artist.images, art.row).map(str::to_string),
-                    grid_image: pick_image(&artist.images, art.grid).map(str::to_string),
-                    name: artist.name.clone(),
-                    subtitle: gettext(locale, "Artist").into_owned(),
-                    grid_subtitle: String::new(),
-                    page: Page::Artist(artist.id.clone()),
-                    uri: artist.uri.clone(),
-                    round: true,
-                    liked: false,
-                    owned: false,
-                    editable: false,
-                    playlist_index: None,
-                    folder: None,
-                    depth: 0,
-                    added_at: None,
-                    pin_key: None,
-                });
-            }
-            loading = app.library.artists.loading && app.library.artists.items.is_empty();
-            error = app.library.artists.error.clone();
-            if app.library.artists.error.is_none() && app.library.artists.can_load_more() {
-                more_page = Some(Page::Artists);
-            }
-        }
-        Filter::Podcasts => {
-            for saved in &app.library.shows.items {
-                let show = &saved.show;
-                // Audiobooks arrive as shows, but librespot can't play them.
-                if app.audiobook_shows.contains(&show.uri) {
-                    continue;
-                }
-                if !needle.is_empty() && !show.name.to_lowercase().contains(&needle) {
-                    continue;
-                }
-                entries.push(Entry {
-                    image: pick_image(&show.images, art.row).map(str::to_string),
-                    grid_image: pick_image(&show.images, art.grid).map(str::to_string),
-                    name: show.name.clone(),
-                    // Translators: {publisher} is the podcast's publisher.
-                    subtitle: gettext(locale, "Podcast • {publisher}")
-                        .replace("{publisher}", &show.publisher),
-                    grid_subtitle: show.publisher.clone(),
-                    page: Page::Show(show.id.clone()),
-                    uri: show.uri.clone(),
-                    round: false,
-                    liked: false,
-                    owned: false,
-                    editable: false,
-                    playlist_index: None,
-                    folder: None,
-                    depth: 0,
-                    added_at: saved_time(saved.added_at.as_deref()),
-                    pin_key: None,
-                });
-            }
-            loading = app.library.shows.loading && app.library.shows.items.is_empty();
-            error = app.library.shows.error.clone();
-            if app.library.shows.error.is_none() && app.library.shows.can_load_more() {
-                more_page = Some(Page::Podcasts);
-            }
-        }
-    }
-
-    order_entries(app, filter, sort, &mut entries);
-    let custom_order = filter == Filter::Playlists && sort == LibrarySort::Local;
+    let LibraryRows {
+        entries,
+        group_starts,
+        loading,
+        error,
+        more_pages,
+    } = library_rows(app, &shelves, &needle);
+    let custom_order = !mixed && filter == Filter::Playlists && sort == LibrarySort::Local;
     let pins = app.library_pins();
     let pinned_rows = pinned_rows(&entries, &pins);
     let playing_context = app.playing_context_uri();
@@ -1679,13 +1998,14 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                     app,
                     ui,
                     &entries,
-                    filter,
+                    &group_starts,
+                    (!mixed).then_some(filter),
                     custom_order,
                     pinned_rows,
                     grid_art,
                 );
-                if let Some(page) = more_page {
-                    super::widgets::load_more_when_near_end(ui, app, page, true);
+                for page in &more_pages {
+                    super::widgets::load_more_when_near_end(ui, app, page.clone(), true);
                 }
                 ui.add_space(grid_art.map_or(0.0, |rect| ui.max_rect().bottom() - rect.top()));
                 return;
@@ -1714,7 +2034,9 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                 .map(|row| row as usize)
                 .filter(|row| entries[*row].liked || entries[*row].editable);
             // Sidebar entries, including Liked Songs, drop between rows.
-            let reordering = egui::DragAndDrop::has_payload_of_type::<DragEntry>(ui.ctx());
+            // Rows of several kinds keep their shared order: none moves.
+            let reordering =
+                !mixed && egui::DragAndDrop::has_payload_of_type::<DragEntry>(ui.ctx());
             let reorder_slot = reordering.then_some(pointer).flatten().map(|pos| {
                 let slot = (((pos.y - list_top) / row_height).round().max(0.0) as usize)
                     .min(entries.len());
@@ -1738,6 +2060,9 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                 let playing = context_playing && current;
                 let pinned = pins.iter().any(|key| key == entry.ordering_key());
                 let (_, rect) = ui.allocate_space(vec2(ui.available_width(), row_height));
+                if group_starts.contains(&index) {
+                    group_line(ui, &palette, rect.x_range(), rect.top());
+                }
                 let id = ui.id().with((
                     "library-row",
                     &entry.uri,
@@ -1911,6 +2236,8 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                         );
                         if entry.liked {
                             liked_cover(ui, cover_rect, 6.0);
+                        } else if entry.page == Page::LocalFiles {
+                            local_files_cover(ui, &palette, cover_rect, 6.0);
                         } else {
                             super::widgets::paint_cover(
                                 ui,
@@ -2011,8 +2338,8 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                     }
                 }
             }
-            if let Some(page) = more_page {
-                super::widgets::load_more_when_near_end(ui, app, page, true);
+            for page in &more_pages {
+                super::widgets::load_more_when_near_end(ui, app, page.clone(), true);
             }
         },
     );
@@ -2083,11 +2410,37 @@ fn grid_reorder_slot(
     (row * layout.columns + column + usize::from(after)).min(count)
 }
 
+/// The grid's rows as ranges of `entries`, `columns` to a row, each group
+/// from a fresh row.
+fn grid_rows(count: usize, columns: usize, group_starts: &[usize]) -> Vec<(usize, usize)> {
+    let mut rows = Vec::new();
+    let mut bounds: Vec<usize> = group_starts
+        .iter()
+        .copied()
+        .filter(|start| *start > 0 && *start < count)
+        .collect();
+    bounds.push(count);
+    let mut start = 0;
+    for end in bounds {
+        let mut at = start;
+        while at < end {
+            rows.push((at, (at + columns.max(1)).min(end)));
+            at += columns.max(1);
+        }
+        start = end;
+    }
+    rows
+}
+
+/// `filter` is the one kind listed, whose cards can be moved; `None` for
+/// several kinds, whose shared order keeps them where they are.
+#[allow(clippy::too_many_arguments)]
 fn library_grid(
     app: &mut App,
     ui: &mut egui::Ui,
     entries: &[Entry],
-    filter: Filter,
+    group_starts: &[usize],
+    filter: Option<Filter>,
     custom_order: bool,
     pinned_rows: usize,
     grid_art: Option<Rect>,
@@ -2108,20 +2461,24 @@ fn library_grid(
             && !grid_art.is_some_and(|art| art.contains(*pos))
     });
     let dragging_song = egui::DragAndDrop::has_payload_of_type::<DragTrack>(ui.ctx());
-    let reordering = egui::DragAndDrop::has_payload_of_type::<DragEntry>(ui.ctx());
+    let reordering =
+        filter.is_some() && egui::DragAndDrop::has_payload_of_type::<DragEntry>(ui.ctx());
     let reorder_slot = reordering
         .then_some(pointer)
         .flatten()
         .map(|pointer| grid_reorder_slot(pointer, origin, layout, entries.len()))
         .map(|slot| landing_slot(app, entries, slot));
-    let row_count = entries.len().div_ceil(layout.columns);
+    let rows = grid_rows(entries.len(), layout.columns, group_starts);
     let grid_id = ui.unique_id().with("library-grid");
 
-    super::widgets::virtual_rows(ui, row_count, layout.row_height, |ui, row| {
+    super::widgets::virtual_rows(ui, rows.len(), layout.row_height, |ui, row| {
+        let (start, end) = rows[row];
+        if group_starts.contains(&start) {
+            let top = ui.cursor().top();
+            group_line(ui, &palette, ui.max_rect().x_range(), top);
+        }
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 0.0;
-            let start = row * layout.columns;
-            let end = (start + layout.columns).min(entries.len());
             for index in start..end {
                 let entry = &entries[index];
                 let entry_id = (
@@ -2169,6 +2526,8 @@ fn library_grid(
                         }
                         if entry.liked {
                             liked_cover(ui, cover_rect, 6.0);
+                        } else if entry.page == Page::LocalFiles {
+                            local_files_cover(ui, &palette, cover_rect, 6.0);
                         } else if entry.folder.is_some() {
                             ui.painter().rect_filled(
                                 cover_rect,
@@ -2293,7 +2652,7 @@ fn library_grid(
         && ui.input(|input| input.pointer.button_released(egui::PointerButton::Primary))
         && let Some(drag) = egui::DragAndDrop::take_payload::<DragEntry>(ui.ctx())
     {
-        if filter == Filter::Playlists {
+        if filter == Some(Filter::Playlists) {
             drop_playlist_row(app, entries, pinned_rows, slot, &drag.uri);
         } else {
             drop_row(app, entries, pinned_rows, slot, &drag.uri);
@@ -2780,6 +3139,17 @@ fn drop_row(app: &mut App, entries: &[Entry], pinned_rows: usize, slot: usize, k
         pinned: pins,
         playlist_order: None,
     });
+}
+
+/// The Local Files tile: a note on the accent colour, as Spotify's green
+/// tile marks its own.
+pub fn local_files_cover(ui: &egui::Ui, palette: &Palette, rect: Rect, radius: f32) {
+    ui.painter()
+        .rect_filled(rect, CornerRadius::same(radius as u8), palette.accent);
+    let size = rect.width() * 0.42;
+    Icon::Music
+        .image(palette.on_accent, size)
+        .paint_at(ui, Rect::from_center_size(rect.center(), Vec2::splat(size)));
 }
 
 /// The purple-to-blue Liked Songs tile.
@@ -3926,6 +4296,187 @@ mod ordering_tests {
         ]);
         assert_eq!(app.library_folder, None);
         app.backend.shutdown();
+    }
+
+    /// The kinds are checkboxes: Playlists alone to begin with, each click
+    /// ticks or unticks one, and none ticked lists every kind.
+    #[test]
+    fn library_kinds_tick_like_checkboxes() {
+        let shown = Shown::default();
+        assert_eq!(shown.shelves(), [Filter::Playlists]);
+        let both = shown.toggled(Filter::Albums);
+        assert_eq!(both.shelves(), [Filter::Playlists, Filter::Albums]);
+        let albums = both.toggled(Filter::Playlists);
+        assert_eq!(albums.shelves(), [Filter::Albums]);
+        assert_eq!(albums.toggled(Filter::Albums).shelves(), SHELVES);
+        assert!(Shown::only(Filter::Podcasts).has(Filter::Podcasts));
+        assert!(!Shown::only(Filter::Podcasts).has(Filter::Artists));
+    }
+
+    /// Several kinds share one order, chosen among those they all take,
+    /// and kept together a kind at a time, a thin line between kinds; or
+    /// mixed in one flat list. A folder opened into lists only itself.
+    #[test]
+    fn several_kinds_list_grouped_or_mixed_in_one_order() {
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        let mut app = app("mixed-kinds");
+        app.settings.pinned_contexts.clear();
+        app.settings.liked_songs_pinned = false;
+        let shelves = [Filter::Playlists, Filter::Albums];
+        assert_eq!(
+            mixed_sorts(&shelves),
+            [LibrarySort::RecentlyPlayed, LibrarySort::Name]
+        );
+        assert!(
+            mixed_sorts(&[Filter::Albums, Filter::Podcasts]).contains(&LibrarySort::RecentlyAdded)
+        );
+        app.settings.library_mixed_sort = Some(LibrarySort::RecentlyAdded);
+        assert_eq!(
+            mixed_sort(&app, &shelves),
+            LibrarySort::RecentlyPlayed,
+            "playlists have no dates"
+        );
+        app.settings.library_mixed_sort = Some(LibrarySort::Name);
+        assert_eq!(mixed_sort(&app, &shelves), LibrarySort::Name);
+        // A sort chosen for playlists alone stays theirs.
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::RecentlyPlayed);
+        app.rootlist = vec![
+            FolderStart {
+                id: "f".into(),
+                name: "Folder".into(),
+            },
+            Playlist(uri("a")),
+            FolderEnd,
+            Playlist(uri("b")),
+            Playlist(uri("c")),
+            Playlist(uri("d")),
+        ];
+
+        // #then grouped: the playlists in name order, folder and all, then
+        // the albums in name order, from the line between them
+        app.settings.library_group_kinds = true;
+        let grouped = library_rows(&app, &shelves, "");
+        let start = &grouped.group_starts[..];
+        let &[albums_from] = start else {
+            panic!("{start:?}")
+        };
+        assert!(
+            grouped.entries[..albums_from]
+                .iter()
+                .all(|entry| entry.folder.is_some()
+                    || entry.liked
+                    || entry.uri.starts_with("spotify:playlist:"))
+        );
+        assert!(
+            grouped.entries[..albums_from]
+                .iter()
+                .any(|entry| entry.folder.is_some())
+        );
+        assert!(
+            grouped.entries[albums_from..]
+                .iter()
+                .all(|entry| entry.uri.starts_with("spotify:album:"))
+        );
+        let names = |entries: &[Entry]| -> Vec<String> {
+            entries
+                .iter()
+                .map(|entry| entry.name.to_lowercase())
+                .collect()
+        };
+        let mut sorted = names(&grouped.entries[albums_from..]);
+        sorted.sort();
+        assert_eq!(names(&grouped.entries[albums_from..]), sorted);
+
+        // #then mixed: one flat list in name order, no folders, no lines
+        app.settings.library_group_kinds = false;
+        let mixed = library_rows(&app, &shelves, "");
+        assert!(mixed.group_starts.is_empty());
+        assert!(
+            mixed
+                .entries
+                .iter()
+                .all(|entry| entry.folder.is_none() && entry.depth == 0)
+        );
+        assert!(
+            mixed
+                .entries
+                .iter()
+                .any(|entry| entry.uri.starts_with("spotify:album:"))
+        );
+        let mut sorted = names(&mixed.entries);
+        sorted.sort();
+        assert_eq!(names(&mixed.entries), sorted);
+        assert_eq!(
+            mixed.entries.len(),
+            grouped.entries.len() - 1,
+            "all but the folder row"
+        );
+
+        // #then one kind keeps its own order
+        let alone = library_rows(&app, &[Filter::Playlists], "");
+        assert!(alone.group_starts.is_empty());
+
+        // #then a folder opened into lists only itself, whatever is ticked
+        let shown = Shown::default().toggled(Filter::Albums);
+        assert_eq!(listed_shelves(&app, shown), shelves);
+        app.library_folder = Some("f".into());
+        assert_eq!(listed_shelves(&app, shown), [Filter::Playlists]);
+        assert_eq!(
+            listed_shelves(&app, Shown::only(Filter::Albums)),
+            [Filter::Albums]
+        );
+        app.backend.shutdown();
+    }
+
+    /// Local Files joins the Library once there is a folder or song to
+    /// play from, right after Liked Songs in Spotify's order; it can be
+    /// searched for, and stays out of an opened folder.
+    #[test]
+    fn local_files_join_the_library_after_liked_songs() {
+        use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
+        let mut app = app("local-files-row");
+        app.settings.pinned_contexts.clear();
+        app.settings.liked_songs_pinned = false;
+        app.settings
+            .library_sort
+            .insert(Filter::Playlists, LibrarySort::Spotify);
+        let local = |rows: &[Entry]| rows.iter().position(|entry| entry.page == Page::LocalFiles);
+        assert_eq!(local(&projected(&app, "")), None, "nowhere to look yet");
+        app.settings
+            .set_local_files_folders(&[std::path::PathBuf::from("/music")]);
+        let rows = projected(&app, "");
+        assert!(rows[0].liked);
+        assert_eq!(local(&rows), Some(1));
+        assert!(rows[1].uri.is_empty(), "never sent to Spotify");
+        assert!(local(&projected(&app, "local")).is_some());
+        assert_eq!(local(&projected(&app, "zebra")), None);
+        app.rootlist = vec![
+            FolderStart {
+                id: "f".into(),
+                name: "f".into(),
+            },
+            Playlist(uri("a")),
+            FolderEnd,
+        ];
+        app.library_folder = Some("f".into());
+        assert_eq!(local(&projected(&app, "")), None);
+        app.backend.shutdown();
+    }
+
+    /// In the grid, each kind starts a fresh row.
+    #[test]
+    fn grid_kinds_start_fresh_rows() {
+        assert_eq!(grid_rows(5, 2, &[]), [(0, 2), (2, 4), (4, 5)]);
+        assert_eq!(grid_rows(5, 2, &[3]), [(0, 2), (2, 3), (3, 5)]);
+        assert_eq!(grid_rows(4, 3, &[1, 2]), [(0, 1), (1, 2), (2, 4)]);
+        assert_eq!(grid_rows(0, 3, &[]), []);
+        assert_eq!(
+            grid_rows(3, 3, &[0, 3, 9]),
+            [(0, 3)],
+            "out-of-range starts are ignored"
+        );
     }
 
     /// A pinned folder rises to the top with what it holds, open or rolled

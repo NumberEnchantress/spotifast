@@ -600,9 +600,15 @@ pub struct ViewOptions<'a> {
 
 /// Tells one scan of the local files folder from another.
 fn local_files_scan(app: &App) -> usize {
+    // The scan's count, with the map it found, which a test may set by hand.
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    app.local_files_generation.hash(&mut hasher);
     app.local_files
         .as_ref()
-        .map_or(0, |(_, uris)| Arc::as_ptr(uris) as usize)
+        .map(|(_, uris)| Arc::as_ptr(uris) as usize)
+        .hash(&mut hasher);
+    hasher.finish() as usize
 }
 
 pub fn prepare_table_view(
@@ -1653,6 +1659,321 @@ pub fn top_songs(app: &mut App, ui: &mut egui::Ui) {
     );
 }
 
+/// A local song as Local Files lists it: the artist, album, title and
+/// length its `spotify:local:` URI carries, read from the file's tags.
+fn local_file_row(uri: &str) -> Option<TableItem> {
+    let librespot_core::SpotifyUri::Local {
+        artist,
+        album_title,
+        track_title,
+        duration,
+    } = librespot_core::SpotifyUri::from_uri(uri).ok()?
+    else {
+        return None;
+    };
+    // librespot writes each part form-encoded: spaces as `+`, the rest as
+    // `%XX`.
+    let plain = |part: String| {
+        let spaced = part.replace('+', " ");
+        urlencoding::decode(&spaced)
+            .map(|text| text.into_owned())
+            .unwrap_or(spaced)
+    };
+    let (artist, album_title, track_title) =
+        (plain(artist), plain(album_title), plain(track_title));
+    let track = crate::api::models::Track {
+        name: track_title,
+        uri: uri.to_string(),
+        duration_ms: u32::try_from(duration.as_millis()).unwrap_or(u32::MAX),
+        artists: vec![crate::api::models::ArtistRef {
+            name: artist,
+            ..Default::default()
+        }],
+        album: Some(Album {
+            name: album_title,
+            ..Default::default()
+        }),
+        is_local: true,
+        ..Default::default()
+    };
+    Some((PlayableItem::Track(track), None, None))
+}
+
+/// The songs in the local files folders and those added here, by artist,
+/// album and title, played on this computer's player.
+pub fn local_files(app: &mut App, ui: &mut egui::Ui) {
+    let palette = app.palette;
+    let locale = app.locale;
+    let title = gettext(locale, "Local Files");
+    let scan = local_files_scan(app) as u64;
+    let names = app.user_names_revision;
+    let items = match app.local_files.as_ref().map(|(_, uris)| Arc::clone(uris)) {
+        Some(_) if table_items_hit(app, &Page::LocalFiles, scan, scan, names).is_some() => {
+            table_items_hit(app, &Page::LocalFiles, scan, scan, names)
+        }
+        Some(uris) => {
+            let mut rows: Vec<TableItem> =
+                uris.keys().filter_map(|uri| local_file_row(uri)).collect();
+            rows.sort_by_cached_key(|(item, _, _)| match item {
+                PlayableItem::Track(track) => (
+                    track
+                        .artists
+                        .first()
+                        .map(|artist| artist.name.to_lowercase())
+                        .unwrap_or_default(),
+                    track
+                        .album
+                        .as_ref()
+                        .map(|album| album.name.to_lowercase())
+                        .unwrap_or_default(),
+                    track.name.to_lowercase(),
+                ),
+                _ => Default::default(),
+            });
+            Some(remember_table_items(
+                app,
+                Page::LocalFiles,
+                scan,
+                scan,
+                names,
+                rows,
+            ))
+        }
+        None => None,
+    };
+    let sources = app.local_sources();
+    let byline = match &items {
+        Some(items) => songs_and_duration(locale, items.len() as u32, total_duration(items)),
+        None if sources.is_empty() => String::new(),
+        None => gettext(locale, "Looking for songs…").into_owned(),
+    };
+    hero(
+        app,
+        ui,
+        Hero {
+            images: HeroImages::default(),
+            liked: false,
+            kind: gettext(locale, "Playlist"),
+            title: &title,
+            description: Some(
+                gettext(
+                    locale,
+                    "Songs from the folders and files you added, played on this computer.",
+                )
+                .into_owned(),
+            ),
+            byline: vec![(byline, None)],
+            avatar: None,
+            round: false,
+        },
+    );
+    let filter_id = egui::Id::new("local-files-filter");
+    let mut filter = ui
+        .data(|data| data.get_temp::<String>(filter_id))
+        .unwrap_or_default();
+    let all: Arc<[String]> = items
+        .as_ref()
+        .map(|items| {
+            items
+                .iter()
+                .map(|(item, _, _)| item.uri().to_string())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
+        .into();
+    let view = items.as_ref().and_then(|items| {
+        let needle = filter.trim().to_lowercase();
+        let sort = app.table_sorts.get(&Page::LocalFiles).copied();
+        prepare_table_view(
+            ui,
+            app,
+            &Page::LocalFiles,
+            items,
+            ViewOptions {
+                needle: &needle,
+                sort,
+                plays_shown_rows: false,
+            },
+            scan,
+        )
+        .view_uris
+        .clone()
+    });
+    local_files_actions(
+        app,
+        ui,
+        view.unwrap_or_else(|| Arc::clone(&all)),
+        &mut filter,
+    );
+    ui.data_mut(|data| data.insert_temp(filter_id, filter.clone()));
+    if sources.is_empty() {
+        widgets::empty_state(
+            ui,
+            &palette,
+            Icon::Music,
+            &gettext(locale, "No local files yet"),
+            &gettext(
+                locale,
+                "Add a folder or songs to play them here. Spotifast looks nowhere else.",
+            ),
+        );
+        return;
+    }
+    let Some(items) = items else {
+        widgets::skeleton_rows(ui, &palette, locale, 8);
+        return;
+    };
+    table(
+        app,
+        ui,
+        Table {
+            items: &items,
+            row_offset: 0,
+            pagination: None,
+            context: RowContext::Uris(all),
+            show_album: true,
+            show_cover: true,
+            show_added: false,
+            show_added_by: false,
+            show_plays: false,
+            page: Page::LocalFiles,
+            loading: false,
+            error: None,
+            can_load_more: false,
+            filter: &filter,
+            items_revision: scan,
+            plays_shown_rows: false,
+        },
+    );
+}
+
+/// Local Files' play button, which plays the songs on screen here, then
+/// shuffle, adding folders and songs, reading them again, and the filter.
+fn local_files_actions(app: &mut App, ui: &mut egui::Ui, view: Arc<[String]>, filter: &mut String) {
+    let palette = app.palette;
+    let locale = app.locale;
+    // A local song is playing: the button pauses it and plays it on.
+    let playing_here = app
+        .now_playing()
+        .is_some_and(|now| now.uri.starts_with("spotify:local:") && view.contains(&now.uri));
+    let paused_here = playing_here && !app.believed_playing();
+    let playing_here = playing_here && app.believed_playing();
+    ui.horizontal(|ui| {
+        ui.spacing_mut().item_spacing.x = 18.0;
+        let enabled = !view.is_empty() || playing_here || paused_here;
+        if ui
+            .add_enabled_ui(enabled, |ui| {
+                theme::circle_button(
+                    ui,
+                    if playing_here {
+                        Icon::PauseFilled
+                    } else {
+                        Icon::PlayFilled
+                    },
+                    56.0,
+                    palette.accent,
+                    palette.accent_hover,
+                    palette.on_accent,
+                    &if playing_here {
+                        gettext(locale, "Pause")
+                    } else {
+                        gettext(locale, "Play")
+                    },
+                )
+            })
+            .inner
+            .on_disabled_hover_text(gettext(locale, "No playable songs in this view").as_ref())
+            .clicked()
+        {
+            if playing_here || paused_here {
+                app.actions.push(Action::TogglePlay);
+            } else if let Some(first) = view.first() {
+                app.actions.push(Action::PlayFromRow {
+                    context: RowContext::Uris(Arc::clone(&view)),
+                    uri: first.clone(),
+                    index: 0,
+                });
+            }
+        }
+        let shuffle = app.playing_context_shuffle();
+        if theme::icon_button(
+            ui,
+            Icon::Shuffle,
+            26.0,
+            if shuffle {
+                palette.accent
+            } else {
+                palette.secondary
+            },
+            if shuffle {
+                palette.accent_hover
+            } else {
+                palette.text
+            },
+            &if shuffle {
+                gettext(locale, "Shuffle off")
+            } else {
+                gettext(locale, "Shuffle")
+            },
+        )
+        .clicked()
+        {
+            app.actions.push(Action::SetShuffle(!shuffle));
+        }
+        ui.spacing_mut().item_spacing.x = 8.0;
+        // Translators: Adds a folder of songs to local files.
+        if theme::soft_button(
+            ui,
+            &palette,
+            Some(Icon::Plus),
+            &gettext(locale, "Add folder"),
+            false,
+        )
+        .clicked()
+        {
+            app.actions.push(Action::ChooseLocalFilesFolder);
+        }
+        // Translators: Adds songs to local files one at a time, as copies.
+        if theme::soft_button(
+            ui,
+            &palette,
+            Some(Icon::Plus),
+            &gettext(locale, "Add files"),
+            false,
+        )
+        .clicked()
+        {
+            app.actions.push(Action::AddLocalFiles);
+        }
+        if !app.local_sources().is_empty()
+            && theme::icon_button(
+                ui,
+                Icon::Refresh,
+                20.0,
+                palette.secondary,
+                palette.text,
+                // Translators: Reads the local files folders again, for songs added or removed.
+                &gettext(locale, "Look for new songs"),
+            )
+            .clicked()
+        {
+            app.actions.push(Action::RescanLocalFiles);
+        }
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            widgets::search_field(
+                ui,
+                &palette,
+                locale,
+                egui::Id::new("local-files-filter-field"),
+                filter,
+                &gettext(locale, "Filter"),
+                220.0,
+            );
+        });
+    });
+    ui.add_space(14.0);
+}
+
 pub fn playlist(app: &mut App, ui: &mut egui::Ui, id: &str) {
     if !app.playlist_pages.contains_key(id) {
         app.ensure_loaded(Page::Playlist(id.to_string()));
@@ -2569,6 +2890,24 @@ fn palette_of(app: &App) -> Palette {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A local song lists by the parts its URI carries, written plain:
+    /// librespot form-encodes them, spaces as `+`.
+    #[test]
+    fn local_songs_list_by_their_plain_names() {
+        let (item, _, _) =
+            local_file_row("spotify:local:The+Artist:Caf%C3%A9+Songs:A+%2B+B:215").unwrap();
+        let PlayableItem::Track(track) = item else {
+            panic!("{item:?}")
+        };
+        assert_eq!(track.name, "A + B");
+        assert_eq!(track.artists[0].name, "The Artist");
+        assert_eq!(track.album.unwrap().name, "Café Songs");
+        assert_eq!(track.duration_ms, 215_000);
+        assert!(track.is_local);
+        assert!(local_file_row("spotify:track:abc").is_none());
+        assert!(local_file_row("spotify:local:broken").is_none());
+    }
     use crate::api::models::{Album, ArtistRef, Image, Track};
     use crate::model::PlaylistPage;
 

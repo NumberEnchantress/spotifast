@@ -339,6 +339,46 @@ pub fn shared() -> SharedEq {
     Arc::new(Mutex::new(EqSettings::default()))
 }
 
+/// A filter of another equalizer, as Spotify's app describes each of its
+/// six: a shelf or a peak at a frequency, with a gain in decibels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ForeignFilter {
+    LowShelf { hz: f32, gain_db: f32 },
+    Peaking { hz: f32, q: f32, gain_db: f32 },
+    HighShelf { hz: f32, gain_db: f32 },
+}
+
+impl ForeignFilter {
+    fn biquad(self) -> Biquad {
+        match self {
+            Self::LowShelf { hz, gain_db } => {
+                Biquad::shelf(true, f64::from(hz), f64::from(gain_db))
+            }
+            Self::Peaking { hz, q, gain_db } => {
+                Biquad::peaking_q(f64::from(hz), f64::from(q), f64::from(gain_db))
+            }
+            Self::HighShelf { hz, gain_db } => {
+                Biquad::shelf(false, f64::from(hz), f64::from(gain_db))
+            }
+        }
+    }
+}
+
+/// The sliders that give the response of `filters` at each band's centre.
+/// The equalizer meets its sliders there, so the curve comes out as the
+/// other equalizer's, within the reach of ten bands and twelve decibels.
+pub fn sliders_for(filters: &[ForeignFilter]) -> [f32; 10] {
+    let biquads: Vec<Biquad> = filters.iter().map(|filter| filter.biquad()).collect();
+    BANDS.map(|hz| {
+        let db: f64 = biquads
+            .iter()
+            .map(|biquad| biquad.gain_db_at(f64::from(hz)))
+            .sum();
+        // A tenth of a decibel, as the sliders show it.
+        ((db * 10.0).round() / 10.0).clamp(-f64::from(RANGE_DB), f64::from(RANGE_DB)) as f32
+    })
+}
+
 /// A second-order section in direct form I, one per band and channel.
 #[derive(Clone, Copy, Debug, Default)]
 struct Biquad {
@@ -371,6 +411,60 @@ impl Biquad {
             b2: (1.0 - alpha * a) / a0,
             a1: (-2.0 * cos) / a0,
             a2: (1.0 - alpha / a) / a0,
+            ..Self::default()
+        }
+    }
+
+    /// A peaking filter after the Audio EQ Cookbook with the width given as
+    /// its Q, the way Web Audio's peaking filter takes it.
+    fn peaking_q(hz: f64, q: f64, gain_db: f64) -> Self {
+        let a = 10f64.powf(gain_db / 40.0);
+        let w0 = std::f64::consts::TAU * hz / f64::from(SAMPLE_RATE);
+        let (sin, cos) = w0.sin_cos();
+        let alpha = sin / (2.0 * q.max(0.01));
+        let a0 = 1.0 + alpha / a;
+        Self {
+            b0: (1.0 + alpha * a) / a0,
+            b1: (-2.0 * cos) / a0,
+            b2: (1.0 - alpha * a) / a0,
+            a1: (-2.0 * cos) / a0,
+            a2: (1.0 - alpha / a) / a0,
+            ..Self::default()
+        }
+    }
+
+    /// A low or high shelf after the Audio EQ Cookbook with the steepest
+    /// slope that does not overshoot (S = 1), as Web Audio's shelves are.
+    fn shelf(low: bool, hz: f64, gain_db: f64) -> Self {
+        let a = 10f64.powf(gain_db / 40.0);
+        let w0 = std::f64::consts::TAU * hz / f64::from(SAMPLE_RATE);
+        let (sin, cos) = w0.sin_cos();
+        let root = 2.0 * a.sqrt() * (sin / 2.0 * std::f64::consts::SQRT_2);
+        let (b0, b1, b2, a0, a1, a2) = if low {
+            (
+                a * ((a + 1.0) - (a - 1.0) * cos + root),
+                2.0 * a * ((a - 1.0) - (a + 1.0) * cos),
+                a * ((a + 1.0) - (a - 1.0) * cos - root),
+                (a + 1.0) + (a - 1.0) * cos + root,
+                -2.0 * ((a - 1.0) + (a + 1.0) * cos),
+                (a + 1.0) + (a - 1.0) * cos - root,
+            )
+        } else {
+            (
+                a * ((a + 1.0) + (a - 1.0) * cos + root),
+                -2.0 * a * ((a - 1.0) + (a + 1.0) * cos),
+                a * ((a + 1.0) + (a - 1.0) * cos - root),
+                (a + 1.0) - (a - 1.0) * cos + root,
+                2.0 * ((a - 1.0) - (a + 1.0) * cos),
+                (a + 1.0) - (a - 1.0) * cos - root,
+            )
+        };
+        Self {
+            b0: b0 / a0,
+            b1: b1 / a0,
+            b2: b2 / a0,
+            a1: a1 / a0,
+            a2: a2 / a0,
             ..Self::default()
         }
     }
@@ -679,5 +773,45 @@ mod tests {
                 preset.name
             );
         }
+    }
+
+    /// Another equalizer's filters come over as the sliders that meet its
+    /// curve at each band: nothing for none, a peak's own gain at its own
+    /// centre, half a shelf's gain at its corner and all of it far past.
+    #[test]
+    fn foreign_filters_become_the_sliders_meeting_their_curve() {
+        assert_eq!(sliders_for(&[]), [0.0; 10]);
+        let peak = sliders_for(&[ForeignFilter::Peaking {
+            hz: 1000.0,
+            q: 1.0,
+            gain_db: 6.0,
+        }]);
+        assert_eq!(peak[4], 6.0);
+        assert!(peak[0].abs() < 0.2 && peak[9].abs() < 0.2, "{peak:?}");
+        let low = sliders_for(&[ForeignFilter::LowShelf {
+            hz: 170.0,
+            gain_db: 8.0,
+        }]);
+        assert!((low[1] - 4.0).abs() < 0.2, "{low:?}");
+        assert!(low[0] > 6.0 && low[9].abs() < 0.2, "{low:?}");
+        let high = sliders_for(&[ForeignFilter::HighShelf {
+            hz: 3000.0,
+            gain_db: -8.0,
+        }]);
+        assert!((high[5] + 4.0).abs() < 0.2, "{high:?}");
+        assert!(high[0].abs() < 0.2 && high[9] < -6.0, "{high:?}");
+        let loud = sliders_for(&[
+            ForeignFilter::Peaking {
+                hz: 1000.0,
+                q: 1.0,
+                gain_db: 12.0,
+            },
+            ForeignFilter::Peaking {
+                hz: 1000.0,
+                q: 1.0,
+                gain_db: 12.0,
+            },
+        ]);
+        assert_eq!(loud[4], RANGE_DB, "the sliders stop at their range");
     }
 }

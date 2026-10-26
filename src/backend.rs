@@ -54,12 +54,102 @@ const FOLDER_EDIT_TIMEOUT: Duration = Duration::from_secs(90);
 /// playlist lists that will play are the ones shown as playable, and each
 /// one's file can be read for its cover and lyrics.
 fn local_file_uris(
-    folder: &std::path::Path,
+    sources: &[std::path::PathBuf],
 ) -> std::collections::HashMap<String, std::path::PathBuf> {
-    librespot_playback::local_file::create_local_file_lookup(&[folder.to_path_buf()])
+    librespot_playback::local_file::create_local_file_lookup(sources)
         .iter()
         .map(|(uri, path)| (uri.to_uri(), path.to_path_buf()))
         .collect()
+}
+
+/// The kinds of file the player plays from disk, as librespot reads them.
+pub const LOCAL_FILE_EXTENSIONS: [&str; 4] = ["mp3", "flac", "mp4", "m4p"];
+
+/// What copying picked songs into Spotifast's folder came to.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CopiedSongs {
+    pub copied: u32,
+    /// Already there, the same size under the same name.
+    pub present: u32,
+    pub failed: u32,
+}
+
+/// Copies `files` into `into`, keeping their names: a file already there
+/// at the same size is the same song, and another of the same name gets a
+/// numbered one beside it. Only files the player can play are copied.
+fn copy_local_files(files: &[std::path::PathBuf], into: &std::path::Path) -> CopiedSongs {
+    let mut result = CopiedSongs::default();
+    if std::fs::create_dir_all(into).is_err() {
+        result.failed = files.len() as u32;
+        return result;
+    }
+    for file in files {
+        let playable = file
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .is_some_and(|ext| LOCAL_FILE_EXTENSIONS.contains(&ext.to_lowercase().as_str()));
+        let (Some(name), Ok(meta)) = (file.file_name(), std::fs::metadata(file)) else {
+            result.failed += 1;
+            continue;
+        };
+        if !playable || !meta.is_file() {
+            result.failed += 1;
+            continue;
+        }
+        let mut target = into.join(name);
+        let stem = file
+            .file_stem()
+            .map(|stem| stem.to_string_lossy().into_owned());
+        let ext = file
+            .extension()
+            .map(|ext| ext.to_string_lossy().into_owned());
+        let mut number = 2;
+        let mut present = false;
+        // Any name already taken, a link included, is not written over.
+        while let Ok(held) = std::fs::symlink_metadata(&target) {
+            if held.is_file() && held.len() == meta.len() {
+                present = true;
+                break;
+            }
+            let stem = stem.as_deref().unwrap_or("song");
+            target = into.join(match &ext {
+                Some(ext) => format!("{stem} ({number}).{ext}"),
+                None => format!("{stem} ({number})"),
+            });
+            number += 1;
+        }
+        if present {
+            result.present += 1;
+        } else if copy_whole(file, &target) {
+            result.copied += 1;
+        } else {
+            result.failed += 1;
+        }
+    }
+    result
+}
+
+/// Copies `file` to `target` through a partial file beside it, renamed
+/// only once whole, so a copy cut short never shows as a song.
+fn copy_whole(file: &std::path::Path, target: &std::path::Path) -> bool {
+    let mut partial = target.as_os_str().to_owned();
+    partial.push(".part");
+    let partial = std::path::PathBuf::from(partial);
+    let copied = (|| -> std::io::Result<()> {
+        let mut from = std::fs::File::open(file)?;
+        let mut to = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&partial)?;
+        std::io::copy(&mut from, &mut to)?;
+        to.sync_all()?;
+        drop(to);
+        std::fs::rename(&partial, target)
+    })();
+    if copied.is_err() {
+        let _ = std::fs::remove_file(&partial);
+    }
+    copied.is_ok()
 }
 /// Newest episodes read from each saved podcast for Home's podcast shelf.
 const HOME_EPISODES_PER_SHOW: u32 = 5;
@@ -708,9 +798,25 @@ pub enum Command {
         selected:
             std::pin::Pin<Box<dyn std::future::Future<Output = Option<rfd::FileHandle>> + Send>>,
     },
-    /// Find the songs in the local files folder, off the UI thread, as the
-    /// player does when it starts.
-    ScanLocalFiles(std::path::PathBuf),
+    /// Find the songs in the local files folders, off the UI thread, as
+    /// the player does when it starts.
+    ScanLocalFiles {
+        generation: u64,
+        sources: Vec<std::path::PathBuf>,
+    },
+    /// Copy the songs picked in the add-files dialog into Spotifast's own
+    /// local files folder.
+    ChooseLocalFiles {
+        selected: std::pin::Pin<
+            Box<dyn std::future::Future<Output = Option<Vec<rfd::FileHandle>>> + Send>,
+        >,
+        into: std::path::PathBuf,
+    },
+    /// Read the equalizer presets `user_id` saved in Spotify's desktop app
+    /// on this computer, off the UI thread.
+    ReadSpotifyEqPresets {
+        user_id: String,
+    },
     /// Start (or restart) the Web API sign-in in the browser.
     SignIn {
         request: u64,
@@ -970,11 +1076,17 @@ pub struct LyricsRequest {
 pub enum Event {
     /// The folder picked in the local files dialog; `None` when cancelled.
     LocalFilesFolderChosen(Option<std::path::PathBuf>),
-    /// The songs in `folder`, by the `spotify:local:` URIs they play for.
+    /// The presets Spotify's desktop app saved, or why there are none.
+    SpotifyEqPresets(Result<Vec<crate::settings::UserEqPreset>, crate::spotify_eq::ImportError>),
+    /// The songs in `sources`, by the `spotify:local:` URIs they play for.
     LocalFiles {
-        folder: std::path::PathBuf,
+        /// Which scan this is, the app's count of those it asked for.
+        generation: u64,
+        sources: Vec<std::path::PathBuf>,
         uris: Arc<std::collections::HashMap<String, std::path::PathBuf>>,
     },
+    /// What came of copying the songs picked in the add-files dialog.
+    LocalFilesCopied(CopiedSongs),
     ProxyRestored {
         config: ProxyConfig,
         password: Option<crate::credentials::ProxyPassword>,
@@ -1402,13 +1514,29 @@ impl Backend {
         });
     }
 
+    /// Construct the add-files dialog on the UI thread, like the folder's;
+    /// the picked songs are copied into `into`.
+    pub fn choose_local_files(&self, into: std::path::PathBuf) {
+        if self.offline {
+            return;
+        }
+        let selected = rfd::AsyncFileDialog::new()
+            .set_title("Add songs")
+            .add_filter("Music", &LOCAL_FILE_EXTENSIONS)
+            .pick_files();
+        self.send(Command::ChooseLocalFiles {
+            selected: Box::pin(selected),
+            into,
+        });
+    }
+
     /// Construct the folder dialog on the UI thread, like the cover's.
     pub fn choose_local_files_folder(&self) {
         if self.offline {
             return;
         }
         let selected = rfd::AsyncFileDialog::new()
-            .set_title("Choose the local files folder")
+            .set_title("Add a folder of songs")
             .pick_folder();
         self.send(Command::ChooseLocalFilesFolder {
             selected: Box::pin(selected),
@@ -2287,20 +2415,58 @@ impl Worker {
                         waker.wake();
                     });
                 }
-                Command::ScanLocalFiles(folder) => {
+                Command::ReadSpotifyEqPresets { user_id } => {
                     let events = self.events.clone();
                     let waker = self.waker.clone();
                     tokio::spawn(async move {
-                        let scanned = folder.clone();
+                        let result = tokio::task::spawn_blocking(move || {
+                            crate::spotify_eq::read_presets(&user_id)
+                        })
+                        .await
+                        .unwrap_or_else(|error| {
+                            Err(crate::spotify_eq::ImportError::Unreadable(
+                                error.to_string(),
+                            ))
+                        });
+                        let _ = events.send(Event::SpotifyEqPresets(result));
+                        waker.wake();
+                    });
+                }
+                Command::ScanLocalFiles {
+                    generation,
+                    sources,
+                } => {
+                    let events = self.events.clone();
+                    let waker = self.waker.clone();
+                    tokio::spawn(async move {
+                        let scanned = sources.clone();
                         let Ok(uris) =
                             tokio::task::spawn_blocking(move || local_file_uris(&scanned)).await
                         else {
                             return;
                         };
                         let _ = events.send(Event::LocalFiles {
-                            folder,
+                            generation,
+                            sources,
                             uris: Arc::new(uris),
                         });
+                        waker.wake();
+                    });
+                }
+                Command::ChooseLocalFiles { selected, into } => {
+                    let events = self.events.clone();
+                    let waker = self.waker.clone();
+                    tokio::spawn(async move {
+                        let Some(files) = selected.await else {
+                            return;
+                        };
+                        let files: Vec<std::path::PathBuf> =
+                            files.iter().map(|file| file.path().to_path_buf()).collect();
+                        let copied =
+                            tokio::task::spawn_blocking(move || copy_local_files(&files, &into))
+                                .await
+                                .unwrap_or_default();
+                        let _ = events.send(Event::LocalFilesCopied(copied));
                         waker.wake();
                     });
                 }
@@ -9421,6 +9587,45 @@ mod cover_routing_tests {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Picked songs are copied under their own names; a song already there
+    /// at the same size is not copied again, another song of the same name
+    /// gets a numbered one, and a file the player cannot play is refused.
+    #[test]
+    fn picked_songs_copy_under_their_names() {
+        let base =
+            std::env::temp_dir().join(format!("spotifast-copy-songs-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let picked = base.join("picked");
+        let other = base.join("other");
+        let into = base.join("into");
+        std::fs::create_dir_all(&picked).unwrap();
+        std::fs::create_dir_all(&other).unwrap();
+        std::fs::write(picked.join("Song.mp3"), b"one").unwrap();
+        std::fs::write(picked.join("Notes.txt"), b"text").unwrap();
+        std::fs::write(other.join("Song.mp3"), b"another").unwrap();
+        let first = copy_local_files(&[picked.join("Song.mp3"), picked.join("Notes.txt")], &into);
+        assert_eq!(
+            first,
+            CopiedSongs {
+                copied: 1,
+                present: 0,
+                failed: 1
+            }
+        );
+        assert_eq!(std::fs::read(into.join("Song.mp3")).unwrap(), b"one");
+        let again = copy_local_files(&[picked.join("Song.mp3")], &into);
+        assert_eq!(again.present, 1);
+        assert_eq!(again.copied, 0);
+        let namesake = copy_local_files(&[other.join("Song.mp3"), base.join("missing.mp3")], &into);
+        assert_eq!(namesake.copied, 1);
+        assert_eq!(namesake.failed, 1);
+        assert_eq!(
+            std::fs::read(into.join("Song (2).mp3")).unwrap(),
+            b"another"
+        );
+        std::fs::remove_dir_all(&base).unwrap();
+    }
 
     /// Avoids shared playlist search after a successful session read.
     #[tokio::test]

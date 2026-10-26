@@ -91,3 +91,12 @@ preamp and the ten bands, and appears after the built-in presets in Settings
 and in the mini player's **PRESETS** menu. Saving under a name you already
 used replaces that preset. While a saved preset is in use, **Delete** beside
 **Save preset** removes it; the sound stays as it is.
+
+The presets you saved in Spotify's desktop app on this computer come over with
+**Import from Spotify** beside **Save preset**. Spotify keeps them in its app,
+not in your account, so presets made on a phone or another computer are not
+there. Each keeps its name, and its six bands are turned into the ten here by
+the curve they make. Importing again brings in what the app holds now: a
+preset deleted there goes here too. Settings shows the presets in three
+groups, divided by thin lines: the built-in ones, those from Spotify, and
+your own; the mini player's **PRESETS** menu lists them in the same order.

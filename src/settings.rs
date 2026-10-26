@@ -266,8 +266,16 @@ pub struct Settings {
     pub audio_cache: bool,
     pub audio_cache_mb: u64,
     /// The folder, searched with its subfolders, that a playlist's
-    /// `spotify:local:` songs play from; `None` plays none.
+    /// `spotify:local:` songs play from; `None` plays none. With several
+    /// folders, the first, for versions that know only one.
     pub local_files_folder: Option<String>,
+    /// The folders local files play from, each searched with its
+    /// subfolders, in the order added. Empty in settings from before
+    /// several folders, which keep `local_files_folder`.
+    pub local_files_folders: Vec<String>,
+    /// Songs were added one at a time: their copies, in Spotifast's own
+    /// folder, play with the folders.
+    pub local_files_added: bool,
     pub theme: ThemeChoice,
     /// The interface language; older files without it follow the system.
     pub language: LanguageChoice,
@@ -357,6 +365,12 @@ pub struct Settings {
     pub library_sort: std::collections::BTreeMap<LibraryShelf, LibrarySort>,
     /// Show only playlists owned by the signed-in account in the playlist shelf.
     pub library_by_you: bool,
+    /// The order of a Library that lists more than one kind, shared by all
+    /// of them; `None` is recently played.
+    pub library_mixed_sort: Option<LibrarySort>,
+    /// A Library of more than one kind keeps each kind together, the way
+    /// the shelves list them, rather than mixing them in one list.
+    pub library_group_kinds: bool,
     /// Interface zoom, egui's zoom factor; Ctrl+plus/minus changes it.
     pub zoom: f32,
     /// The Winamp window is open.
@@ -392,6 +406,9 @@ pub struct Settings {
     pub eq_bands_db: [f32; 10],
     /// Equalizer presets saved here, listed after the built-in ones (#702).
     pub eq_user_presets: Vec<UserEqPreset>,
+    /// The presets saved in Spotify's desktop app on this computer, as the
+    /// last import found them, listed between the built-in ones and these.
+    pub eq_spotify_presets: Vec<UserEqPreset>,
     /// The balance, -1 all left to 1 all right.
     pub balance: f32,
     /// Play both channels the same.
@@ -470,6 +487,8 @@ impl Default for Settings {
             gapless: true,
             audio_device: None,
             local_files_folder: None,
+            local_files_folders: Vec::new(),
+            local_files_added: false,
             audio_buffer_ms: default_buffer_ms(),
             audio_cache: true,
             audio_cache_mb: 1024,
@@ -511,6 +530,8 @@ impl Default for Settings {
             sidebar_order: Vec::new(),
             library_sort: std::collections::BTreeMap::new(),
             library_by_you: false,
+            library_mixed_sort: None,
+            library_group_kinds: true,
             zoom: 1.0,
             winamp_window: false,
             winamp_show_taskbar: true,
@@ -527,6 +548,7 @@ impl Default for Settings {
             eq_preamp_db: 0.0,
             eq_bands_db: [0.0; 10],
             eq_user_presets: Vec::new(),
+            eq_spotify_presets: Vec::new(),
             balance: 0.0,
             mono: false,
             playlist_shaded: false,
@@ -561,6 +583,29 @@ impl Settings {
             .as_deref()
             .filter(|folder| !folder.trim().is_empty())
             .map(std::path::PathBuf::from)
+    }
+
+    /// The folders local files play from, in the order added. Settings from
+    /// before several folders keep their one.
+    pub fn local_files_folders(&self) -> Vec<std::path::PathBuf> {
+        if self.local_files_folders.is_empty() {
+            return self.local_files_folder().into_iter().collect();
+        }
+        self.local_files_folders
+            .iter()
+            .filter(|folder| !folder.trim().is_empty())
+            .map(std::path::PathBuf::from)
+            .collect()
+    }
+
+    /// Keeps `folders`, the first also where a version that knows only one
+    /// folder looks.
+    pub fn set_local_files_folders(&mut self, folders: &[std::path::PathBuf]) {
+        self.local_files_folders = folders
+            .iter()
+            .map(|folder| folder.to_string_lossy().into_owned())
+            .collect();
+        self.local_files_folder = self.local_files_folders.first().cloned();
     }
 
     /// The one palette shown whatever the system's appearance: a chosen
@@ -1321,6 +1366,15 @@ mod tests {
         let again: Settings =
             serde_json::from_str(&serde_json::to_string(&settings).unwrap()).unwrap();
         assert_eq!(again.eq_user_presets, settings.eq_user_presets);
+        assert!(settings.eq_spotify_presets.is_empty());
+        let imported: Settings = serde_json::from_str(
+            r#"{"eq_spotify_presets":[{"name":"Low/High","bands_db":[3,2.4,0.7,0.2,0.1,0,0,0.4,0.9,1.8]}]}"#,
+        )
+        .unwrap();
+        assert_eq!(imported.eq_spotify_presets[0].name, "Low/High");
+        let again: Settings =
+            serde_json::from_str(&serde_json::to_string(&imported).unwrap()).unwrap();
+        assert_eq!(again.eq_spotify_presets, imported.eq_spotify_presets);
     }
 
     #[test]

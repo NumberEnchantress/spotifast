@@ -24,6 +24,7 @@ Spotifast follows each platform's conventions. On Linux:
 | Legacy proxy password | `~/.local/state/spotifast/proxy_password` | Removed after protected migration |
 | Last session | `~/.local/state/spotifast/session.json` | Yes |
 | Play history | `~/.local/state/spotifast/history.json` | Yes |
+| Songs added to local files one at a time | `~/.local/state/spotifast/local-files/` | Yes, they leave Local Files; the songs you picked stay where they were |
 | Audio cache | `~/.cache/spotifast/audio/` | Always |
 | Artwork cache | `~/.cache/spotifast/art/` | Always |
 | Lyrics cache | `~/.cache/spotifast/lyrics/` | Always |
@@ -340,7 +341,9 @@ main fields are:
 | `gapless` | `true` | Gapless playback |
 | `audio_device` | `null` | The output local playback uses, by the id of a device **Audio output** in the device picker lists: PipeWire's or PulseAudio's node name or an ALSA PCM on Linux, the WASAPI endpoint id on Windows, the CoreAudio UID on macOS. `null` is the system default. A device that is not there plays through the default. A name saved by 0.13.3 or earlier opens the output that still has it and is replaced by its id once music plays there; any other name plays through the default and is kept until another choice. The `audio_backend` older versions saved is ignored and no longer written |
 | `audio_cache_mb` | `1024` | On-disk audio cache budget |
-| `local_files_folder` | `null` | Folder, with its subfolders, that a playlist's local files play from |
+| `local_files_folders` | `[]` | Folders, each with its subfolders, that local files play from, in the order added |
+| `local_files_folder` | `null` | The first of `local_files_folders`, for versions that know only one folder; older settings with only this keep it as their folder |
+| `local_files_added` | `false` | Songs were added one at a time; their copies, in the state folder's `local-files`, play with the folders |
 | `theme` | `system` | Follow the system appearance by default; explicit `dark` and `light` choices remain available |
 | `language` | `system` | Since 0.10.0: the interface language. `system` follows the operating system's preferred languages and falls back to English; a tag such as `es`, `de-DE`, `pt-BR` or `zh-Hant` selects that language. An unknown tag follows the system |
 | `custom_theme` | `null` | Selected JSON filename from the `themes` folder |
@@ -353,6 +356,8 @@ main fields are:
 | `visualizer_fps` | `60` | Frame rate of the player bar and mini player visualizers; `0` is uncapped. Half that out of focus, at most 30 while the system saves energy, none while the window is hidden. MilkDrop uses `milkdrop_fps` |
 | `library_sort` | `{}` | Per-section Library order overrides, since 0.8.0: `library`, `recently_played`, `name`, `recently_added`, `local`, or `spotify`, where supported |
 | `library_by_you` | `false` | Show only playlists owned by the signed-in account, alongside Liked Songs; applies only to the Playlists shelf |
+| `library_mixed_sort` | `null` | The order of a Library listing more than one kind: `recently_played` (the default), `name`, or `recently_added` where every listed kind has dates |
+| `library_group_kinds` | `true` | A Library listing more than one kind keeps each kind together; `false` mixes them in one list |
 | `sidebar_order` | `[]` | Saved local playlist arrangement, including an unpinned Liked Songs, retained when another sort is selected |
 | `pinned_contexts` | `[]` | Local Library pin order; Liked Songs uses `spotifast:liked-songs`, a local key never sent to Spotify |
 | `liked_songs_pinned` | `true` | Keep Liked Songs in the pin block; older settings place it first until moved |
@@ -375,6 +380,7 @@ main fields are:
 | `eq_preamp_db` | `0` | The preamp, in decibels, -12 to 12 |
 | `eq_bands_db` | ten zeros | The bands from 60 Hz to 16 kHz, in decibels, -12 to 12 |
 | `eq_user_presets` | `[]` | Equalizer presets you saved, each with a `name`, its `preamp_db` and its ten `bands_db`, listed after the built-in presets |
+| `eq_spotify_presets` | `[]` | The presets the last **Import from Spotify** found in Spotify's desktop app, in the same form, listed between the built-in presets and yours |
 | `balance` | `0` | Left to right, -1 to 1, for local playback |
 | `mono` | `false` | Play both channels the same |
 | `playlist_shaded` | `false` | The playlist window is rolled up to its title bar |

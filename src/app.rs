@@ -641,10 +641,12 @@ pub struct App {
     played_row: Option<PlayedRow>,
     /// The songs found in the local files folder, as the `spotify:local:`
     /// URIs a playlist lists them by; `None` until the folder is read.
-    pub local_files: Option<(
-        std::path::PathBuf,
-        std::sync::Arc<HashMap<String, std::path::PathBuf>>,
-    )>,
+    pub local_files: Option<(Vec<std::path::PathBuf>, LocalFileMap)>,
+    /// The last scan of the local files asked for; an older one's answer
+    /// says nothing now.
+    local_scan_asked: u64,
+    /// The scan whose songs `local_files` holds.
+    pub local_files_generation: u64,
     /// Requested shuffle mode, applied to every context until changed.
     shuffle_wanted: bool,
     /// The repeat mode saved by the last run, which the first local load
@@ -1255,6 +1257,8 @@ impl App {
             intent_track: None,
             played_row: None,
             local_files: None,
+            local_scan_asked: 0,
+            local_files_generation: 0,
             shuffle_wanted: session.shuffle_on,
             repeat_wanted: RepeatMode::from_api(&session.repeat),
             shuffle_set_at: None,
@@ -1333,9 +1337,7 @@ impl App {
             pixels_per_point: 1.0,
         };
         app.local.volume = app.settings.volume;
-        if let Some(folder) = app.settings.local_files_folder() {
-            app.backend.send(Command::ScanLocalFiles(folder));
-        }
+        app.scan_local_files();
         // What was played here is on disk and needs nothing from the
         // network, so the tab has rows before Spotify has answered.
         app.rebuild_recents();
@@ -2481,13 +2483,21 @@ impl App {
                     self.cover_checked(&id, request, images, result);
                 }
                 Event::LocalFilesFolderChosen(Some(folder)) => {
-                    self.set_local_files_folder(Some(folder));
+                    self.add_local_files_folder(folder);
                 }
+                Event::LocalFilesCopied(copied) => self.local_files_copied(copied),
                 Event::LocalFilesFolderChosen(None) => {}
-                Event::LocalFiles { folder, uris } => {
-                    // A scan of a folder since replaced says nothing now.
-                    if self.settings.local_files_folder().as_ref() == Some(&folder) {
-                        self.local_files = Some((folder, uris));
+                Event::SpotifyEqPresets(result) => self.spotify_eq_presets_read(result),
+                Event::LocalFiles {
+                    generation,
+                    sources,
+                    uris,
+                } => {
+                    // Only the scan asked for last tells the folders as
+                    // they are now.
+                    if generation == self.local_scan_asked {
+                        self.local_files = Some((sources, uris));
+                        self.local_files_generation = generation;
                     }
                 }
                 Event::PlaylistCoverChosen {
@@ -3022,7 +3032,8 @@ impl App {
                     self.load_new_release_page(true);
                 }
             }
-            Page::Search => {}
+            // Local files are read from disk, never fetched.
+            Page::Search | Page::LocalFiles => {}
             Page::LikedSongs => {
                 if !self.liked_songs.cache_checked {
                     self.ensure_liked_songs();
@@ -5448,7 +5459,8 @@ impl App {
                     self.load_new_release_page(false);
                 }
             }
-            Page::Search => {}
+            // Local files are read from disk, never fetched.
+            Page::Search | Page::LocalFiles => {}
             Page::LikedSongs => self.ensure_liked_songs(),
             Page::Albums => {
                 if self.network_reachable && !self.library.albums.loaded_once {
@@ -9220,7 +9232,35 @@ impl App {
         }
     }
 
+    /// This computer's player is on its way: connecting, authorizing,
+    /// waiting for the network, or about to once the sign-in finishes.
+    fn local_engine_starting(&self) -> bool {
+        matches!(
+            self.local_playback,
+            LocalPlayback::Connecting
+                | LocalPlayback::Authorizing
+                | LocalPlayback::WaitingForNetwork
+        ) || (self.settings.playback_authorized
+            && matches!(self.auth, AuthStatus::Starting | AuthStatus::Connecting))
+    }
+
     fn start_play(&mut self, request: PlayRequest, shuffle_first: bool) {
+        // Only this computer plays its local files: a list of nothing else
+        // plays here, whatever device was playing, since Spotify would
+        // refuse it anywhere else.
+        let local_only = request.context_uri.is_none()
+            && !request.uris.is_empty()
+            && request
+                .uris
+                .iter()
+                .all(|uri| uri.starts_with(LOCAL_URI_PREFIX));
+        if local_only && !self.local_ready && !self.local_engine_starting() {
+            self.toast_error(gettext(
+                self.locale,
+                "Set up playback on this computer to play local files.",
+            ));
+            return;
+        }
         // Shuffle applies across contexts until disabled. A selected row still
         // starts first; otherwise choose a random starting track.
         let mut request = request;
@@ -9294,8 +9334,18 @@ impl App {
             shuffle: shuffle.then_some(true),
             at: Instant::now(),
         });
-        self.queue_start_pending = Some(self.target());
-        match self.target() {
+        let target = match (local_only, self.local_ready) {
+            // This computer becomes the player, as a transfer here makes it.
+            (true, true) => {
+                self.selected_device = None;
+                Target::Local
+            }
+            // The engine is still starting: wait for it, never elsewhere.
+            (true, false) => Target::Remote(None),
+            (false, _) => self.target(),
+        };
+        self.queue_start_pending = Some(target.clone());
+        match target {
             Target::Local if !self.local.connected => {
                 // Hold the request while the local engine reconnects.
                 self.queued_play = Some(request);
@@ -9336,14 +9386,7 @@ impl App {
                 // No remote device is active, and this computer's player is
                 // not ready. Never ask Spotify to play "nowhere": either
                 // wait for the connecting engine or ask for a device.
-                if matches!(
-                    self.local_playback,
-                    LocalPlayback::Connecting
-                        | LocalPlayback::Authorizing
-                        | LocalPlayback::WaitingForNetwork
-                ) || (self.settings.playback_authorized
-                    && matches!(self.auth, AuthStatus::Starting | AuthStatus::Connecting))
-                {
+                if self.local_engine_starting() {
                     self.queued_play = Some(request);
                 } else {
                     self.queue_start_pending = None;
@@ -10463,15 +10506,155 @@ impl App {
 
     /// Plays a playlist's `spotify:local:` songs from `folder`, or none.
     /// The player reads the folder when it starts, so it restarts.
-    pub(crate) fn set_local_files_folder(&mut self, folder: Option<std::path::PathBuf>) {
-        self.settings.local_files_folder = folder
-            .as_ref()
-            .map(|folder| folder.to_string_lossy().into_owned());
-        self.local_files = None;
-        if let Some(folder) = folder {
-            self.backend.send(Command::ScanLocalFiles(folder));
+    /// A saved or imported preset on the sliders: its preamp and bands,
+    /// kept within what the equalizer can do, as one edited by hand in
+    /// settings.json might not be.
+    fn apply_named_eq_preset(&mut self, preset: &crate::settings::UserEqPreset) {
+        let range = -crate::eq::RANGE_DB..=crate::eq::RANGE_DB;
+        self.settings.eq_preamp_db = preset.preamp_db.clamp(*range.start(), *range.end());
+        self.settings.eq_bands_db = preset
+            .bands_db
+            .map(|band| band.clamp(*range.start(), *range.end()));
+        self.settings.eq_on = true;
+        self.push_eq();
+    }
+
+    /// Takes what an import found in Spotify's app: its presets replace
+    /// the last import's, so one deleted there goes here too.
+    fn spotify_eq_presets_read(
+        &mut self,
+        result: Result<Vec<crate::settings::UserEqPreset>, crate::spotify_eq::ImportError>,
+    ) {
+        use crate::spotify_eq::ImportError;
+        match result {
+            Ok(presets) => {
+                let count = presets.len() as u32;
+                self.settings.eq_spotify_presets = presets;
+                self.mark_settings_dirty();
+                self.toast(
+                    ngettext(
+                        self.locale,
+                        // Translators: Keep {count} exactly as written. It becomes the number of equalizer presets read from Spotify's desktop app.
+                        "Imported {count} preset from Spotify",
+                        "Imported {count} presets from Spotify",
+                        count,
+                    )
+                    .replace("{count}", &count.to_string()),
+                );
+            }
+            Err(ImportError::NoPresets) => {
+                if !self.settings.eq_spotify_presets.is_empty() {
+                    self.settings.eq_spotify_presets.clear();
+                    self.mark_settings_dirty();
+                }
+                self.toast(gettext(
+                    self.locale,
+                    "Spotify's app on this computer has no saved equalizer presets.",
+                ));
+            }
+            Err(ImportError::NoApp) => self.toast_error(gettext(
+                self.locale,
+                "Couldn't find Spotify's app on this computer.",
+            )),
+            Err(ImportError::Unreadable(error)) => {
+                log::warn!("Spotify's equalizer presets: {error}");
+                self.toast_error(gettext(
+                    self.locale,
+                    "Couldn't read the presets in Spotify's app.",
+                ));
+            }
         }
+    }
+
+    /// Where local files play from: the folders added, then the copies of
+    /// the songs added one at a time.
+    pub(crate) fn local_sources(&self) -> Vec<std::path::PathBuf> {
+        local_sources(&self.dirs, &self.settings)
+    }
+
+    /// Plays local files from `folder` too, unless it already does.
+    fn add_local_files_folder(&mut self, folder: std::path::PathBuf) {
+        let mut folders = self.settings.local_files_folders();
+        if folders.contains(&folder) {
+            return;
+        }
+        folders.push(folder);
+        self.settings.set_local_files_folders(&folders);
+        self.mark_settings_dirty();
+        self.reread_local_files();
+    }
+
+    /// Stops playing local files from `folder`; nothing in it is touched.
+    fn remove_local_files_folder(&mut self, folder: &std::path::Path) {
+        let mut folders = self.settings.local_files_folders();
+        let before = folders.len();
+        folders.retain(|held| held != folder);
+        if folders.len() == before {
+            return;
+        }
+        self.settings.set_local_files_folders(&folders);
+        self.mark_settings_dirty();
+        self.reread_local_files();
+    }
+
+    /// Takes what copying the picked songs came to: the copies play with
+    /// the folders from now on.
+    fn local_files_copied(&mut self, copied: crate::backend::CopiedSongs) {
+        if copied.copied > 0 || copied.present > 0 {
+            let newly = !self.settings.local_files_added;
+            if newly {
+                self.settings.local_files_added = true;
+                self.mark_settings_dirty();
+            }
+            if copied.copied > 0 || newly {
+                self.reread_local_files();
+            }
+            self.toast(
+                ngettext(
+                    self.locale,
+                    // Translators: Keep {count} exactly as written. It becomes the number of songs added to local files.
+                    "Added {count} song to local files",
+                    "Added {count} songs to local files",
+                    copied.copied + copied.present,
+                )
+                .replace("{count}", &(copied.copied + copied.present).to_string()),
+            );
+        }
+        if copied.failed > 0 {
+            self.toast_error(
+                ngettext(
+                    self.locale,
+                    // Translators: Keep {count} exactly as written. It becomes the number of picked files that could not be added.
+                    "Couldn't add {count} file. Spotifast plays MP3, FLAC, MP4 and M4P files.",
+                    "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P files.",
+                    copied.failed,
+                )
+                .replace("{count}", &copied.failed.to_string()),
+            );
+        }
+    }
+
+    /// Reads the local files again. The player reads them when it starts,
+    /// so it restarts. What was found stays on screen until the new scan
+    /// tells otherwise.
+    fn reread_local_files(&mut self) {
+        self.scan_local_files();
         self.actions.push(Action::RestartEngine);
+    }
+
+    /// Asks for the songs in the local files folders, or forgets them when
+    /// there are none to look in.
+    fn scan_local_files(&mut self) {
+        self.local_scan_asked += 1;
+        let sources = self.local_sources();
+        if sources.is_empty() {
+            self.local_files = None;
+            return;
+        }
+        self.backend.send(Command::ScanLocalFiles {
+            generation: self.local_scan_asked,
+            sources,
+        });
     }
 
     /// Whether the song at `uri` can be queued. Spotify's queue refuses a
@@ -11831,6 +12014,17 @@ impl App {
                     self.mark_settings_dirty();
                 }
             }
+            Action::SetLibraryMixedSort(sort) => {
+                self.settings.library_mixed_sort = Some(sort);
+                self.library.albums.error = None;
+                self.library.artists.error = None;
+                self.library.shows.error = None;
+                self.mark_settings_dirty();
+            }
+            Action::SetLibraryGroupKinds(grouped) => {
+                self.settings.library_group_kinds = grouped;
+                self.mark_settings_dirty();
+            }
             Action::SetLibraryGrid(grid) => {
                 self.settings.sidebar_grid = grid;
                 self.mark_settings_dirty();
@@ -12196,16 +12390,23 @@ impl App {
                     .find(|preset| preset.name == name)
                     .cloned()
                 {
-                    // A preset edited by hand in settings.json stays within
-                    // what the equalizer can do.
-                    let range = -crate::eq::RANGE_DB..=crate::eq::RANGE_DB;
-                    self.settings.eq_preamp_db =
-                        preset.preamp_db.clamp(*range.start(), *range.end());
-                    self.settings.eq_bands_db = preset
-                        .bands_db
-                        .map(|band| band.clamp(*range.start(), *range.end()));
-                    self.settings.eq_on = true;
-                    self.push_eq();
+                    self.apply_named_eq_preset(&preset);
+                }
+            }
+            Action::ApplySpotifyEqPreset(name) => {
+                if let Some(preset) = self
+                    .settings
+                    .eq_spotify_presets
+                    .iter()
+                    .find(|preset| preset.name == name)
+                    .cloned()
+                {
+                    self.apply_named_eq_preset(&preset);
+                }
+            }
+            Action::ImportSpotifyEqPresets => {
+                if let Some(user_id) = self.user_id().map(str::to_owned) {
+                    self.backend.send(Command::ReadSpotifyEqPresets { user_id });
                 }
             }
             Action::SaveEqPreset(name) => {
@@ -12282,12 +12483,10 @@ impl App {
             }
             Action::OpenSkinsFolder => self.open_folder(self.dirs.skins_dir()),
             Action::ChooseLocalFilesFolder => self.backend.choose_local_files_folder(),
-            Action::ForgetLocalFilesFolder => self.set_local_files_folder(None),
-            Action::OpenLocalFilesFolder => {
-                if let Some(folder) = self.settings.local_files_folder() {
-                    self.open_folder(folder);
-                }
-            }
+            Action::AddLocalFiles => self.backend.choose_local_files(self.dirs.added_songs_dir()),
+            Action::RemoveLocalFilesFolder(folder) => self.remove_local_files_folder(&folder),
+            Action::OpenLocalFilesFolder(folder) => self.open_folder(folder),
+            Action::RescanLocalFiles => self.reread_local_files(),
             Action::ToggleWinampMilkdrop => {
                 self.settings.milkdrop_open = !self.settings.milkdrop_open;
                 self.settings_dirty = true;
@@ -13343,6 +13542,10 @@ fn increase_playlist_total(playlist: &mut Playlist, added: u32) {
 
 const LOCAL_URI_PREFIX: &str = "spotify:local:";
 
+/// The songs found in the local files folders, by the `spotify:local:`
+/// URI each plays for.
+pub type LocalFileMap = std::sync::Arc<HashMap<String, std::path::PathBuf>>;
+
 /// Whether the local engine's own queue takes `uri`: a track, an episode or
 /// a local file, which librespot plays from the local files folder.
 fn engine_queues(uri: &str) -> bool {
@@ -13387,8 +13590,18 @@ pub fn engine_config(
         audio_cache_dir: settings.audio_cache.then(|| dirs.audio_cache_dir()),
         audio_cache_limit: Some(settings.audio_cache_mb.max(64) * 1024 * 1024),
         proxy,
-        local_files: settings.local_files_folder(),
+        local_files: local_sources(dirs, settings),
     }
+}
+
+/// Where local files play from: the folders added, then the copies of the
+/// songs added one at a time.
+pub(crate) fn local_sources(dirs: &AppDirs, settings: &Settings) -> Vec<std::path::PathBuf> {
+    let mut sources = settings.local_files_folders();
+    if settings.local_files_added {
+        sources.push(dirs.added_songs_dir());
+    }
+    sources
 }
 
 /// The equalizer as the settings describe it.
@@ -18750,7 +18963,7 @@ mod tests {
         app.backend.set_offline(true);
         app.settings.local_files_folder = Some("/music".into());
         app.local_files = Some((
-            "/music".into(),
+            vec!["/music".into()],
             Arc::new(HashMap::from([
                 (local_file_key(HELD), "/music/Home.mp3".into()),
                 (local_file_key(ALSO_HELD), "/music/Away.mp3".into()),
@@ -22537,6 +22750,50 @@ mod tests {
         app.apply(Action::DeleteEqPreset("AirPods".into()), &ctx);
         assert!(app.settings.eq_user_presets.is_empty());
         assert_eq!(app.settings.eq_bands_db, correction, "the sound stays");
+        app.backend.shutdown();
+    }
+
+    /// Presets imported from Spotify's app replace the last import's, a
+    /// later import that finds none clears them, and one applies with its
+    /// preamp and bands and turns the equalizer on.
+    #[test]
+    fn spotify_equalizer_presets_replace_the_last_import() {
+        use crate::spotify_eq::ImportError;
+        let ctx = egui::Context::default();
+        let mut app = headless_app();
+        let curve = [3.0, 2.4, 0.7, 0.2, 0.1, 0.0, 0.0, 0.4, 0.9, 1.8];
+        let preset = |name: &str| crate::settings::UserEqPreset {
+            name: name.into(),
+            preamp_db: 0.0,
+            bands_db: curve,
+        };
+        app.settings.eq_spotify_presets = vec![preset("Gone")];
+        let toasts = app.toasts.len();
+        app.handle_backend_events(vec![Event::SpotifyEqPresets(Ok(vec![preset("Low/High")]))]);
+        assert_eq!(app.settings.eq_spotify_presets, [preset("Low/High")]);
+        assert_eq!(app.toasts.len(), toasts + 1, "the import says how many");
+
+        app.settings.eq_on = false;
+        app.settings.eq_preamp_db = -4.0;
+        app.apply(Action::ApplySpotifyEqPreset("Low/High".into()), &ctx);
+        assert_eq!(app.settings.eq_bands_db, curve);
+        assert_eq!(app.settings.eq_preamp_db, 0.0);
+        assert!(app.settings.eq_on);
+        app.apply(Action::ApplySpotifyEqPreset("Missing".into()), &ctx);
+        assert_eq!(
+            app.settings.eq_bands_db, curve,
+            "an unknown name changes nothing"
+        );
+
+        app.handle_backend_events(vec![Event::SpotifyEqPresets(Err(ImportError::NoApp))]);
+        assert_eq!(
+            app.settings.eq_spotify_presets,
+            [preset("Low/High")],
+            "no app found keeps what was imported"
+        );
+        app.handle_backend_events(vec![Event::SpotifyEqPresets(Err(ImportError::NoPresets))]);
+        assert!(app.settings.eq_spotify_presets.is_empty());
+        assert_eq!(app.toasts.len(), toasts + 3);
         app.backend.shutdown();
     }
 
@@ -26622,13 +26879,21 @@ mod tests {
             local_file_key("spotify:local:The+Artist:An+Album:A+Song:215"),
             std::path::PathBuf::from("/music/A Song.mp3"),
         )]));
-        // A scan of a folder since replaced is ignored.
+        // A scan asked for before the last one is ignored, even of the
+        // same folders.
+        app.local_scan_asked = 2;
         app.handle_backend_events(vec![Event::LocalFiles {
-            folder: "/elsewhere".into(),
+            generation: 1,
+            sources: vec![folder.clone()],
             uris: Arc::clone(&uris),
         }]);
         assert!(app.local_files.is_none());
-        app.handle_backend_events(vec![Event::LocalFiles { folder, uris }]);
+        app.handle_backend_events(vec![Event::LocalFiles {
+            generation: 2,
+            sources: vec![folder],
+            uris,
+        }]);
+        assert_eq!(app.local_files_generation, 2);
         assert!(app.row_playable(&held));
         // The player matches the parts as the file's tags spell them.
         assert!(!app.row_playable(&spelled));
@@ -26652,7 +26917,7 @@ mod tests {
         assert_eq!(app.item_image(&local_track(uri), 64), None);
         app.settings.local_files_folder = Some("/music".into());
         app.local_files = Some((
-            "/music".into(),
+            vec!["/music".into()],
             Arc::new(HashMap::from([(local_file_key(uri), file.clone())])),
         ));
         let url = crate::local_tags::art_url(&file);
@@ -26672,10 +26937,13 @@ mod tests {
         assert_eq!(now.art_small.as_deref(), Some(url.as_str()));
     }
 
-    /// Choosing or removing the folder saves it and restarts local playback,
-    /// whose player reads the folder when it starts.
+    /// Adding or removing a folder saves the folders and restarts local
+    /// playback, whose player reads them when it starts. Each folder plays
+    /// beside the others, the first also where an older version looks, and
+    /// one added twice is there once.
     #[test]
-    fn changing_the_local_files_folder_restarts_playback() {
+    fn changing_the_local_files_folders_restarts_playback() {
+        use std::path::PathBuf;
         let mut app = headless_app();
         app.backend.set_offline(true);
         app.handle_backend_events(vec![Event::LocalFilesFolderChosen(Some("/music".into()))]);
@@ -26685,10 +26953,122 @@ mod tests {
         app.handle_backend_events(vec![Event::LocalFilesFolderChosen(None)]);
         assert_eq!(app.settings.local_files_folder.as_deref(), Some("/music"));
         assert!(app.actions.is_empty());
-        app.apply(Action::ForgetLocalFilesFolder, &egui::Context::default());
-        assert_eq!(app.settings.local_files_folder, None);
+        app.handle_backend_events(vec![
+            Event::LocalFilesFolderChosen(Some("/more".into())),
+            Event::LocalFilesFolderChosen(Some("/music".into())),
+        ]);
+        assert_eq!(
+            app.local_sources(),
+            [PathBuf::from("/music"), PathBuf::from("/more")]
+        );
+        assert_eq!(
+            app.actions.len(),
+            1,
+            "the folder already there changes nothing"
+        );
+        app.actions.clear();
+        let ctx = egui::Context::default();
+        app.apply(Action::RemoveLocalFilesFolder("/music".into()), &ctx);
+        assert_eq!(app.local_sources(), [PathBuf::from("/more")]);
+        assert_eq!(app.settings.local_files_folder.as_deref(), Some("/more"));
         assert!(app.local_files.is_none());
         assert!(matches!(app.actions.as_slice(), [Action::RestartEngine]));
+        app.actions.clear();
+        app.apply(Action::RemoveLocalFilesFolder("/nowhere".into()), &ctx);
+        assert!(app.actions.is_empty());
+        app.apply(Action::RemoveLocalFilesFolder("/more".into()), &ctx);
+        assert!(app.local_sources().is_empty());
+        assert_eq!(app.settings.local_files_folder, None);
+    }
+
+    /// A list of local songs plays on this computer's player even while
+    /// another device plays, since only this computer can play them; with
+    /// no player here it says so and starts nothing.
+    #[test]
+    fn local_songs_play_here_whatever_plays_elsewhere() {
+        let ctx = egui::Context::default();
+        let songs: Arc<[String]> = Arc::from(vec![
+            "spotify:local:A:B:One:100".to_string(),
+            "spotify:local:A:B:Two:120".to_string(),
+        ]);
+        let play = || Action::PlayFromRow {
+            context: RowContext::Uris(Arc::clone(&songs)),
+            uri: "spotify:local:A:B:Two:120".into(),
+            index: 1,
+        };
+
+        let mut app = headless_app();
+        app.local_ready = false;
+        let toasts = app.toasts.len();
+        app.apply(play(), &ctx);
+        assert_eq!(app.toasts.len(), toasts + 1, "it says why");
+        assert!(app.backend.take_player_commands().is_empty());
+        assert!(app.assumed_context.is_none());
+
+        app.local_ready = true;
+        app.local.connected = true;
+        app.selected_device = Some("phone".into());
+        assert!(matches!(app.target(), Target::Remote(Some(_))));
+        app.apply(play(), &ctx);
+        let loads: Vec<_> = app
+            .backend
+            .take_player_commands()
+            .into_iter()
+            .filter_map(|command| match command {
+                PlayerCommand::Load(load) => Some(load),
+                _ => None,
+            })
+            .collect();
+        let [load] = loads.as_slice() else {
+            panic!("{loads:?}")
+        };
+        assert_eq!(load.uris, songs.to_vec());
+        assert_eq!(load.offset_index, Some(1));
+        // This computer is the player now, as a transfer here makes it.
+        assert_eq!(app.selected_device, None);
+        assert!(matches!(app.target(), Target::Local));
+
+        // While the engine is still starting, the play waits for it.
+        app.local_ready = false;
+        app.local_playback = LocalPlayback::Connecting;
+        let toasts = app.toasts.len();
+        app.apply(play(), &ctx);
+        assert_eq!(app.toasts.len(), toasts);
+        assert!(app.queued_play.is_some());
+        assert!(app.backend.take_player_commands().is_empty());
+        app.backend.shutdown();
+    }
+
+    /// Songs added one at a time play from their copies, beside the
+    /// folders, from the first that was copied; a pick of nothing playable
+    /// changes nothing but says why.
+    #[test]
+    fn added_songs_play_from_their_copies() {
+        use crate::backend::CopiedSongs;
+        let mut app = headless_app();
+        app.backend.set_offline(true);
+        let toasts = app.toasts.len();
+        app.handle_backend_events(vec![Event::LocalFilesCopied(CopiedSongs {
+            failed: 2,
+            ..Default::default()
+        })]);
+        assert!(!app.settings.local_files_added);
+        assert!(app.actions.is_empty());
+        assert_eq!(app.toasts.len(), toasts + 1);
+        app.handle_backend_events(vec![Event::LocalFilesCopied(CopiedSongs {
+            copied: 3,
+            ..Default::default()
+        })]);
+        assert!(app.settings.local_files_added);
+        assert_eq!(app.local_sources(), [app.dirs.added_songs_dir()]);
+        assert!(matches!(app.actions.as_slice(), [Action::RestartEngine]));
+        app.actions.clear();
+        // Songs already there restart nothing.
+        app.handle_backend_events(vec![Event::LocalFilesCopied(CopiedSongs {
+            present: 1,
+            ..Default::default()
+        })]);
+        assert!(app.actions.is_empty());
     }
 
     /// Removing one copy of a song the list holds twice removes that row

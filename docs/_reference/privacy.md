@@ -28,6 +28,14 @@ current release.
   folder, on a shared USB drive say, can read them.
 - **Caches.** Downloaded audio, artwork, lyrics and library metadata live in
   the cache directory and can be deleted at any time.
+- **Local files.** Spotifast reads only the folders you add for local files,
+  and copies the songs you add one at a time into its own state folder.
+  Nothing about them is sent anywhere, except a song's artist, title, album
+  and length to LRCLIB when the file has no lyrics of its own.
+- **Spotify's app.** **Import from Spotify** in Settings → Equalizer reads
+  the equalizer presets saved in Spotify's desktop app on this computer,
+  from that app's own storage, and only when you choose it. Only the
+  presets are kept; nothing there is sent anywhere or written to.
 - **Log.** `spotifast.log` records errors and diagnostics. It stays on your
   computer and never contains credentials; share it only if you choose to
   attach it to a bug report.

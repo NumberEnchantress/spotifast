@@ -388,6 +388,18 @@ Gear Lever work as well, from the update information inside it.
 
 ## Library order
 
+**Playlists**, **Albums**, **Artists** and **Podcasts** above the Library are
+checkboxes: each click ticks or unticks one, and a ticked one shows a check.
+Tick several to list them together, or untick them all to list everything.
+With more than one kind listed, the order menu offers the orders they all
+take (**Recently played** and **Name**, and **Recently added** when every one
+has dates), shared by all of them, and two layouts: **Group by kind** keeps
+each kind together, a thin line between them, playlists first with their
+folders; **Mix together** lists everything in one list. Spotifast remembers
+the choice. One kind alone keeps its own order, Spotify's or yours included;
+rows of several kinds cannot be dragged into a new order. A folder you open
+lists only what it holds, whatever else is ticked.
+
 Select **By You** under Playlists to show only playlists owned by your signed-in
 account, alongside Liked Songs. Followed playlists and collaborative playlists
 owned by someone else are hidden, including pinned ones. Search and the selected
@@ -771,6 +783,24 @@ You can replace it with other text instead.
 
 If Spotify refuses permission, sign in again and approve image uploads. If you
 use a personal Spotify app, reconnect it in Settings as well.
+
+## Local files
+
+Spotifast plays songs from this computer only where you point it. In
+**Settings → Playback on this computer → Local files**, **Add folder** adds a
+folder, searched with its subfolders, and **Add files** picks songs one at a
+time. Picked songs are copied into Spotifast's own folder, so the originals can
+move or go; a song already there is not copied twice. Each folder is listed
+under the row, with buttons to open it or stop using it, and **Songs you
+added** opens the copies. Nothing is read before you add something.
+
+Once there is a folder or a song, **Local Files** appears in the Library after
+Liked Songs. It lists every song found, by artist, album and title, with its
+cover and lyrics from the file, and plays them on this computer, even while
+another device was playing. **Look for new songs** reads the folders again
+after you add or remove files; like adding a folder, it restarts local
+playback. Spotifast plays MP3, FLAC, MP4 and M4P files. The local files your
+playlists list play from the same folders.
 
 ## Lyrics
 

@@ -317,6 +317,7 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                             match page {
                                 Page::Home => home::show(app, ui),
                                 Page::TopSongs => collection::top_songs(app, ui),
+                                Page::LocalFiles => collection::local_files(app, ui),
                                 Page::NewReleases => new_releases::page(app, ui),
                                 Page::Search => search::show(app, ui),
                                 Page::LikedSongs => collection::liked(app, ui),

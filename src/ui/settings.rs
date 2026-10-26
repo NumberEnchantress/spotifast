@@ -61,8 +61,17 @@ impl<'a> RowText<'a> {
 
 /// The guide to writing a palette file for the themes folder.
 const THEMES_GUIDE_URL: &str = "https://spotifast.rocks/settings-and-files/#custom-themes";
-/// Saving the equalizer as a named preset, and deleting the saved preset
-/// that is in use (#702).
+/// A chip of the equalizer's presets, by its group and place there.
+#[derive(Clone, Copy, PartialEq)]
+enum EqChip {
+    BuiltIn(usize),
+    Spotify(usize),
+    Yours(usize),
+    None,
+}
+
+/// Saving the equalizer as a named preset, deleting the saved preset
+/// that is in use (#702), and importing Spotify's.
 fn eq_preset_controls(app: &mut App, ui: &mut egui::Ui, current: Option<&str>) {
     let palette = app.palette;
     let locale = app.locale;
@@ -118,6 +127,21 @@ fn eq_preset_controls(app: &mut App, ui: &mut egui::Ui, current: Option<&str>) {
         {
             app.actions
                 .push(Action::DeleteEqPreset(current.to_string()));
+        }
+        // Reads Spotify's app only when asked, for the signed-in account.
+        // A direct child of the row, so it wraps below when the row is full.
+        if app.user_id().is_some()
+            && theme::soft_button(
+                ui,
+                &palette,
+                Some(Icon::Refresh),
+                // Translators: Reads the equalizer presets saved in Spotify's desktop app on this computer.
+                &gettext(locale, "Import from Spotify"),
+                false,
+            )
+            .clicked()
+        {
+            app.actions.push(Action::ImportSpotifyEqPresets);
         }
     });
     ui.data_mut(|data| data.insert_temp(name_id, name));
@@ -330,30 +354,105 @@ fn section(
     ui.add_space(8.0);
 }
 
-/// What the local files row says: the folder and how many songs it holds,
-/// or what a folder is for.
+/// What the local files row says: how many songs it found, or what local
+/// files are for.
 fn local_files_detail(app: &App) -> String {
     let locale = app.locale;
-    let Some(folder) = app.settings.local_files_folder() else {
+    if app.local_sources().is_empty() {
         return gettext(
             locale,
-            "Play the local files your playlists list from a folder on this computer.",
+            "Play songs from folders and files on this computer, and the local files your playlists list.",
         )
         .into_owned();
-    };
-    let folder = folder.display().to_string();
+    }
     match &app.local_files {
         Some((_, uris)) => ngettext(
             locale,
-            // Translators: {count} is a number of songs, {folder} a folder on this computer.
-            "{count} song in {folder}",
-            "{count} songs in {folder}",
+            // Translators: Keep {count} exactly as written. It becomes a number of songs found in local files.
+            "{count} song on this computer",
+            "{count} songs on this computer",
             uris.len() as u32,
         )
-        .replace("{count}", &uris.len().to_string())
-        .replace("{folder}", &folder),
-        // Translators: {folder} is a folder on this computer.
-        None => gettext(locale, "Looking for songs in {folder}…").replace("{folder}", &folder),
+        .replace("{count}", &uris.len().to_string()),
+        None => gettext(locale, "Looking for songs…").into_owned(),
+    }
+}
+
+/// The places local files play from, under their row: each folder, which
+/// can be opened or removed, and the copies of the songs added one at a
+/// time, which can be opened.
+fn local_files_sources(app: &mut App, ui: &mut egui::Ui, open_folder: &str) {
+    let palette = app.palette;
+    let locale = app.locale;
+    let folders = app.settings.local_files_folders();
+    let added = app
+        .settings
+        .local_files_added
+        .then(|| app.dirs.added_songs_dir());
+    let places = folders
+        .into_iter()
+        .map(|folder| (folder, true))
+        .chain(added.map(|songs| (songs, false)));
+    for (place, removable) in places {
+        ui.horizontal(|ui| {
+            ui.add_space(4.0);
+            theme::icon(
+                ui,
+                if removable {
+                    Icon::Library
+                } else {
+                    Icon::Music
+                },
+                16.0,
+                palette.secondary,
+            );
+            let name = if removable {
+                place.display().to_string()
+            } else {
+                // Translators: The copies of the songs added to local files one at a time.
+                gettext(locale, "Songs you added").into_owned()
+            };
+            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if removable
+                    && theme::icon_button(
+                        ui,
+                        Icon::CircleX,
+                        16.0,
+                        palette.secondary,
+                        palette.text,
+                        // Translators: {folder} is a folder local files play from.
+                        &gettext(locale, "Remove {folder}").replace("{folder}", &name),
+                    )
+                    .clicked()
+                {
+                    app.actions
+                        .push(Action::RemoveLocalFilesFolder(place.clone()));
+                }
+                if theme::icon_button(
+                    ui,
+                    Icon::ExternalLink,
+                    16.0,
+                    palette.secondary,
+                    palette.text,
+                    open_folder,
+                )
+                .clicked()
+                {
+                    app.actions
+                        .push(Action::OpenLocalFilesFolder(place.clone()));
+                }
+                ui.with_layout(Layout::left_to_right(Align::Center), |ui| {
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(name)
+                                .font(theme::regular(13.0))
+                                .color(palette.secondary),
+                        )
+                        .truncate(),
+                    );
+                });
+            });
+        });
     }
 }
 
@@ -989,21 +1088,14 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     }
                 });
             });
-            let choose_folder = gettext(locale, "Choose folder");
-            let remove_folder = gettext(locale, "Remove");
-            let has_folder = app.settings.local_files_folder().is_some();
-            // Pill buttons are a little wider than soft ones; the open
-            // button carries an icon. Narrow windows put them under the text.
+            // Translators: Adds a folder of songs to local files.
+            let add_folder = gettext(locale, "Add folder");
+            // Translators: Adds songs to local files one at a time, as copies.
+            let add_files = gettext(locale, "Add files");
+            // Pill buttons are a little wider than soft ones. Narrow windows
+            // put them under the text.
             let pill_width = |label: &str| theme::soft_button_width(ui, label) + 16.0;
-            let folder_controls_width = pill_width(&choose_folder)
-                + if has_folder {
-                    pill_width(&remove_folder)
-                        + theme::soft_button_width(ui, &open_folder)
-                        + 22.0
-                        + 12.0
-                } else {
-                    0.0
-                };
+            let folder_controls_width = pill_width(&add_folder) + pill_width(&add_files) + 6.0;
             filtered_row_sized(
                 ui,
                 &palette,
@@ -1014,27 +1106,17 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 |ui| {
                     // The control area lays out right-to-left: add the rightmost item first.
                     ui.spacing_mut().item_spacing.x = 6.0;
-                    if has_folder {
-                        if theme::pill_button(ui, &palette, &remove_folder, false).clicked() {
-                            app.actions.push(Action::ForgetLocalFilesFolder);
-                        }
-                        if theme::soft_button(
-                            ui,
-                            &palette,
-                            Some(Icon::ExternalLink),
-                            &open_folder,
-                            false,
-                        )
-                        .clicked()
-                        {
-                            app.actions.push(Action::OpenLocalFilesFolder);
-                        }
+                    if theme::pill_button(ui, &palette, &add_files, false).clicked() {
+                        app.actions.push(Action::AddLocalFiles);
                     }
-                    if theme::pill_button(ui, &palette, &choose_folder, false).clicked() {
+                    if theme::pill_button(ui, &palette, &add_folder, false).clicked() {
                         app.actions.push(Action::ChooseLocalFilesFolder);
                     }
                 },
             );
+            if playback_rows[14].matches(&needle, &playback) {
+                local_files_sources(app, ui, &open_folder);
+            }
             filtered_row(ui, &palette, &needle, &playback, &playback_rows[9], |ui| {
                 // The control area lays out right-to-left: add the rightmost item first.
                 ui.horizontal(|ui| {
@@ -2047,13 +2129,15 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 .map(|preset| preset.name)
                 .chain(
                     app.settings
-                        .eq_user_presets
+                        .eq_spotify_presets
                         .iter()
+                        .chain(&app.settings.eq_user_presets)
                         .map(|preset| preset.name.as_str()),
                 )
                 .chain([
                     // Translators: a search keyword for saving equalizer presets.
                     gettext(locale, "Save preset").as_ref(),
+                    gettext(locale, "Import from Spotify").as_ref(),
                 ])
                 .collect::<Vec<_>>()
                 .join(" "),
@@ -2075,35 +2159,62 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     }
                 },
             );
-            // The built-in presets, then the ones saved here (#702), which
-            // carry their preamp too and are the current one when both match.
-            let built_in = crate::eq::PRESETS.len();
+            // Three paragraphs: the built-in presets, those imported from
+            // Spotify's app, and the ones saved here (#702). The imported and
+            // saved ones carry their preamp too, and are the current one when
+            // they match as well as a built-in one does.
+            let spotify_presets = app.settings.eq_spotify_presets.clone();
             let user_presets = app.settings.eq_user_presets.clone();
-            let names: Vec<(usize, &str)> = crate::eq::PRESETS
-                .iter()
-                .map(|preset| preset.name)
-                .chain(user_presets.iter().map(|preset| preset.name.as_str()))
-                .enumerate()
-                .collect();
-            let current_user = user_presets.iter().position(|preset| {
+            let matches = |preset: &crate::settings::UserEqPreset| {
                 preset.bands_db == app.settings.eq_bands_db
                     && preset.preamp_db == app.settings.eq_preamp_db
-            });
+            };
+            let current_user = user_presets.iter().position(matches);
             let current = current_user
-                .map(|index| built_in + index)
+                .map(EqChip::Yours)
+                .or_else(|| {
+                    spotify_presets
+                        .iter()
+                        .position(matches)
+                        .map(EqChip::Spotify)
+                })
                 .or_else(|| {
                     crate::eq::PRESETS
                         .iter()
                         .position(|preset| preset.bands_db == app.settings.eq_bands_db)
+                        .map(EqChip::BuiltIn)
                 })
-                .unwrap_or(usize::MAX);
+                .unwrap_or(EqChip::None);
+            let groups = [
+                crate::eq::PRESETS
+                    .iter()
+                    .enumerate()
+                    .map(|(index, preset)| (EqChip::BuiltIn(index), preset.name))
+                    .collect::<Vec<_>>(),
+                spotify_presets
+                    .iter()
+                    .enumerate()
+                    .map(|(index, preset)| (EqChip::Spotify(index), preset.name.as_str()))
+                    .collect(),
+                user_presets
+                    .iter()
+                    .enumerate()
+                    .map(|(index, preset)| (EqChip::Yours(index), preset.name.as_str()))
+                    .collect(),
+            ];
             let eq_extra_visible = equalizer_rows[1].matches(&needle, &equalizer);
             if eq_extra_visible {
-                if let Some(picked) = widgets::chips(ui, &palette, &names, current) {
-                    app.actions.push(match picked.checked_sub(built_in) {
-                        Some(user) => Action::ApplyUserEqPreset(user_presets[user].name.clone()),
-                        None => Action::ApplyEqPreset(picked),
-                    });
+                match widgets::chip_groups(ui, &palette, &groups, current) {
+                    Some(EqChip::BuiltIn(index)) => {
+                        app.actions.push(Action::ApplyEqPreset(index));
+                    }
+                    Some(EqChip::Spotify(index)) => app.actions.push(Action::ApplySpotifyEqPreset(
+                        spotify_presets[index].name.clone(),
+                    )),
+                    Some(EqChip::Yours(index)) => app
+                        .actions
+                        .push(Action::ApplyUserEqPreset(user_presets[index].name.clone())),
+                    Some(EqChip::None) | None => {}
                 }
                 ui.add_space(8.0);
                 eq_preset_controls(

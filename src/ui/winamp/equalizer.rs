@@ -361,15 +361,27 @@ fn preset_items(app: &mut App, ui: &mut egui::Ui) {
             app.actions.push(Action::ApplyEqPreset(index));
         }
     }
-    // The presets saved in Settings, with their preamp (#702).
+    // Those imported from Spotify's app, then those saved in Settings,
+    // each group with its preamp (#702).
+    let imported = app.settings.eq_spotify_presets.clone();
     let saved = app.settings.eq_user_presets.clone();
-    if !saved.is_empty() {
-        ui.separator();
-    }
-    for preset in saved {
-        let chosen = preset.bands_db == current && preset.preamp_db == app.settings.eq_preamp_db;
-        if ui.selectable_label(chosen, &preset.name).clicked() {
-            app.actions.push(Action::ApplyUserEqPreset(preset.name));
+    let groups = [
+        (
+            imported,
+            Action::ApplySpotifyEqPreset as fn(String) -> Action,
+        ),
+        (saved, Action::ApplyUserEqPreset),
+    ];
+    for (presets, apply) in groups {
+        if !presets.is_empty() {
+            ui.separator();
+        }
+        for preset in presets {
+            let chosen =
+                preset.bands_db == current && preset.preamp_db == app.settings.eq_preamp_db;
+            if ui.selectable_label(chosen, &preset.name).clicked() {
+                app.actions.push(apply(preset.name));
+            }
         }
     }
 }

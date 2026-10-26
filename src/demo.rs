@@ -1100,6 +1100,11 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
                 };
             }
             "library-by-you" => app.settings.library_by_you = true,
+            // Several kinds ticked list as one mixed list, by name.
+            "library-mixed" => {
+                app.settings.library_group_kinds = false;
+                app.settings.library_mixed_sort = Some(crate::settings::LibrarySort::Name);
+            }
             "library-by-you-empty" => {
                 app.settings.library_by_you = true;
                 app.library.filter = "No matching playlist".into();
@@ -1276,7 +1281,7 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
                     crate::app::local_file_key(DEMO_LOCAL_FOUND),
                     "/home/you/Music/Kitchen Demo.mp3".into(),
                 );
-                app.local_files = Some(("/home/you/Music".into(), std::sync::Arc::new(uris)));
+                app.local_files = Some((vec!["/home/you/Music".into()], std::sync::Arc::new(uris)));
             }
             "rtl" => {
                 if let Some(page) = app.playlist_pages.get_mut("pl1") {
@@ -1437,6 +1442,20 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
                 app.settings.eq_on = true;
                 app.settings.eq_preamp_db = -3.0;
                 app.settings.eq_bands_db = bands_db;
+            }
+            // A preset imported from Spotify's app beside one saved here.
+            "eq-spotify-presets" => {
+                app.settings.eq_spotify_presets = vec![crate::settings::UserEqPreset {
+                    name: "Low/High 2:1".into(),
+                    preamp_db: 0.0,
+                    bands_db: [3.0, 2.4, 0.7, 0.2, 0.1, 0.0, 0.0, 0.4, 0.9, 1.8],
+                }];
+                app.settings.eq_user_presets = vec![crate::settings::UserEqPreset {
+                    name: "AirPods".into(),
+                    preamp_db: -3.0,
+                    bands_db: [1.2, 0.0, -1.9, -2.0, 0.0, 1.6, 1.6, 2.6, 0.0, -4.4],
+                }];
+                app.settings.eq_on = true;
             }
             "art" => app.settings.art_expanded = true,
             "folders" => {
@@ -1954,11 +1973,22 @@ mod tests {
                 .iter()
                 .any(|(_, node)| node.label() == Some("Discover Weekly"))
         );
-        let albums = accessible_node(&tree, "Albums", Role::Button);
+        // The kinds are checkboxes: ticking Albums keeps the playlists,
+        // and By You with them.
+        let albums = accessible_node(&tree, "Albums", Role::CheckBox);
         accessible_frame(
             &ctx,
             &mut app,
             vec![accessible_action(albums, AccessibleAction::Click, None)],
+        );
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        accessible_node(&tree, "By You", Role::Button);
+        // Unticking Playlists leaves the albums alone, without By You.
+        let playlists = accessible_node(&tree, "Playlists", Role::CheckBox);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![accessible_action(playlists, AccessibleAction::Click, None)],
         );
         let tree = accessible_frame(&ctx, &mut app, vec![]);
         assert!(
@@ -1967,7 +1997,7 @@ mod tests {
                 .iter()
                 .any(|(_, node)| node.label() == Some("By You"))
         );
-        let playlists = accessible_node(&tree, "Playlists", Role::Button);
+        let playlists = accessible_node(&tree, "Playlists", Role::CheckBox);
         accessible_frame(
             &ctx,
             &mut app,
@@ -2000,8 +2030,8 @@ mod tests {
             let home = accessible_node(&tree, &gettext(locale, "Home"), Role::Button);
             let search = accessible_node(&tree, &gettext(locale, "Search"), Role::Button);
             accessible_node(&tree, &gettext(locale, "Create a playlist"), Role::Button);
-            accessible_node(&tree, &gettext(locale, "Albums"), Role::Button);
-            accessible_node(&tree, &gettext(locale, "Artists"), Role::Button);
+            accessible_node(&tree, &gettext(locale, "Albums"), Role::CheckBox);
+            accessible_node(&tree, &gettext(locale, "Artists"), Role::CheckBox);
             let liked = accessible_node(&tree, &gettext(locale, "Liked Songs"), Role::Button);
             accessible_frame(
                 &ctx,
@@ -2684,6 +2714,87 @@ mod tests {
             )),
             "{:?}",
             app.actions
+        );
+        app.backend.shutdown();
+    }
+
+    /// Local Files lists the songs found on this computer by their plain
+    /// names, and a double click plays the list from that song.
+    #[test]
+    fn local_files_page_lists_and_plays_the_songs_found() {
+        let (ctx, mut app) = accessible_app("local-files-page");
+        apply_flags(&mut app, Some("local-files"), Some("local-files"));
+        let view = crate::ui::collection::local_files;
+        view_frame(&ctx, &mut app, vec![], view);
+        let painted = view_frame(&ctx, &mut app, vec![], view);
+        assert!(painted.iter().any(|(text, _)| text == "Local Files"));
+        assert!(
+            !painted.iter().any(|(text, _)| text.contains('+')),
+            "names are plain"
+        );
+        let song = sidebar_text(&painted, "Song 0").center();
+        app.actions.clear();
+        let [first, second] = double_click(song);
+        view_frame(&ctx, &mut app, first, view);
+        view_frame(&ctx, &mut app, second, view);
+        let played = app.actions.iter().find_map(|action| match action {
+            Action::PlayFromRow {
+                context: RowContext::Uris(uris),
+                uri,
+                ..
+            } => Some((uris.len(), uri.clone())),
+            _ => None,
+        });
+        assert_eq!(
+            played,
+            Some((128, "spotify:local:Demo:Demo:Song+0:180".to_string()))
+        );
+        app.backend.shutdown();
+    }
+
+    /// With several kinds ticked, the order menu offers the orders they all
+    /// take and whether to keep each kind together or mix them; Spotify's
+    /// own order stays with playlists alone.
+    #[test]
+    fn several_library_kinds_share_one_order_menu() {
+        let (ctx, mut app) = accessible_app("library-mixed-menu");
+        let view = crate::ui::sidebar::show;
+        view_frame(&ctx, &mut app, vec![], view);
+        let painted = view_frame(&ctx, &mut app, vec![], view);
+        let albums = sidebar_text(&painted, "Albums").center();
+        view_frame(
+            &ctx,
+            &mut app,
+            pointer_click(albums, egui::PointerButton::Primary),
+            view,
+        );
+        for _ in 0..30 {
+            view_frame(&ctx, &mut app, vec![], view);
+        }
+        let painted = view_frame(&ctx, &mut app, vec![], view);
+        let order = sidebar_text(&painted, "Recently played").center();
+        view_frame(
+            &ctx,
+            &mut app,
+            pointer_click(order, egui::PointerButton::Primary),
+            view,
+        );
+        let menu = view_frame(&ctx, &mut app, vec![], view);
+        let offered = |label: &str| menu.iter().any(|(text, _)| text == label);
+        assert!(offered("Name") && offered("Group by kind") && offered("Mix together"));
+        assert!(!offered("Spotify custom order") && !offered("Recently added"));
+        app.actions.clear();
+        let mix = sidebar_text(&menu, "Mix together").center();
+        view_frame(
+            &ctx,
+            &mut app,
+            pointer_click(mix, egui::PointerButton::Primary),
+            view,
+        );
+        assert!(
+            app.actions
+                .iter()
+                .any(|action| matches!(action, Action::SetLibraryGroupKinds(false)))
         );
         app.backend.shutdown();
     }

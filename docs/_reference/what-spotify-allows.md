@@ -162,15 +162,19 @@ librespot provides:
   playback session. Sonos receivers are discovered on the local network;
   the Web API alone cannot start or control them.
 - Songs and podcast episodes.
-- Local files that a playlist lists, played from the local files folder chosen
-  in Settings and its subfolders. Spotify keeps only a local file's artist,
+- Local files: the songs in the folders added in Settings, with their
+  subfolders, and the songs added one at a time, listed in Spotifast's own
+  Local Files and played on this computer's player through a list of their
+  `spotify:local:` URIs; and the local files a playlist lists, played from
+  the same places. Spotify keeps only a local file's artist,
   album, title and length, so the player matches each `spotify:local:` entry
   to the MP3, MP4, M4P or FLAC file whose tags and length give the same.
   Files at any sample rate from 8 to 384 kHz play, mono and surround
   included: librespot resamples them to 44.1 kHz stereo
   ([librespot#1840](https://github.com/librespot-org/librespot/pull/1840)).
-  The player reads the folder when local playback starts, so songs added
-  later play after the next restart. See
+  The player reads the folders when local playback starts, so songs added
+  later play once Local Files looks for new songs, or after the next
+  restart. See
   [issue #3](https://github.com/crmne/spotifast/issues/3). Spotify's queue
   refuses a `spotify:local:` entry, so such a song is queued on this
   computer's own player, and only while it plays

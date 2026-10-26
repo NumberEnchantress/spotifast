@@ -110,6 +110,8 @@ fn episode_retained_bytes(episode: &Episode) -> usize {
 pub enum Page {
     Home,
     TopSongs,
+    /// The songs in the local files folders and the songs added here.
+    LocalFiles,
     /// The songs of the latest releases from followed artists.
     NewReleases,
     Search,
@@ -134,6 +136,7 @@ impl Page {
         match self {
             Page::Home => "home".into(),
             Page::TopSongs => "top-songs".into(),
+            Page::LocalFiles => "local-files".into(),
             Page::NewReleases => "new-releases".into(),
             Page::Search => "search".into(),
             Page::LikedSongs => "liked".into(),
@@ -155,6 +158,7 @@ impl Page {
         Some(match text {
             "home" => Page::Home,
             "top-songs" => Page::TopSongs,
+            "local-files" => Page::LocalFiles,
             "new-releases" => Page::NewReleases,
             "search" => Page::Search,
             "liked" => Page::LikedSongs,
@@ -1283,6 +1287,11 @@ pub enum Action {
     SetPairTheme(fastframe_theme::Base, Option<String>),
     ReloadThemes,
     SetLibraryByYou(bool),
+    /// The order of a Library that lists more than one kind.
+    SetLibraryMixedSort(crate::settings::LibrarySort),
+    /// Keep each kind together in a Library of more than one kind, or mix
+    /// them in one list.
+    SetLibraryGroupKinds(bool),
     SetLibrarySort {
         shelf: crate::settings::LibraryShelf,
         sort: crate::settings::LibrarySort,
@@ -1324,11 +1333,16 @@ pub enum Action {
     /// Windows: draw Spotifast's own title bar instead of the standard one.
     SetCustomTitlebar(bool),
     OpenSkinsFolder,
-    /// Pick the folder a playlist's local files play from.
+    /// Pick a folder for local files to play from, beside any others.
     ChooseLocalFilesFolder,
-    /// Stop playing local files.
-    ForgetLocalFilesFolder,
-    OpenLocalFilesFolder,
+    /// Pick songs to copy into Spotifast's own local files folder.
+    AddLocalFiles,
+    /// Stop playing local files from this folder.
+    RemoveLocalFilesFolder(std::path::PathBuf),
+    /// Open a local files folder in the file manager.
+    OpenLocalFilesFolder(std::path::PathBuf),
+    /// Read the local files folders again, for songs added or removed.
+    RescanLocalFiles,
     /// Pick a different skin each time the mini player opens.
     SetRandomSkin(bool),
     /// Cycle bars, scope, and off.
@@ -1356,6 +1370,11 @@ pub enum Action {
     SaveEqPreset(String),
     /// Forget a saved preset, by name.
     DeleteEqPreset(String),
+    /// Read the presets saved in Spotify's desktop app on this computer,
+    /// replacing those the last import found.
+    ImportSpotifyEqPresets,
+    /// A preset imported from Spotify's app, by name.
+    ApplySpotifyEqPreset(String),
     /// The balance, -1 all left to 1 all right.
     SetBalance(f32),
     ToggleMono,

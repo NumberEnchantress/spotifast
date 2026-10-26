@@ -13,7 +13,7 @@ use std::path::PathBuf;
 /// the single-instance files a running installed copy holds locked and the
 /// logs of its runs.
 const FOLDERS: fastframe_dirs::App = fastframe_dirs::App {
-    not_copied: &["instance", "spotifast.log", "panic.log"],
+    not_copied: &["instance", "spotifast.log", "panic.log", "local-files"],
     ..fastframe_dirs::App::new("spotifast", "me", "paolino", "spotifast")
 };
 
@@ -162,6 +162,11 @@ impl AppDirs {
 
     pub fn volume_dir(&self) -> PathBuf {
         self.state.join("volume")
+    }
+
+    /// Copies of the songs added to local files one at a time.
+    pub fn added_songs_dir(&self) -> PathBuf {
+        self.state.join("local-files")
     }
 
     pub fn audio_cache_dir(&self) -> PathBuf {

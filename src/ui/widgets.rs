@@ -3128,6 +3128,35 @@ pub fn chips<T: PartialEq + Copy>(
     selected
 }
 
+/// Chips in groups, each group a paragraph of its own with a hairline
+/// between it and the next; an empty group takes no room.
+pub fn chip_groups<T: PartialEq + Copy>(
+    ui: &mut Ui,
+    palette: &Palette,
+    groups: &[Vec<(T, &str)>],
+    current: T,
+) -> Option<T> {
+    let mut selected = None;
+    let mut first = true;
+    for group in groups.iter().filter(|group| !group.is_empty()) {
+        if !first {
+            ui.add_space(7.0);
+            let y = ui.cursor().top();
+            ui.painter().hline(
+                ui.max_rect().x_range(),
+                y,
+                egui::Stroke::new(0.5, palette.outline),
+            );
+            ui.add_space(8.0);
+        }
+        first = false;
+        if let Some(value) = chips(ui, palette, group, current) {
+            selected = Some(value);
+        }
+    }
+    selected
+}
+
 /// A text input with the native clipboard actions and a selection-aware menu.
 pub fn text_edit(ui: &mut Ui, locale: Locale, edit: egui::TextEdit<'_>) -> egui::Response {
     let mut output = edit.show(ui);
