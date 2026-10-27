@@ -3882,3 +3882,12 @@ msgstr "テーマ「{name}」を保存しました"
 #: src/app.rs:2513
 msgid "Couldn't save the theme."
 msgstr "テーマを保存できませんでした。"
+
+#. Translators: A setting: on the Settings page, the top bar's search box searches the settings.
+#: src/ui/settings.rs:1185
+msgid "Search settings from the top bar"
+msgstr "上部バーで設定を検索"
+
+#: src/ui/settings.rs:1323
+msgid "On this page, the search box at the top searches the settings instead of Spotify."
+msgstr "このページでは、上部の検索ボックスでSpotifyではなく設定を検索します。"

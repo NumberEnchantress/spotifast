@@ -3948,3 +3948,12 @@ msgstr "Zapisano motyw „{name}”"
 #: src/app.rs:2513
 msgid "Couldn't save the theme."
 msgstr "Nie udało się zapisać motywu."
+
+#. Translators: A setting: on the Settings page, the top bar's search box searches the settings.
+#: src/ui/settings.rs:1185
+msgid "Search settings from the top bar"
+msgstr "Szukaj ustawień z górnego paska"
+
+#: src/ui/settings.rs:1323
+msgid "On this page, the search box at the top searches the settings instead of Spotify."
+msgstr "Na tej stronie pole wyszukiwania u góry przeszukuje ustawienia zamiast Spotify."

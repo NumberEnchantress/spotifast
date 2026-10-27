@@ -15,6 +15,12 @@ const PLAYBACK_DIRTY_ID: &str = "playback-settings-dirty";
 pub(crate) const PERSONAL_APP_FOCUS_ID: &str = "focus-personal-app-setup";
 const SETTINGS_FILTER_ID: &str = "settings-filter";
 
+/// Where the settings search text is kept, for the top bar to edit when it
+/// searches the settings.
+pub(crate) fn settings_filter_id() -> egui::Id {
+    egui::Id::new(SETTINGS_FILTER_ID)
+}
+
 /// Whether a settings row matches the filter query (case-insensitive).
 /// An empty query matches everything, so the page reads exactly as
 /// before when the search field is empty.
@@ -470,15 +476,19 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let mut filter = ui
         .data(|data| data.get_temp::<String>(egui::Id::new(SETTINGS_FILTER_ID)))
         .unwrap_or_default();
-    widgets::search_field(
-        ui,
-        &palette,
-        app.locale,
-        egui::Id::new("settings-search-field"),
-        &mut filter,
-        &gettext(locale, "Search settings"),
-        ui.available_width().min(400.0),
-    );
+    // With the top bar searching the settings, the page needs no box of
+    // its own.
+    if !app.settings.settings_search_in_topbar {
+        widgets::search_field(
+            ui,
+            &palette,
+            app.locale,
+            egui::Id::new("settings-search-field"),
+            &mut filter,
+            &gettext(locale, "Search settings"),
+            ui.available_width().min(400.0),
+        );
+    }
     let needle = filter.trim().to_lowercase();
     ui.data_mut(|data| data.insert_temp(egui::Id::new(SETTINGS_FILTER_ID), filter));
     ui.add_space(4.0);
@@ -1171,6 +1181,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let appearance = gettext(locale, "Appearance");
     // Translators: A setting that shows the playlists on Home as an interactive map.
     let playlist_map = gettext(locale, "Playlist map on Home");
+    // Translators: A setting: on the Settings page, the top bar's search box searches the settings.
+    let topbar_search = gettext(locale, "Search settings from the top bar");
     let theme_title = gettext(locale, "Theme");
     let theme_guide = gettext(locale, "How to make a theme");
     let themes_folder = gettext(locale, "Open themes folder");
@@ -1302,6 +1314,13 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             gettext(
                 locale,
                 "Change any colour with a picker or a hex value, see it at once, and save it as a theme of your own.",
+            ),
+        ),
+        RowText::new(
+            topbar_search.clone(),
+            gettext(
+                locale,
+                "On this page, the search box at the top searches the settings instead of Spotify.",
             ),
         ),
         RowText::new(
@@ -1438,6 +1457,25 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 &needle,
                 &appearance,
                 &appearance_rows[14],
+                |ui| {
+                    if widgets::switch(
+                        ui,
+                        &palette,
+                        &topbar_search,
+                        &mut app.settings.settings_search_in_topbar,
+                    )
+                    .changed()
+                    {
+                        changed = true;
+                    }
+                },
+            );
+            filtered_row(
+                ui,
+                &palette,
+                &needle,
+                &appearance,
+                &appearance_rows[15],
                 |ui| {
                     if widgets::switch(
                         ui,

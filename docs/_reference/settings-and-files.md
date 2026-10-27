@@ -367,6 +367,7 @@ main fields are:
 | `middle_click_autoscroll` | `false` | Linux only: middle-click a list to autoscroll it. Windows always autoscrolls and macOS never does |
 | `winamp_window` | `false` | The window is the Winamp mini player |
 | `winamp_show_taskbar` | `true` | Windows since 0.8.0, and Linux X11 sessions: show the Winamp window's taskbar button; the main window always keeps its button. Wayland and macOS ignore it |
+| `settings_search_in_topbar` | `true` | On the Settings page, the top bar's search box searches the settings instead of Spotify |
 | `custom_titlebar` | `false` | Windows and Linux: draw Spotifast's own title bar and window buttons instead of the desktop's |
 | `skin` | none | File or folder name in the skins folder; blank uses the built-in skin |
 | `random_skin` | `false` | Since 0.11.0: pick a different skin (built-in or installed) each time the mini player opens; `skin` holds the one picked |
@@ -576,9 +577,16 @@ already has that name), as an ordinary palette file, and
 uses it; **Discard** goes back to the theme you had.
 
 This fork also ships **Terminal**: black, with green text (`#00ff00`) and a
-purple accent (`#8000ff`) for the playing song, buttons and highlights. It
-is put in the `themes` folder once, like the palettes above, and is yours
-from then on; `.installed-spotifast-palettes` records that it was added.
+purple accent (`#8000ff`) for the playing song, buttons and highlights, and
+**Incarnadine**, Spotify gone evil: near black with a red cast, blood red
+(`#e0102f`) where Spotify is green, and a faint red wash at the top of
+pages. Each is put in the `themes` folder once, like the palettes above,
+and is yours from then on; `.installed-spotifast-palettes` records which
+were added.
+
+**Search settings from the top bar**, on by default, turns the search box
+at the top of the window into the settings search while the Settings page
+is open, in place of the page's own box; elsewhere it searches Spotify.
 
 Since 0.11.0, whenever the colours change (a theme picked here, Omarchy
 switching themes, or the system going light or dark), the new colours open

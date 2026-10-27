@@ -3918,3 +3918,12 @@ msgstr "Thema ‘{name}’ opgeslagen"
 #: src/app.rs:2513
 msgid "Couldn't save the theme."
 msgstr "Kan het thema niet opslaan."
+
+#. Translators: A setting: on the Settings page, the top bar's search box searches the settings.
+#: src/ui/settings.rs:1185
+msgid "Search settings from the top bar"
+msgstr "Instellingen zoeken vanuit de bovenbalk"
+
+#: src/ui/settings.rs:1323
+msgid "On this page, the search box at the top searches the settings instead of Spotify."
+msgstr "Op deze pagina zoekt het zoekvak bovenaan in de instellingen in plaats van in Spotify."

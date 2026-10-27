@@ -1105,8 +1105,9 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
             // The colour editor open, starting from the colours in use.
             "theme-editor" => app.theme_draft = Some(app.palette),
             // This fork's Terminal theme in use.
-            "terminal" => {
-                let (filename, text) = crate::theme::FORK_THEMES[0];
+            "terminal" | "incarnadine" => {
+                let (filename, text) =
+                    crate::theme::FORK_THEMES[usize::from(surface == "incarnadine")];
                 if let Ok(palette) = fastframe_theme::parse_palette(text) {
                     app.settings.custom_theme = Some(filename.into());
                     app.settings.custom_theme_cache = Some(crate::theme::CustomTheme {
@@ -2733,6 +2734,74 @@ mod tests {
         app.backend.shutdown();
     }
 
+    /// On the Settings page the top bar's box searches the settings, and the
+    /// page shows no box of its own; turned off, both are as before.
+    #[test]
+    fn the_top_bar_searches_settings_on_their_page() {
+        let (ctx, mut app) = accessible_app("topbar-settings-search");
+        app.open(Page::Settings);
+        let view = |app: &mut App, ui: &mut egui::Ui| {
+            crate::ui::topbar::show(app, ui);
+            crate::ui::settings::show(app, ui);
+        };
+        view_frame(&ctx, &mut app, vec![], view);
+        let painted = view_frame(&ctx, &mut app, vec![], view);
+        let count = |painted: &[(String, egui::Rect)], text: &str| {
+            painted.iter().filter(|(shown, _)| shown == text).count()
+        };
+        assert_eq!(count(&painted, "Search settings"), 1);
+        // The demo's Spotify search, "Bonobo", is not in the box.
+        assert_eq!(count(&painted, "Bonobo"), 0);
+        app.settings.settings_search_in_topbar = false;
+        let painted = view_frame(&ctx, &mut app, vec![], view);
+        assert_eq!(count(&painted, "Search settings"), 1, "the page's own box");
+        assert_eq!(count(&painted, "Bonobo"), 1, "the Spotify search is back");
+        app.backend.shutdown();
+
+        // Typing in the top bar's box filters the settings and leaves the
+        // Spotify search as it was.
+        use egui::accesskit::{Action as AccessibleAction, Role};
+        let (ctx, mut app) = accessible_app("topbar-settings-typing");
+        app.open(Page::Settings);
+        accessible_frame(&ctx, &mut app, vec![]);
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        let fields: Vec<_> = tree
+            .nodes
+            .iter()
+            .filter(|(_, node)| {
+                node.role() == Role::TextInput && node.label() == Some("Search settings")
+            })
+            .collect();
+        assert_eq!(fields.len(), 1, "one box searches the settings");
+        let field = fields[0].0;
+        let spotify_search = app.search.query.clone();
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![accessible_action(field, AccessibleAction::Focus, None)],
+        );
+        accessible_frame(&ctx, &mut app, vec![egui::Event::Text("volume".into())]);
+        assert_eq!(settings_filter(&ctx), "volume");
+        assert_eq!(app.search.query, spotify_search);
+        assert_eq!(app.page(), &Page::Settings, "typing stays on Settings");
+        // The search shortcut focuses the settings box and stays on Settings.
+        app.apply(Action::FocusSearch, &ctx);
+        assert_eq!(app.page(), &Page::Settings);
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert!(
+            !app.search.focus_requested,
+            "the settings box took the focus"
+        );
+        app.settings.settings_search_in_topbar = false;
+        app.apply(Action::FocusSearch, &ctx);
+        assert_eq!(
+            app.page(),
+            &Page::Search,
+            "off, the shortcut searches Spotify"
+        );
+        app.backend.shutdown();
+    }
+
     /// Local Files lists the songs found on this computer by their plain
     /// names, and a double click plays the list from that song.
     #[test]
@@ -3512,6 +3581,8 @@ mod tests {
     fn settings_search_filters_rows_clearing_and_empty_state() {
         use egui::accesskit::{Action as AccessibleAction, Role};
         let (ctx, mut app) = accessible_app("settings-search");
+        // The page's own box, with the top bar searching Spotify.
+        app.settings.settings_search_in_topbar = false;
         app.open(Page::Settings);
         accessible_frame(&ctx, &mut app, vec![]);
         let tree = accessible_frame(&ctx, &mut app, vec![]);

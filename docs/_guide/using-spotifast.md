@@ -787,7 +787,7 @@ use a personal Spotify app, reconnect it in Settings as well.
 ## This fork's version
 
 The window title, and the taskbar's, end with Spotifast's version and this
-fork's, such as `Spotifast 0.14.1 · mod 3`, after the playing song.
+fork's, such as `Spotifast 0.14.1 · mod 4`, after the playing song.
 
 ## Local files
 

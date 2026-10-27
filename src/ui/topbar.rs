@@ -343,47 +343,72 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             ui.ctx().data_mut(|data| data.insert_temp(lead_id(), lead));
             let fit = topbar_fit(search_room, controls, badges(true), badges(false));
             let search_width = fit.search;
-            let id = egui::Id::new("global-search");
-            let before = app.search.query.clone();
-            let selected = egui::TextEdit::load_state(ui.ctx(), id)
-                .and_then(|state| state.cursor.char_range())
-                .is_some_and(|range| !range.is_empty());
-            let response = super::widgets::search_field(
-                ui,
-                &palette,
-                app.locale,
-                id,
-                &mut app.search.query,
-                &gettext(locale, "What do you want to play?"),
-                search_width,
-            );
-            if app.search.focus_requested {
-                app.search.focus_requested = false;
-                response.request_focus();
-            }
-            // Clear empties the field and hands it focus in the same frame.
-            // Neither should leave the page: only typing a query does.
-            let cleared = app.search.query.is_empty() && !before.is_empty();
-            if response.gained_focus() && !cleared && !matches!(app.page(), Page::Search) {
-                app.actions.push(Action::Open(Page::Search));
-            }
-            if app.search.query != before {
-                // Typing over a selection, or emptying the field, starts a
-                // new query rather than editing the last one.
-                if selected || app.search.query.is_empty() {
-                    app.actions.push(Action::EndSearchRun);
+            // On the Settings page the box can search the settings instead.
+            if matches!(app.page(), Page::Settings) && app.settings.settings_search_in_topbar {
+                let filter_id = super::settings::settings_filter_id();
+                let mut filter = ui
+                    .data(|data| data.get_temp::<String>(filter_id))
+                    .unwrap_or_default();
+                let response = super::widgets::search_field(
+                    ui,
+                    &palette,
+                    app.locale,
+                    egui::Id::new("topbar-settings-search"),
+                    &mut filter,
+                    &gettext(locale, "Search settings"),
+                    search_width,
+                );
+                if app.search.focus_requested {
+                    app.search.focus_requested = false;
+                    response.request_focus();
                 }
-                app.search.typed_at = Some(std::time::Instant::now());
-                if !cleared && !matches!(app.page(), Page::Search) {
+                if response.has_focus() && ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+                    response.surrender_focus();
+                }
+                ui.data_mut(|data| data.insert_temp(filter_id, filter));
+            } else {
+                let id = egui::Id::new("global-search");
+                let before = app.search.query.clone();
+                let selected = egui::TextEdit::load_state(ui.ctx(), id)
+                    .and_then(|state| state.cursor.char_range())
+                    .is_some_and(|range| !range.is_empty());
+                let response = super::widgets::search_field(
+                    ui,
+                    &palette,
+                    app.locale,
+                    id,
+                    &mut app.search.query,
+                    &gettext(locale, "What do you want to play?"),
+                    search_width,
+                );
+                if app.search.focus_requested {
+                    app.search.focus_requested = false;
+                    response.request_focus();
+                }
+                // Clear empties the field and hands it focus in the same frame.
+                // Neither should leave the page: only typing a query does.
+                let cleared = app.search.query.is_empty() && !before.is_empty();
+                if response.gained_focus() && !cleared && !matches!(app.page(), Page::Search) {
                     app.actions.push(Action::Open(Page::Search));
                 }
-            }
-            if response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
-                let query = app.search.query.clone();
-                app.actions.push(Action::Search(query));
-            }
-            if response.has_focus() && ui.input(|input| input.key_pressed(egui::Key::Escape)) {
-                response.surrender_focus();
+                if app.search.query != before {
+                    // Typing over a selection, or emptying the field, starts a
+                    // new query rather than editing the last one.
+                    if selected || app.search.query.is_empty() {
+                        app.actions.push(Action::EndSearchRun);
+                    }
+                    app.search.typed_at = Some(std::time::Instant::now());
+                    if !cleared && !matches!(app.page(), Page::Search) {
+                        app.actions.push(Action::Open(Page::Search));
+                    }
+                }
+                if response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter)) {
+                    let query = app.search.query.clone();
+                    app.actions.push(Action::Search(query));
+                }
+                if response.has_focus() && ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+                    response.surrender_focus();
+                }
             }
 
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {

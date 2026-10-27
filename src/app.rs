@@ -11859,7 +11859,11 @@ impl App {
             Action::SetSearchFilter(filter) => self.search.filter = filter,
             Action::FocusSearch => {
                 self.search.focus_requested = true;
-                if !matches!(self.page(), Page::Search) {
+                // On Settings, with the top bar searching the settings, the
+                // shortcut focuses that box and stays.
+                let settings_search = matches!(self.page(), Page::Settings)
+                    && self.settings.settings_search_in_topbar;
+                if !settings_search && !matches!(self.page(), Page::Search) {
                     self.open(Page::Search);
                 }
             }
@@ -13653,7 +13657,7 @@ fn increase_playlist_total(playlist: &mut Playlist, added: u32) {
 
 /// This fork's own version, after Spotifast's: one more each round of
 /// changes it ships.
-pub const FORK_VERSION: &str = "mod 3";
+pub const FORK_VERSION: &str = "mod 4";
 
 /// The window's title: the playing song, if any, then Spotifast's version
 /// and this fork's.

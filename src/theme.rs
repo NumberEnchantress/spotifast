@@ -159,10 +159,16 @@ pub fn palette_json(palette: &Palette) -> String {
 
 /// The palettes this fork ships, beside the ones Spotifast shares with its
 /// sibling apps: their filenames and their JSON.
-pub const FORK_THEMES: &[(&str, &str)] = &[(
-    "Terminal.json",
-    include_str!("../assets/themes/Terminal.json"),
-)];
+pub const FORK_THEMES: &[(&str, &str)] = &[
+    (
+        "Terminal.json",
+        include_str!("../assets/themes/Terminal.json"),
+    ),
+    (
+        "Incarnadine.json",
+        include_str!("../assets/themes/Incarnadine.json"),
+    ),
+];
 
 /// The file in the themes folder listing this fork's palettes already put
 /// there, one filename per line.
@@ -1297,15 +1303,53 @@ mod tests {
     /// the purple accent.
     #[test]
     fn terminal_is_black_green_and_purple() {
-        let [(name, text)] = FORK_THEMES else {
-            panic!("one fork theme")
-        };
-        assert_eq!(*name, "Terminal.json");
+        let (name, text) = FORK_THEMES[0];
+        assert_eq!(name, "Terminal.json");
         let terminal: Palette = fastframe_theme::parse_palette(text).unwrap();
         assert!(terminal.dark);
         assert_eq!(terminal.window, Color32::BLACK);
         assert_eq!(terminal.text, Color32::from_rgb(0x00, 0xff, 0x00));
         assert_eq!(terminal.accent, Color32::from_rgb(0x80, 0x00, 0xff));
+    }
+
+    /// Incarnadine is Spotify gone evil: near black with a red cast, blood red
+    /// where Spotify is green.
+    #[test]
+    fn incarnadine_is_spotify_gone_evil() {
+        let (name, text) = FORK_THEMES[1];
+        assert_eq!(name, "Incarnadine.json");
+        let incarnadine: Palette = fastframe_theme::parse_palette(text).unwrap();
+        assert!(incarnadine.dark);
+        assert_eq!(incarnadine.accent, Color32::from_rgb(0xe0, 0x10, 0x2f));
+        let [r, g, b, _] = incarnadine.window.to_array();
+        assert!(r > g && r > b && r < 0x20, "{:?}", incarnadine.window);
+    }
+
+    /// A theme added to the fork later arrives where an earlier one was
+    /// already put: only it is written, and the record keeps both.
+    #[test]
+    fn a_later_fork_theme_arrives_beside_the_earlier() {
+        let folder =
+            std::env::temp_dir().join(format!("spotifast-fork-later-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(folder.join(FORK_INSTALLED), "Terminal.json\n").unwrap();
+        std::fs::write(folder.join("Terminal.json"), "{}").unwrap();
+        assert!(install_fork_themes(&folder).unwrap());
+        assert_eq!(
+            std::fs::read_to_string(folder.join("Terminal.json")).unwrap(),
+            "{}"
+        );
+        assert_eq!(
+            std::fs::read_to_string(folder.join("Incarnadine.json")).unwrap(),
+            FORK_THEMES[1].1
+        );
+        let record = std::fs::read_to_string(folder.join(FORK_INSTALLED)).unwrap();
+        assert_eq!(
+            record.lines().collect::<Vec<_>>(),
+            ["Terminal.json", "Incarnadine.json"]
+        );
+        std::fs::remove_dir_all(&folder).unwrap();
     }
 
     /// The fork's themes go into the folder once: a second start writes

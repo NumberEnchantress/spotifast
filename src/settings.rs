@@ -367,6 +367,9 @@ pub struct Settings {
     pub library_sort: std::collections::BTreeMap<LibraryShelf, LibrarySort>,
     /// Show only playlists owned by the signed-in account in the playlist shelf.
     pub library_by_you: bool,
+    /// On the Settings page, the top bar's search box searches the
+    /// settings instead of Spotify.
+    pub settings_search_in_topbar: bool,
     /// The order of a Library that lists more than one kind, shared by all
     /// of them; `None` is recently played.
     pub library_mixed_sort: Option<LibrarySort>,
@@ -532,6 +535,7 @@ impl Default for Settings {
             sidebar_order: Vec::new(),
             library_sort: std::collections::BTreeMap::new(),
             library_by_you: false,
+            settings_search_in_topbar: true,
             library_mixed_sort: None,
             library_group_kinds: true,
             zoom: 1.0,
@@ -1351,6 +1355,18 @@ mod tests {
             [super::LIKED_SONGS_KEY, "spotify:playlist:one"]
         );
         assert_eq!(settings.sidebar_order, ["spotify:playlist:two"]);
+    }
+
+    /// The top bar searches the settings on their page unless turned off,
+    /// in settings from before the choice too.
+    #[test]
+    fn the_top_bar_searches_settings_by_default() {
+        assert!(Settings::default().settings_search_in_topbar);
+        let old: Settings = serde_json::from_str("{}").unwrap();
+        assert!(old.settings_search_in_topbar);
+        let off: Settings =
+            serde_json::from_str(r#"{"settings_search_in_topbar": false}"#).unwrap();
+        assert!(!off.settings_search_in_topbar);
     }
 
     /// Saved equalizer presets read back as written; files from before them
