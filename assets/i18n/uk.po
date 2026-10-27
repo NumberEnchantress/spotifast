@@ -3804,3 +3804,135 @@ msgid_plural "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P
 msgstr[0] "Не вдалося додати {count} файл. Spotifast відтворює файли MP3, FLAC, MP4 і M4P."
 msgstr[1] "Не вдалося додати {count} файли. Spotifast відтворює файли MP3, FLAC, MP4 і M4P."
 msgstr[2] "Не вдалося додати {count} файлів. Spotifast відтворює файли MP3, FLAC, MP4 і M4P."
+
+#. Translators: A colour in the theme editor: the window's background.
+#: src/ui/theme_editor.rs:18
+msgid "Background"
+msgstr "Тло"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:20
+msgid "Side panels"
+msgstr "Бічні панелі"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:22
+msgid "Cards and fields"
+msgstr "Картки й поля"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:24
+msgid "Items under the pointer"
+msgstr "Елементи під вказівником"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:26
+msgid "Pressed items"
+msgstr "Натиснуті елементи"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:28
+msgid "Lines"
+msgstr "Лінії"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:30
+msgid "Text"
+msgstr "Текст"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:32
+msgid "Secondary text"
+msgstr "Другорядний текст"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:34
+msgid "Faint text"
+msgstr "Блідий текст"
+
+#. Translators: A colour in the theme editor: buttons, the playing song and other highlights.
+#: src/ui/theme_editor.rs:36
+msgid "Accent"
+msgstr "Акцент"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:38
+msgid "Accent under the pointer"
+msgstr "Акцент під вказівником"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:40
+msgid "Text on the accent"
+msgstr "Текст на акценті"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:42
+msgid "Errors"
+msgstr "Помилки"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:44
+msgid "Warnings"
+msgstr "Попередження"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:46
+msgid "Menus and popups"
+msgstr "Меню та спливні вікна"
+
+#. Translators: A colour in the theme editor.
+#: src/demo.rs:67
+msgid "Shadows"
+msgstr "Тіні"
+
+#. Translators: A colour in the theme editor: the wash at the top of a page without cover art.
+#: src/ui/theme_editor.rs:50
+msgid "Page tint"
+msgstr "Відтінок сторінки"
+
+#: src/ui/theme_editor.rs:149
+msgid "Theme name"
+msgstr "Назва теми"
+
+#: src/ui/theme_editor.rs:160
+msgid "Save theme"
+msgstr "Зберегти тему"
+
+#: src/ui/theme_editor.rs:170
+msgid "Discard"
+msgstr "Скасувати"
+
+#: src/ui/theme_editor.rs:188
+msgid "Customize"
+msgstr "Налаштувати"
+
+#: src/ui/settings.rs:1301
+msgid "Customize colours"
+msgstr "Налаштувати кольори"
+
+#: src/ui/settings.rs:1304
+msgid "Change any colour with a picker or a hex value, see it at once, and save it as a theme of your own."
+msgstr "Змінюйте будь-який колір палітрою чи шістнадцятковим значенням, одразу бачте результат і зберігайте як власну тему."
+
+#. Translators: A setting that shows the playlists on Home as an interactive map.
+#: src/ui/settings.rs:1173
+msgid "Playlist map on Home"
+msgstr "Мапа плейлистів на головній"
+
+#: src/ui/settings.rs:1311
+msgid "Show your playlists on Home as a map: each sized by its songs, linked by folder, opened with a click."
+msgstr "Показувати плейлисти на головній як мапу: розмір за кількістю пісень, зв’язки за папками, відкриття клацанням."
+
+#: src/ui/playlist_map.rs:269
+msgid "Scroll to zoom, drag to move, double-click to centre. Click a playlist to open it."
+msgstr "Прокрутка змінює масштаб, перетягування рухає, подвійне клацання центрує. Клацніть плейлист, щоб відкрити його."
+
+#. Translators: {name} is the name of a theme made in the colour editor.
+#: src/app.rs:2507
+#, rust-format
+msgid "Saved theme “{name}”"
+msgstr "Тему «{name}» збережено"
+
+#: src/app.rs:2513
+msgid "Couldn't save the theme."
+msgstr "Не вдалося зберегти тему."

@@ -77,6 +77,8 @@ impl Default for HomeShelfSettings {
 pub struct HomeSettings {
     pub made_for_you: HomeShelfSettings,
     pub recommendations: HomeShelfSettings,
+    /// Home shows a map of the playlists in place of its shelves.
+    pub playlist_map: bool,
 }
 
 /// What moves behind the player bar's controls.

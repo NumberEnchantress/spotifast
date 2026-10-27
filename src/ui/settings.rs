@@ -1169,6 +1169,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     }
 
     let appearance = gettext(locale, "Appearance");
+    // Translators: A setting that shows the playlists on Home as an interactive map.
+    let playlist_map = gettext(locale, "Playlist map on Home");
     let theme_title = gettext(locale, "Theme");
     let theme_guide = gettext(locale, "How to make a theme");
     let themes_folder = gettext(locale, "Open themes folder");
@@ -1295,6 +1297,20 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         ),
         pair_row(fastframe_theme::Base::Light),
         pair_row(fastframe_theme::Base::Dark),
+        RowText::new(
+            gettext(locale, "Customize colours"),
+            gettext(
+                locale,
+                "Change any colour with a picker or a hex value, see it at once, and save it as a theme of your own.",
+            ),
+        ),
+        RowText::new(
+            playlist_map.clone(),
+            gettext(
+                locale,
+                "Show your playlists on Home as a map: each sized by its songs, linked by folder, opened with a click.",
+            ),
+        ),
     ];
     if section_matches(&needle, &appearance, &appearance_rows) {
         any_visible = true;
@@ -1405,6 +1421,36 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     pair_picker(app, ui, base, &row.title);
                 });
             }
+            filtered_row(
+                ui,
+                &palette,
+                &needle,
+                &appearance,
+                &appearance_rows[13],
+                |ui| super::theme_editor::start_button(app, ui),
+            );
+            if appearance_rows[13].matches(&needle, &appearance) {
+                super::theme_editor::show(app, ui);
+            }
+            filtered_row(
+                ui,
+                &palette,
+                &needle,
+                &appearance,
+                &appearance_rows[14],
+                |ui| {
+                    if widgets::switch(
+                        ui,
+                        &palette,
+                        &playlist_map,
+                        &mut app.settings.home.playlist_map,
+                    )
+                    .changed()
+                    {
+                        changed = true;
+                    }
+                },
+            );
             filtered_row(
                 ui,
                 &palette,

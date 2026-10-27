@@ -647,6 +647,18 @@ pub struct App {
     local_scan_asked: u64,
     /// The scan whose songs `local_files` holds.
     pub local_files_generation: u64,
+    /// The colours being edited under Settings → Appearance, shown in
+    /// place of the theme until saved or discarded.
+    pub theme_draft: Option<crate::theme::Palette>,
+    /// The theme in use before a save, and the colours saved, to go back to
+    /// if the file cannot be written.
+    theme_save_undo: Option<(
+        Option<String>,
+        Option<crate::theme::CustomTheme>,
+        crate::theme::Palette,
+    )>,
+    /// Where the playlist map's nodes are and how it is panned and zoomed.
+    pub playlist_map: crate::ui::playlist_map::MapState,
     /// Requested shuffle mode, applied to every context until changed.
     shuffle_wanted: bool,
     /// The repeat mode saved by the last run, which the first local load
@@ -1259,6 +1271,9 @@ impl App {
             local_files: None,
             local_scan_asked: 0,
             local_files_generation: 0,
+            theme_draft: None,
+            theme_save_undo: None,
+            playlist_map: Default::default(),
             shuffle_wanted: session.shuffle_on,
             repeat_wanted: RepeatMode::from_api(&session.repeat),
             shuffle_set_at: None,
@@ -2488,6 +2503,37 @@ impl App {
                 Event::LocalFilesCopied(copied) => self.local_files_copied(copied),
                 Event::LocalFilesFolderChosen(None) => {}
                 Event::SpotifyEqPresets(result) => self.spotify_eq_presets_read(result),
+                // A palette this fork ships was put in the themes folder.
+                Event::ForkThemesInstalled(true) => self.actions.push(Action::ReloadThemes),
+                Event::ForkThemesInstalled(false) => {}
+                Event::ThemeSaved { filename, result } => match result {
+                    // The themes are read again, so the picker lists it.
+                    Ok(()) => {
+                        self.theme_save_undo = None;
+                        self.actions.push(Action::ReloadThemes);
+                        self.toast(
+                            // Translators: {name} is the name of a theme made in the colour editor.
+                            gettext(self.locale, "Saved theme “{name}”")
+                                .replace("{name}", fastframe_theme::display_name(&filename)),
+                        );
+                    }
+                    Err(error) => {
+                        log::warn!("Couldn't save the theme {filename}: {error}");
+                        self.toast_error(gettext(self.locale, "Couldn't save the theme."));
+                        // The theme in use goes back to what it was, and the
+                        // colours stay open for another try.
+                        if self.settings.custom_theme.as_deref() == Some(filename.as_str())
+                            && let Some((theme, cache, draft)) = self.theme_save_undo.take()
+                        {
+                            self.settings.custom_theme = theme;
+                            self.settings.custom_theme_cache = cache;
+                            self.theme_draft = Some(draft);
+                            self.mark_settings_dirty();
+                            // Light or dark follows the theme in use again.
+                            self.actions.push(Action::SettingsChanged);
+                        }
+                    }
+                },
                 Event::LocalFiles {
                     generation,
                     sources,
@@ -4380,6 +4426,13 @@ impl App {
         );
     }
 
+    /// Puts the palettes this fork ships in the themes folder, once each,
+    /// off this thread; the themes are read again if one was added.
+    pub fn install_fork_themes(&self) {
+        self.backend
+            .send(Command::InstallForkThemes(self.dirs.config.join("themes")));
+    }
+
     /// Adds the desktop's palettes (Omarchy on Linux) for a normal launch.
     pub fn enable_desktop_themes(&mut self) {
         theme::enable_desktop_themes(&mut self.custom_themes);
@@ -4468,17 +4521,22 @@ impl App {
             }
         }
         let dark = ctx.theme() == egui::Theme::Dark;
-        let palette = self.custom_palette(dark).unwrap_or_else(|| {
-            if dark {
-                Palette::dark()
-            } else {
-                Palette::light()
-            }
-        });
+        // Colours being edited show as they change.
+        let palette = self
+            .theme_draft
+            .or_else(|| self.custom_palette(dark))
+            .unwrap_or_else(|| {
+                if dark {
+                    Palette::dark()
+                } else {
+                    Palette::light()
+                }
+            });
         if self.applied_dark != Some(dark) || self.palette != palette {
-            // The first colours need no reveal, and the mini player's window
-            // is drawn by its skin.
+            // The first colours need no reveal, the mini player's window is
+            // drawn by its skin, and an edit follows the picker at once.
             if self.reveal_theme_changes
+                && self.theme_draft.is_none()
                 && !self.motion.reduced()
                 && self.applied_dark.is_some()
                 && !self.settings.winamp_window
@@ -4492,8 +4550,12 @@ impl App {
             theme::apply(ctx, &self.palette);
             crate::motion::apply(ctx, self.motion.reduced());
             self.applied_dark = Some(dark);
-            self.accents.clear();
-            self.accent_pending.clear();
+            // Colours still being edited keep the tints already taken from
+            // art, so a dragged picker does not blank them every frame.
+            if self.theme_draft.is_none() {
+                self.accents.clear();
+                self.accent_pending.clear();
+            }
         }
     }
 
@@ -12088,6 +12150,7 @@ impl App {
                 self.mark_settings_dirty();
             }
             Action::SetTheme(choice) => {
+                self.theme_draft = None;
                 self.settings.theme = choice;
                 self.settings.custom_theme = None;
                 self.settings.custom_theme_cache = None;
@@ -12101,8 +12164,53 @@ impl App {
                 self.mark_settings_dirty();
                 ctx.request_repaint();
             }
+            Action::SetThemeDraft(draft) => {
+                self.theme_draft = draft;
+                self.apply_theme(ctx);
+            }
+            Action::SaveThemeDraft(name) => {
+                if let (Some(palette), Some(filename)) =
+                    (self.theme_draft, crate::theme::theme_filename(&name))
+                {
+                    // A name already taken, in any case, is never written
+                    // over: the new theme takes the next free number.
+                    let taken: Vec<String> = self
+                        .custom_themes
+                        .picker_themes()
+                        .map(|theme| theme.filename.clone())
+                        .chain(
+                            crate::theme::FORK_THEMES
+                                .iter()
+                                .map(|(name, _)| (*name).to_string()),
+                        )
+                        .collect();
+                    let filename = crate::theme::free_filename(&filename, &taken);
+                    self.theme_save_undo = Some((
+                        self.settings.custom_theme.clone(),
+                        self.settings.custom_theme_cache.clone(),
+                        palette,
+                    ));
+                    self.backend.send(Command::SaveTheme {
+                        directory: self.dirs.config.join("themes"),
+                        filename: filename.clone(),
+                        contents: crate::theme::palette_json(&palette),
+                    });
+                    // The saved colours are in use at once, before the
+                    // themes folder is read again.
+                    self.settings.custom_theme_cache = Some(crate::theme::CustomTheme {
+                        filename: filename.clone(),
+                        palette,
+                    });
+                    self.settings.custom_theme = Some(filename);
+                    self.theme_draft = None;
+                    self.mark_settings_dirty();
+                    ctx.set_theme(self.theme_preference());
+                    self.apply_theme(ctx);
+                }
+            }
             Action::SetCustomTheme(filename) => {
                 if let Some(theme) = self.custom_themes.find(&filename) {
+                    self.theme_draft = None;
                     self.settings.custom_theme_cache = Some(theme.clone());
                     self.settings.custom_theme = Some(filename);
                     self.mark_settings_dirty();
@@ -12111,6 +12219,8 @@ impl App {
                 }
             }
             Action::SetPairTheme(base, filename) => {
+                // A theme picked replaces colours being edited.
+                self.theme_draft = None;
                 // A file that is no longer listed changes nothing.
                 let listed = filename
                     .as_deref()
@@ -13104,13 +13214,14 @@ impl App {
         }
     }
 
-    /// Keeps the current track in the window and taskbar title (#94).
+    /// Keeps the current track in the window and taskbar title (#94),
+    /// followed by the versions of Spotifast and of this fork.
     fn sync_window_title(&mut self, ctx: &egui::Context) {
-        let title = match self.now_playing().filter(|now| now.playing) {
-            Some(now) if now.subtitle.is_empty() => format!("{} - Spotifast", now.title),
-            Some(now) => format!("{} - {}", now.subtitle, now.title),
-            None => "Spotifast".to_string(),
-        };
+        let title = window_title(
+            self.now_playing()
+                .filter(|now| now.playing)
+                .map(|now| (now.subtitle, now.title)),
+        );
         if title != self.window_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.window_title = title;
@@ -13537,6 +13648,24 @@ fn increase_playlist_total(playlist: &mut Playlist, added: u32) {
         tracks.total = tracks.total.saturating_add(added);
     } else {
         playlist.items_count = Some(TrackCount { total: added });
+    }
+}
+
+/// This fork's own version, after Spotifast's: one more each round of
+/// changes it ships.
+pub const FORK_VERSION: &str = "mod 3";
+
+/// The window's title: the playing song, if any, then Spotifast's version
+/// and this fork's.
+fn window_title(playing: Option<(String, String)>) -> String {
+    let versions = format!(
+        "Spotifast {} \u{b7} {FORK_VERSION}",
+        env!("CARGO_PKG_VERSION")
+    );
+    match playing {
+        Some((subtitle, title)) if subtitle.is_empty() => format!("{title} \u{b7} {versions}"),
+        Some((subtitle, title)) => format!("{subtitle} - {title} \u{b7} {versions}"),
+        None => versions,
     }
 }
 
@@ -22333,6 +22462,90 @@ mod tests {
                 Some(Page::Radio("spotify:playlist:pl9".into()))
             )
         );
+    }
+
+    /// The title names Spotifast's version and this fork's, after the
+    /// playing song when there is one.
+    #[test]
+    fn the_title_carries_both_versions() {
+        let versions = format!(
+            "Spotifast {} \u{b7} {FORK_VERSION}",
+            env!("CARGO_PKG_VERSION")
+        );
+        assert_eq!(window_title(None), versions);
+        assert_eq!(
+            window_title(Some(("Bonobo".into(), "Rosewood".into()))),
+            format!("Bonobo - Rosewood \u{b7} {versions}")
+        );
+        assert_eq!(
+            window_title(Some((String::new(), "An episode".into()))),
+            format!("An episode \u{b7} {versions}")
+        );
+    }
+
+    /// Edited colours show at once, discarding them restores the theme,
+    /// and saving makes them the theme in use before the folder is read.
+    #[test]
+    fn edited_colours_preview_and_save_as_the_theme() {
+        let ctx = egui::Context::default();
+        let mut app = headless_app();
+        // Going back to the theme fades in a window; here it is at once.
+        app.reveal_theme_changes = false;
+        app.apply_theme(&ctx);
+        let before = app.palette;
+        let mut draft = before;
+        draft.text = egui::Color32::from_rgb(0, 255, 0);
+        app.apply(Action::SetThemeDraft(Some(draft)), &ctx);
+        assert_eq!(app.palette, draft);
+        app.apply(Action::SetThemeDraft(None), &ctx);
+        assert_eq!(app.palette, before);
+        app.apply(Action::SetThemeDraft(Some(draft)), &ctx);
+        app.apply(Action::SaveThemeDraft("  ".into()), &ctx);
+        assert!(app.theme_draft.is_some(), "a blank name saves nothing");
+        app.apply(Action::SaveThemeDraft("Neon".into()), &ctx);
+        assert!(app.theme_draft.is_none());
+        assert_eq!(app.settings.custom_theme.as_deref(), Some("Neon.json"));
+        assert_eq!(
+            app.settings
+                .custom_theme_cache
+                .as_ref()
+                .map(|theme| theme.palette),
+            Some(draft)
+        );
+        app.apply_theme(&ctx);
+        assert_eq!(app.palette, draft);
+        app.backend.shutdown();
+    }
+
+    /// Picking a theme ends the edit, a save never writes over a theme of
+    /// the same name, and one that cannot be written goes back to the
+    /// theme in use with the colours still open.
+    #[test]
+    fn theme_edits_end_on_a_pick_and_survive_a_failed_save() {
+        let ctx = egui::Context::default();
+        let mut app = headless_app();
+        app.reveal_theme_changes = false;
+        app.apply_theme(&ctx);
+        let mut draft = app.palette;
+        draft.accent = egui::Color32::from_rgb(0x80, 0, 0xff);
+        app.apply(Action::SetThemeDraft(Some(draft)), &ctx);
+        app.apply(Action::SetTheme(ThemeChoice::Light), &ctx);
+        assert!(app.theme_draft.is_none(), "a pick ends the edit");
+
+        app.apply(Action::SetThemeDraft(Some(draft)), &ctx);
+        app.apply(Action::SaveThemeDraft("terminal".into()), &ctx);
+        assert_eq!(
+            app.settings.custom_theme.as_deref(),
+            Some("terminal 2.json"),
+            "the fork's Terminal is never written over"
+        );
+        app.handle_backend_events(vec![Event::ThemeSaved {
+            filename: "terminal 2.json".into(),
+            result: Err("disk full".into()),
+        }]);
+        assert_eq!(app.settings.custom_theme, None, "back to the theme in use");
+        assert_eq!(app.theme_draft, Some(draft), "the colours stay open");
+        app.backend.shutdown();
     }
 
     /// A replaced window, as when the mini player's taskbar setting

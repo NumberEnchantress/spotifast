@@ -1100,6 +1100,21 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
                 };
             }
             "library-by-you" => app.settings.library_by_you = true,
+            // Home as the map of the playlists.
+            "playlist-map" => app.settings.home.playlist_map = true,
+            // The colour editor open, starting from the colours in use.
+            "theme-editor" => app.theme_draft = Some(app.palette),
+            // This fork's Terminal theme in use.
+            "terminal" => {
+                let (filename, text) = crate::theme::FORK_THEMES[0];
+                if let Ok(palette) = fastframe_theme::parse_palette(text) {
+                    app.settings.custom_theme = Some(filename.into());
+                    app.settings.custom_theme_cache = Some(crate::theme::CustomTheme {
+                        filename: filename.into(),
+                        palette,
+                    });
+                }
+            }
             // Several kinds ticked list as one mixed list, by name.
             "library-mixed" => {
                 app.settings.library_group_kinds = false;

@@ -3667,3 +3667,135 @@ msgstr[0] "已將 {count} 首歌曲新增到本機檔案"
 msgid "Couldn't add {count} file. Spotifast plays MP3, FLAC, MP4 and M4P files."
 msgid_plural "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P files."
 msgstr[0] "有 {count} 個檔案無法新增。Spotifast 可播放 MP3、FLAC、MP4 和 M4P 檔案。"
+
+#. Translators: A colour in the theme editor: the window's background.
+#: src/ui/theme_editor.rs:18
+msgid "Background"
+msgstr "背景"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:20
+msgid "Side panels"
+msgstr "側邊面板"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:22
+msgid "Cards and fields"
+msgstr "卡片和輸入框"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:24
+msgid "Items under the pointer"
+msgstr "指標下的項目"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:26
+msgid "Pressed items"
+msgstr "按下的項目"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:28
+msgid "Lines"
+msgstr "線條"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:30
+msgid "Text"
+msgstr "文字"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:32
+msgid "Secondary text"
+msgstr "次要文字"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:34
+msgid "Faint text"
+msgstr "淺色文字"
+
+#. Translators: A colour in the theme editor: buttons, the playing song and other highlights.
+#: src/ui/theme_editor.rs:36
+msgid "Accent"
+msgstr "強調色"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:38
+msgid "Accent under the pointer"
+msgstr "指標下的強調色"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:40
+msgid "Text on the accent"
+msgstr "強調色上的文字"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:42
+msgid "Errors"
+msgstr "錯誤"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:44
+msgid "Warnings"
+msgstr "警告"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:46
+msgid "Menus and popups"
+msgstr "選單和彈出視窗"
+
+#. Translators: A colour in the theme editor.
+#: src/demo.rs:67
+msgid "Shadows"
+msgstr "陰影"
+
+#. Translators: A colour in the theme editor: the wash at the top of a page without cover art.
+#: src/ui/theme_editor.rs:50
+msgid "Page tint"
+msgstr "頁面色調"
+
+#: src/ui/theme_editor.rs:149
+msgid "Theme name"
+msgstr "主題名稱"
+
+#: src/ui/theme_editor.rs:160
+msgid "Save theme"
+msgstr "儲存主題"
+
+#: src/ui/theme_editor.rs:170
+msgid "Discard"
+msgstr "捨棄"
+
+#: src/ui/theme_editor.rs:188
+msgid "Customize"
+msgstr "自訂"
+
+#: src/ui/settings.rs:1301
+msgid "Customize colours"
+msgstr "自訂顏色"
+
+#: src/ui/settings.rs:1304
+msgid "Change any colour with a picker or a hex value, see it at once, and save it as a theme of your own."
+msgstr "用取色器或十六進位值變更任意顏色，立即查看效果，並儲存為你自己的主題。"
+
+#. Translators: A setting that shows the playlists on Home as an interactive map.
+#: src/ui/settings.rs:1173
+msgid "Playlist map on Home"
+msgstr "在首頁顯示播放清單地圖"
+
+#: src/ui/settings.rs:1311
+msgid "Show your playlists on Home as a map: each sized by its songs, linked by folder, opened with a click."
+msgstr "在首頁以地圖顯示你的播放清單：大小取決於歌曲數，依資料夾相連，點一下即可開啟。"
+
+#: src/ui/playlist_map.rs:269
+msgid "Scroll to zoom, drag to move, double-click to centre. Click a playlist to open it."
+msgstr "捲動可縮放，拖曳可移動，按兩下可置中。點一下播放清單即可開啟。"
+
+#. Translators: {name} is the name of a theme made in the colour editor.
+#: src/app.rs:2507
+#, rust-format
+msgid "Saved theme “{name}”"
+msgstr "已儲存主題「{name}」"
+
+#: src/app.rs:2513
+msgid "Couldn't save the theme."
+msgstr "無法儲存主題。"

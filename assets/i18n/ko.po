@@ -3698,3 +3698,135 @@ msgstr[0] "로컬 파일에 {count}곡을 추가했습니다"
 msgid "Couldn't add {count} file. Spotifast plays MP3, FLAC, MP4 and M4P files."
 msgid_plural "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P files."
 msgstr[0] "파일 {count}개를 추가할 수 없습니다. Spotifast는 MP3, FLAC, MP4, M4P 파일을 재생합니다."
+
+#. Translators: A colour in the theme editor: the window's background.
+#: src/ui/theme_editor.rs:18
+msgid "Background"
+msgstr "배경"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:20
+msgid "Side panels"
+msgstr "사이드 패널"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:22
+msgid "Cards and fields"
+msgstr "카드와 입력란"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:24
+msgid "Items under the pointer"
+msgstr "포인터 아래 항목"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:26
+msgid "Pressed items"
+msgstr "누른 항목"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:28
+msgid "Lines"
+msgstr "선"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:30
+msgid "Text"
+msgstr "텍스트"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:32
+msgid "Secondary text"
+msgstr "보조 텍스트"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:34
+msgid "Faint text"
+msgstr "흐린 텍스트"
+
+#. Translators: A colour in the theme editor: buttons, the playing song and other highlights.
+#: src/ui/theme_editor.rs:36
+msgid "Accent"
+msgstr "강조색"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:38
+msgid "Accent under the pointer"
+msgstr "포인터 아래 강조색"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:40
+msgid "Text on the accent"
+msgstr "강조색 위 텍스트"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:42
+msgid "Errors"
+msgstr "오류"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:44
+msgid "Warnings"
+msgstr "경고"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:46
+msgid "Menus and popups"
+msgstr "메뉴와 팝업"
+
+#. Translators: A colour in the theme editor.
+#: src/demo.rs:67
+msgid "Shadows"
+msgstr "그림자"
+
+#. Translators: A colour in the theme editor: the wash at the top of a page without cover art.
+#: src/ui/theme_editor.rs:50
+msgid "Page tint"
+msgstr "페이지 색조"
+
+#: src/ui/theme_editor.rs:149
+msgid "Theme name"
+msgstr "테마 이름"
+
+#: src/ui/theme_editor.rs:160
+msgid "Save theme"
+msgstr "테마 저장"
+
+#: src/ui/theme_editor.rs:170
+msgid "Discard"
+msgstr "취소"
+
+#: src/ui/theme_editor.rs:188
+msgid "Customize"
+msgstr "사용자 지정"
+
+#: src/ui/settings.rs:1301
+msgid "Customize colours"
+msgstr "색상 사용자 지정"
+
+#: src/ui/settings.rs:1304
+msgid "Change any colour with a picker or a hex value, see it at once, and save it as a theme of your own."
+msgstr "선택기나 16진수 값으로 원하는 색상을 바꾸고 바로 확인한 뒤 나만의 테마로 저장하세요."
+
+#. Translators: A setting that shows the playlists on Home as an interactive map.
+#: src/ui/settings.rs:1173
+msgid "Playlist map on Home"
+msgstr "홈에 플레이리스트 지도"
+
+#: src/ui/settings.rs:1311
+msgid "Show your playlists on Home as a map: each sized by its songs, linked by folder, opened with a click."
+msgstr "홈에 플레이리스트를 지도로 표시합니다. 곡 수에 따라 크기가 정해지고, 폴더별로 연결되며, 클릭하면 열립니다."
+
+#: src/ui/playlist_map.rs:269
+msgid "Scroll to zoom, drag to move, double-click to centre. Click a playlist to open it."
+msgstr "스크롤로 확대·축소하고, 드래그로 이동하고, 두 번 클릭해 가운데로 맞추세요. 플레이리스트를 클릭하면 열립니다."
+
+#. Translators: {name} is the name of a theme made in the colour editor.
+#: src/app.rs:2507
+#, rust-format
+msgid "Saved theme “{name}”"
+msgstr "테마 “{name}”을(를) 저장했습니다"
+
+#: src/app.rs:2513
+msgid "Couldn't save the theme."
+msgstr "테마를 저장할 수 없습니다."

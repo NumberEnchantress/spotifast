@@ -3796,3 +3796,135 @@ msgid "Couldn't add {count} file. Spotifast plays MP3, FLAC, MP4 and M4P files."
 msgid_plural "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P files."
 msgstr[0] "Impossibile aggiungere {count} file. Spotifast riproduce file MP3, FLAC, MP4 e M4P."
 msgstr[1] "Impossibile aggiungere {count} file. Spotifast riproduce file MP3, FLAC, MP4 e M4P."
+
+#. Translators: A colour in the theme editor: the window's background.
+#: src/ui/theme_editor.rs:18
+msgid "Background"
+msgstr "Sfondo"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:20
+msgid "Side panels"
+msgstr "Pannelli laterali"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:22
+msgid "Cards and fields"
+msgstr "Schede e campi"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:24
+msgid "Items under the pointer"
+msgstr "Elementi sotto il puntatore"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:26
+msgid "Pressed items"
+msgstr "Elementi premuti"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:28
+msgid "Lines"
+msgstr "Linee"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:30
+msgid "Text"
+msgstr "Testo"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:32
+msgid "Secondary text"
+msgstr "Testo secondario"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:34
+msgid "Faint text"
+msgstr "Testo tenue"
+
+#. Translators: A colour in the theme editor: buttons, the playing song and other highlights.
+#: src/ui/theme_editor.rs:36
+msgid "Accent"
+msgstr "Accento"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:38
+msgid "Accent under the pointer"
+msgstr "Accento sotto il puntatore"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:40
+msgid "Text on the accent"
+msgstr "Testo sull’accento"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:42
+msgid "Errors"
+msgstr "Errori"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:44
+msgid "Warnings"
+msgstr "Avvisi"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:46
+msgid "Menus and popups"
+msgstr "Menu e popup"
+
+#. Translators: A colour in the theme editor.
+#: src/demo.rs:67
+msgid "Shadows"
+msgstr "Ombre"
+
+#. Translators: A colour in the theme editor: the wash at the top of a page without cover art.
+#: src/ui/theme_editor.rs:50
+msgid "Page tint"
+msgstr "Tinta della pagina"
+
+#: src/ui/theme_editor.rs:149
+msgid "Theme name"
+msgstr "Nome del tema"
+
+#: src/ui/theme_editor.rs:160
+msgid "Save theme"
+msgstr "Salva tema"
+
+#: src/ui/theme_editor.rs:170
+msgid "Discard"
+msgstr "Annulla modifiche"
+
+#: src/ui/theme_editor.rs:188
+msgid "Customize"
+msgstr "Personalizza"
+
+#: src/ui/settings.rs:1301
+msgid "Customize colours"
+msgstr "Personalizza i colori"
+
+#: src/ui/settings.rs:1304
+msgid "Change any colour with a picker or a hex value, see it at once, and save it as a theme of your own."
+msgstr "Cambia qualsiasi colore con un selettore o un valore esadecimale, vedilo subito e salvalo come tema personale."
+
+#. Translators: A setting that shows the playlists on Home as an interactive map.
+#: src/ui/settings.rs:1173
+msgid "Playlist map on Home"
+msgstr "Mappa delle playlist nella Home"
+
+#: src/ui/settings.rs:1311
+msgid "Show your playlists on Home as a map: each sized by its songs, linked by folder, opened with a click."
+msgstr "Mostra le playlist nella Home come una mappa: ognuna grande quanto i suoi brani, collegate per cartella, aperte con un clic."
+
+#: src/ui/playlist_map.rs:269
+msgid "Scroll to zoom, drag to move, double-click to centre. Click a playlist to open it."
+msgstr "Scorri per lo zoom, trascina per spostare, doppio clic per centrare. Fai clic su una playlist per aprirla."
+
+#. Translators: {name} is the name of a theme made in the colour editor.
+#: src/app.rs:2507
+#, rust-format
+msgid "Saved theme “{name}”"
+msgstr "Tema “{name}” salvato"
+
+#: src/app.rs:2513
+msgid "Couldn't save the theme."
+msgstr "Impossibile salvare il tema."

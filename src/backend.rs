@@ -812,6 +812,14 @@ pub enum Command {
         >,
         into: std::path::PathBuf,
     },
+    /// Write a theme made in the colour editor into the themes folder.
+    SaveTheme {
+        directory: std::path::PathBuf,
+        filename: String,
+        contents: String,
+    },
+    /// Put this fork's palettes in the themes folder, once each.
+    InstallForkThemes(std::path::PathBuf),
     /// Read the equalizer presets `user_id` saved in Spotify's desktop app
     /// on this computer, off the UI thread.
     ReadSpotifyEqPresets {
@@ -1076,6 +1084,13 @@ pub struct LyricsRequest {
 pub enum Event {
     /// The folder picked in the local files dialog; `None` when cancelled.
     LocalFilesFolderChosen(Option<std::path::PathBuf>),
+    /// Whether the theme made in the colour editor was written.
+    ThemeSaved {
+        filename: String,
+        result: Result<(), String>,
+    },
+    /// Whether a palette this fork ships was added to the themes folder.
+    ForkThemesInstalled(bool),
     /// The presets Spotify's desktop app saved, or why there are none.
     SpotifyEqPresets(Result<Vec<crate::settings::UserEqPreset>, crate::spotify_eq::ImportError>),
     /// The songs in `sources`, by the `spotify:local:` URIs they play for.
@@ -2412,6 +2427,44 @@ impl Worker {
                     tokio::spawn(async move {
                         let folder = selected.await.map(|folder| folder.path().to_path_buf());
                         let _ = events.send(Event::LocalFilesFolderChosen(folder));
+                        waker.wake();
+                    });
+                }
+                Command::SaveTheme {
+                    directory,
+                    filename,
+                    contents,
+                } => {
+                    let events = self.events.clone();
+                    let waker = self.waker.clone();
+                    tokio::spawn(async move {
+                        let name = filename.clone();
+                        let result = tokio::task::spawn_blocking(move || {
+                            std::fs::create_dir_all(&directory).and_then(|()| {
+                                crate::theme::write_through_temporary(&directory, &name, &contents)
+                            })
+                        })
+                        .await
+                        .map_err(|error| error.to_string())
+                        .and_then(|written| written.map_err(|error| error.to_string()));
+                        let _ = events.send(Event::ThemeSaved { filename, result });
+                        waker.wake();
+                    });
+                }
+                Command::InstallForkThemes(directory) => {
+                    let events = self.events.clone();
+                    let waker = self.waker.clone();
+                    tokio::spawn(async move {
+                        let written = tokio::task::spawn_blocking(move || {
+                            crate::theme::install_fork_themes(&directory)
+                                .inspect_err(|error| {
+                                    log::warn!("Couldn't add this fork's themes: {error}");
+                                })
+                                .unwrap_or(false)
+                        })
+                        .await
+                        .unwrap_or(false);
+                        let _ = events.send(Event::ForkThemesInstalled(written));
                         waker.wake();
                     });
                 }

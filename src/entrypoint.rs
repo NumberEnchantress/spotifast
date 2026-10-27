@@ -55,7 +55,7 @@ struct Cli {
     /// `windows-taskbar`, `start-in-tray`, `german`, `lyrics`, `lyrics-fullscreen`, `collection-loading`,
     /// `shuffle-selected`, `shuffle-started`, `undated-mix`, `signed-out`, `connecting`, `library-list`,
     /// `library-list-narrow`, `library-list-wide`, `library-grid`, `library-grid-narrow`,
-    /// `library-grid-wide`, or `library-mixed`.
+    /// `library-grid-wide`, `library-mixed`, `playlist-map`, `theme-editor`, or `terminal`.
     #[cfg(feature = "demo")]
     #[arg(long)]
     demo_show: Option<String>,
@@ -530,6 +530,7 @@ pub(crate) fn run() -> eframe::Result<()> {
     #[cfg(not(feature = "demo"))]
     let load_themes = true;
     if load_themes {
+        app.install_fork_themes();
         app.load_custom_themes(&waker);
     }
     let receipt_shown = launch.receipt.is_some();

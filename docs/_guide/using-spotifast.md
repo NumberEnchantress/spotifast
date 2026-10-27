@@ -784,6 +784,11 @@ You can replace it with other text instead.
 If Spotify refuses permission, sign in again and approve image uploads. If you
 use a personal Spotify app, reconnect it in Settings as well.
 
+## This fork's version
+
+The window title, and the taskbar's, end with Spotifast's version and this
+fork's, such as `Spotifast 0.14.1 · mod 3`, after the playing song.
+
 ## Local files
 
 Spotifast plays songs from this computer only where you point it. In

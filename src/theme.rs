@@ -10,6 +10,216 @@ use std::borrow::Cow;
 
 /// A palette file from the themes directory.
 pub type CustomTheme = fastframe_theme::CustomTheme<Palette>;
+
+/// Every colour of a palette, by its key in a palette file, in the order
+/// the theme editor lists them.
+pub const PALETTE_KEYS: [&str; 17] = [
+    "window",
+    "panel",
+    "surface",
+    "surface_hover",
+    "surface_active",
+    "outline",
+    "text",
+    "secondary",
+    "dim",
+    "accent",
+    "accent_hover",
+    "on_accent",
+    "danger",
+    "warning",
+    "overlay",
+    "shadow",
+    "tint",
+];
+
+/// The colour `palette` holds under `key`; transparent for any other key.
+pub fn palette_color(palette: &Palette, key: &str) -> Color32 {
+    match key {
+        "window" => palette.window,
+        "panel" => palette.panel,
+        "surface" => palette.surface,
+        "surface_hover" => palette.surface_hover,
+        "surface_active" => palette.surface_active,
+        "outline" => palette.outline,
+        "text" => palette.text,
+        "secondary" => palette.secondary,
+        "dim" => palette.dim,
+        "accent" => palette.accent,
+        "accent_hover" => palette.accent_hover,
+        "on_accent" => palette.on_accent,
+        "danger" => palette.danger,
+        "warning" => palette.warning,
+        "overlay" => palette.overlay,
+        "shadow" => palette.shadow,
+        "tint" => palette.tint,
+        _ => Color32::TRANSPARENT,
+    }
+}
+
+/// Sets the colour under `key`, as a palette file's would.
+pub fn set_palette_color(palette: &mut Palette, key: &str, color: Color32) {
+    fastframe_theme::Palette::set(palette, key, color);
+}
+
+/// `#RRGGBB`, or `#RRGGBBAA` when the colour is not opaque, as palette
+/// files write them.
+pub fn hex(color: Color32) -> String {
+    let [r, g, b, a] = color.to_srgba_unmultiplied();
+    if a == u8::MAX {
+        format!("#{r:02x}{g:02x}{b:02x}")
+    } else {
+        format!("#{r:02x}{g:02x}{b:02x}{a:02x}")
+    }
+}
+
+/// A colour typed as `#RRGGBB` or `#RRGGBBAA`, the `#` optional.
+pub fn parse_hex(text: &str) -> Option<Color32> {
+    let digits = text.trim().trim_start_matches('#');
+    if !matches!(digits.len(), 6 | 8) || !digits.chars().all(|c| c.is_ascii_hexdigit()) {
+        return None;
+    }
+    let byte = |at: usize| u8::from_str_radix(&digits[at..at + 2], 16).ok();
+    let alpha = if digits.len() == 8 { byte(6)? } else { u8::MAX };
+    Some(Color32::from_rgba_unmultiplied(
+        byte(0)?,
+        byte(2)?,
+        byte(4)?,
+        alpha,
+    ))
+}
+
+/// The file a theme named `name` is saved as: its name with the characters
+/// no file name may hold replaced, and `.json`; `None` for a blank name.
+pub fn theme_filename(name: &str) -> Option<String> {
+    let cleaned: String = name
+        .trim()
+        .chars()
+        .map(|c| {
+            if c.is_control() || matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') {
+                '-'
+            } else {
+                c
+            }
+        })
+        .take(64)
+        .collect();
+    let cleaned = cleaned
+        .trim()
+        .trim_start_matches('.')
+        .trim_end_matches('.')
+        .trim();
+    if cleaned.is_empty() {
+        return None;
+    }
+    // Windows keeps these names for devices, whatever follows the dot.
+    let upper = cleaned
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .trim_end()
+        .to_ascii_uppercase();
+    let reserved = matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (upper.len() == 4
+            && (upper.starts_with("COM") || upper.starts_with("LPT"))
+            && upper.as_bytes()[3].is_ascii_digit());
+    Some(if reserved {
+        format!("{cleaned} theme.json")
+    } else {
+        format!("{cleaned}.json")
+    })
+}
+
+/// `filename`, or the first `name 2.json`, `name 3.json`… that none of
+/// `taken` holds, compared without case as Windows and macOS compare.
+pub fn free_filename(filename: &str, taken: &[String]) -> String {
+    let held = |name: &str| taken.iter().any(|taken| taken.eq_ignore_ascii_case(name));
+    if !held(filename) {
+        return filename.to_string();
+    }
+    let stem = filename.strip_suffix(".json").unwrap_or(filename);
+    (2..)
+        .map(|number| format!("{stem} {number}.json"))
+        .find(|name| !held(name))
+        .unwrap_or_else(|| filename.to_string())
+}
+
+/// `palette` as a palette file: its base and every colour.
+pub fn palette_json(palette: &Palette) -> String {
+    let colors: Vec<String> = PALETTE_KEYS
+        .iter()
+        .map(|key| format!("    \"{key}\": \"{}\"", hex(palette_color(palette, key))))
+        .collect();
+    format!(
+        "{{\n  \"base\": \"{}\",\n  \"colors\": {{\n{}\n  }}\n}}\n",
+        if palette.dark { "dark" } else { "light" },
+        colors.join(",\n")
+    )
+}
+
+/// The palettes this fork ships, beside the ones Spotifast shares with its
+/// sibling apps: their filenames and their JSON.
+pub const FORK_THEMES: &[(&str, &str)] = &[(
+    "Terminal.json",
+    include_str!("../assets/themes/Terminal.json"),
+)];
+
+/// The file in the themes folder listing this fork's palettes already put
+/// there, one filename per line.
+pub const FORK_INSTALLED: &str = ".installed-spotifast-palettes";
+
+/// Puts each of [`FORK_THEMES`] not yet recorded in [`FORK_INSTALLED`] into
+/// `directory`, unless something already has its name, and records it.
+/// Like the shared palettes, they are the user's from then on: never
+/// rewritten, and one deleted stays deleted. Files go through a temporary
+/// file and a rename. Returns whether any palette was written.
+///
+/// # Errors
+///
+/// When the folder, a palette or the record cannot be written.
+pub fn install_fork_themes(directory: &std::path::Path) -> std::io::Result<bool> {
+    std::fs::create_dir_all(directory)?;
+    let record = directory.join(FORK_INSTALLED);
+    let mut installed: Vec<String> = std::fs::read_to_string(&record)
+        .map(|text| text.lines().map(str::to_owned).collect())
+        .unwrap_or_default();
+    let mut written = false;
+    let mut recorded = false;
+    for (name, contents) in FORK_THEMES {
+        if installed.iter().any(|held| held == name) {
+            continue;
+        }
+        let path = directory.join(name);
+        // Anything already there, even a broken link, is the user's.
+        if std::fs::symlink_metadata(&path).is_err() {
+            write_through_temporary(directory, name, contents)?;
+            written = true;
+        }
+        installed.push((*name).to_owned());
+        recorded = true;
+    }
+    if recorded {
+        let list: String = installed.iter().map(|name| format!("{name}\n")).collect();
+        write_through_temporary(directory, FORK_INSTALLED, &list)?;
+    }
+    Ok(written)
+}
+
+/// Writes `contents` to `name` in `directory` through a temporary file, so
+/// the themes scan never reads half a palette.
+pub(crate) fn write_through_temporary(
+    directory: &std::path::Path,
+    name: &str,
+    contents: &str,
+) -> std::io::Result<()> {
+    let temporary = directory.join(format!(".{name}.tmp"));
+    let written = std::fs::write(&temporary, contents)
+        .and_then(|()| std::fs::rename(&temporary, directory.join(name)));
+    if written.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    written
+}
 /// The palette files, and the Omarchy palette where the desktop has one.
 pub type Catalog = fastframe_theme::Catalog<Palette>;
 
@@ -1012,6 +1222,110 @@ pub fn subtle(ui: &mut egui::Ui, palette: &Palette, label: &str) -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A colour reads back from its hex, the alpha written only when it is
+    /// not opaque; anything else is no colour.
+    #[test]
+    fn hex_colours_round_trip() {
+        let green = Color32::from_rgb(0x00, 0xff, 0x00);
+        assert_eq!(hex(green), "#00ff00");
+        assert_eq!(parse_hex("#00ff00"), Some(green));
+        assert_eq!(
+            parse_hex(" 8000FF "),
+            Some(Color32::from_rgb(0x80, 0x00, 0xff))
+        );
+        let faint = Color32::from_rgba_unmultiplied(0, 0, 0, 0x18);
+        assert_eq!(hex(faint), "#00000018");
+        assert_eq!(parse_hex(&hex(faint)), Some(faint));
+        for bad in ["", "#12345", "#1234567", "#gg0000", "red"] {
+            assert_eq!(parse_hex(bad), None, "{bad}");
+        }
+    }
+
+    /// A saved theme's file is named after it, without the characters no
+    /// file name may hold, and a blank name saves nothing.
+    #[test]
+    fn theme_names_become_safe_file_names() {
+        assert_eq!(theme_filename(" My Theme "), Some("My Theme.json".into()));
+        assert_eq!(theme_filename("a/b:c*?"), Some("a-b-c--.json".into()));
+        assert_eq!(theme_filename("..hidden.."), Some("hidden.json".into()));
+        assert_eq!(theme_filename("   "), None);
+        assert_eq!(theme_filename("..."), None);
+        assert!(theme_filename(&"x".repeat(200)).unwrap().len() <= 64 + 5);
+    }
+
+    /// Device names Windows keeps get a word added, and a name already
+    /// taken, in any case, takes the next free number.
+    #[test]
+    fn saved_themes_never_take_a_kept_or_taken_name() {
+        assert_eq!(theme_filename("con"), Some("con theme.json".into()));
+        assert_eq!(theme_filename("LPT1"), Some("LPT1 theme.json".into()));
+        assert_eq!(theme_filename("Console"), Some("Console.json".into()));
+        assert_eq!(theme_filename("con.x"), Some("con.x theme.json".into()));
+        let taken = vec!["Terminal.json".to_string(), "terminal 2.json".to_string()];
+        assert_eq!(free_filename("terminal.json", &taken), "terminal 3.json");
+        assert_eq!(free_filename("Neon.json", &taken), "Neon.json");
+    }
+
+    /// A palette written by the editor reads back as the same palette,
+    /// light or dark, every colour and alpha kept.
+    #[test]
+    fn edited_palettes_save_as_palette_files() {
+        for mut palette in [Palette::dark(), Palette::light()] {
+            set_palette_color(&mut palette, "text", Color32::from_rgb(0, 255, 0));
+            set_palette_color(
+                &mut palette,
+                "tint",
+                Color32::from_rgba_unmultiplied(1, 2, 3, 4),
+            );
+            let text = palette_json(&palette);
+            let read: Palette = fastframe_theme::parse_palette(&text).unwrap();
+            assert_eq!(read, palette, "{text}");
+        }
+        for key in PALETTE_KEYS {
+            let mut palette = Palette::dark();
+            set_palette_color(&mut palette, key, Color32::from_rgb(1, 2, 3));
+            assert_eq!(
+                palette_color(&palette, key),
+                Color32::from_rgb(1, 2, 3),
+                "{key}"
+            );
+        }
+    }
+
+    /// The fork's Terminal theme is a valid palette: black, green text, and
+    /// the purple accent.
+    #[test]
+    fn terminal_is_black_green_and_purple() {
+        let [(name, text)] = FORK_THEMES else {
+            panic!("one fork theme")
+        };
+        assert_eq!(*name, "Terminal.json");
+        let terminal: Palette = fastframe_theme::parse_palette(text).unwrap();
+        assert!(terminal.dark);
+        assert_eq!(terminal.window, Color32::BLACK);
+        assert_eq!(terminal.text, Color32::from_rgb(0x00, 0xff, 0x00));
+        assert_eq!(terminal.accent, Color32::from_rgb(0x80, 0x00, 0xff));
+    }
+
+    /// The fork's themes go into the folder once: a second start writes
+    /// nothing, and one the user edited or deleted stays so.
+    #[test]
+    fn fork_themes_install_once() {
+        let folder =
+            std::env::temp_dir().join(format!("spotifast-fork-themes-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&folder);
+        assert!(install_fork_themes(&folder).unwrap());
+        let path = folder.join("Terminal.json");
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), FORK_THEMES[0].1);
+        std::fs::write(&path, "{}").unwrap();
+        assert!(!install_fork_themes(&folder).unwrap());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "{}");
+        std::fs::remove_file(&path).unwrap();
+        assert!(!install_fork_themes(&folder).unwrap());
+        assert!(!path.exists(), "a deleted theme stays deleted");
+        std::fs::remove_dir_all(&folder).unwrap();
+    }
 
     /// The logo drawn in the app is the app icon's own picture, not a
     /// disc in the theme's accent colour: it uploads the icon's pixels.

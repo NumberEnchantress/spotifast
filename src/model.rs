@@ -1370,6 +1370,10 @@ pub enum Action {
     SaveEqPreset(String),
     /// Forget a saved preset, by name.
     DeleteEqPreset(String),
+    /// Show these colours while they are being edited, or stop editing.
+    SetThemeDraft(Option<crate::theme::Palette>),
+    /// Save the colours being edited as a theme of this name, and use it.
+    SaveThemeDraft(String),
     /// Read the presets saved in Spotify's desktop app on this computer,
     /// replacing those the last import found.
     ImportSpotifyEqPresets,

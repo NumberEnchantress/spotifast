@@ -3750,3 +3750,135 @@ msgstr[0] "ローカルファイルに{count}曲を追加しました"
 msgid "Couldn't add {count} file. Spotifast plays MP3, FLAC, MP4 and M4P files."
 msgid_plural "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P files."
 msgstr[0] "{count}個のファイルを追加できませんでした。SpotifastはMP3、FLAC、MP4、M4Pファイルを再生できます。"
+
+#. Translators: A colour in the theme editor: the window's background.
+#: src/ui/theme_editor.rs:18
+msgid "Background"
+msgstr "背景"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:20
+msgid "Side panels"
+msgstr "サイドパネル"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:22
+msgid "Cards and fields"
+msgstr "カードと入力欄"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:24
+msgid "Items under the pointer"
+msgstr "ポインター下の項目"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:26
+msgid "Pressed items"
+msgstr "押された項目"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:28
+msgid "Lines"
+msgstr "線"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:30
+msgid "Text"
+msgstr "テキスト"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:32
+msgid "Secondary text"
+msgstr "補助テキスト"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:34
+msgid "Faint text"
+msgstr "淡いテキスト"
+
+#. Translators: A colour in the theme editor: buttons, the playing song and other highlights.
+#: src/ui/theme_editor.rs:36
+msgid "Accent"
+msgstr "アクセント"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:38
+msgid "Accent under the pointer"
+msgstr "ポインター下のアクセント"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:40
+msgid "Text on the accent"
+msgstr "アクセント上のテキスト"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:42
+msgid "Errors"
+msgstr "エラー"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:44
+msgid "Warnings"
+msgstr "警告"
+
+#. Translators: A colour in the theme editor.
+#: src/ui/theme_editor.rs:46
+msgid "Menus and popups"
+msgstr "メニューとポップアップ"
+
+#. Translators: A colour in the theme editor.
+#: src/demo.rs:67
+msgid "Shadows"
+msgstr "影"
+
+#. Translators: A colour in the theme editor: the wash at the top of a page without cover art.
+#: src/ui/theme_editor.rs:50
+msgid "Page tint"
+msgstr "ページの色合い"
+
+#: src/ui/theme_editor.rs:149
+msgid "Theme name"
+msgstr "テーマ名"
+
+#: src/ui/theme_editor.rs:160
+msgid "Save theme"
+msgstr "テーマを保存"
+
+#: src/ui/theme_editor.rs:170
+msgid "Discard"
+msgstr "破棄"
+
+#: src/ui/theme_editor.rs:188
+msgid "Customize"
+msgstr "カスタマイズ"
+
+#: src/ui/settings.rs:1301
+msgid "Customize colours"
+msgstr "色をカスタマイズ"
+
+#: src/ui/settings.rs:1304
+msgid "Change any colour with a picker or a hex value, see it at once, and save it as a theme of your own."
+msgstr "ピッカーや16進数の値で好きな色を変更し、すぐに確認して自分のテーマとして保存できます。"
+
+#. Translators: A setting that shows the playlists on Home as an interactive map.
+#: src/ui/settings.rs:1173
+msgid "Playlist map on Home"
+msgstr "ホームにプレイリストマップ"
+
+#: src/ui/settings.rs:1311
+msgid "Show your playlists on Home as a map: each sized by its songs, linked by folder, opened with a click."
+msgstr "ホームにプレイリストをマップで表示します。曲数に応じた大きさで、フォルダごとにつながり、クリックで開きます。"
+
+#: src/ui/playlist_map.rs:269
+msgid "Scroll to zoom, drag to move, double-click to centre. Click a playlist to open it."
+msgstr "スクロールで拡大縮小、ドラッグで移動、ダブルクリックで中央に戻ります。プレイリストをクリックすると開きます。"
+
+#. Translators: {name} is the name of a theme made in the colour editor.
+#: src/app.rs:2507
+#, rust-format
+msgid "Saved theme “{name}”"
+msgstr "テーマ「{name}」を保存しました"
+
+#: src/app.rs:2513
+msgid "Couldn't save the theme."
+msgstr "テーマを保存できませんでした。"

@@ -35,3 +35,5 @@ src/ui/winamp/mod.rs
 src/ui/winamp/playlist.rs
 src/util.rs
 src/window.rs
+src/ui/theme_editor.rs
+src/ui/playlist_map.rs

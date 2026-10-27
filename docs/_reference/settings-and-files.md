@@ -494,6 +494,14 @@ directory; the ordinary demo does not scan your real themes folder.
 
 ## Home shelves
 
+**Playlist map on Home**, in Settings → Appearance (`"home": {"playlist_map":
+true}`), shows Home as a map of your playlists in place of its shelves: each
+playlist a node sized by its songs, hung from the Spotify folder that holds
+it, the folders from theirs, and the rest from the library at the centre,
+with Liked Songs beside it. Scroll or pinch to zoom, drag the map or a node
+to move it, and double-click the background to centre it again. Clicking a
+playlist opens it; clicking a folder opens it in the Library.
+
 Since 0.8.0, you can hide **Made for you** and **Recommended for you**
 from Home independently. Quit Spotifast before editing `settings.json`, then
 restart it. Add this field to hide both:
@@ -558,6 +566,20 @@ After adding or editing a JSON file on macOS or Windows, run
 restarting playback. Since 0.10.2, Spotifast on Linux notices changes to the
 themes folder by itself.
 Choosing a built-in theme clears the custom selection.
+
+**Customize colours**, below the theme pickers, makes a theme without
+writing JSON: **Customize** starts from the colours in use, and each colour
+can then be changed with a picker or typed as `#RRGGBB` or `#RRGGBBAA`, on a
+dark or light base, showing at once. **Save theme** writes it to the
+`themes` folder under the name you give (with a number added when a theme
+already has that name), as an ordinary palette file, and
+uses it; **Discard** goes back to the theme you had.
+
+This fork also ships **Terminal**: black, with green text (`#00ff00`) and a
+purple accent (`#8000ff`) for the playing song, buttons and highlights. It
+is put in the `themes` folder once, like the palettes above, and is yours
+from then on; `.installed-spotifast-palettes` records that it was added.
+
 Since 0.11.0, whenever the colours change (a theme picked here, Omarchy
 switching themes, or the system going light or dark), the new colours open
 from the middle of the window outwards, as Omarchy's own theme change does.
