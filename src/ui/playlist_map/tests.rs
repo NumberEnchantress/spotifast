@@ -1,184 +1,126 @@
 use super::*;
 
-/// The demo library, offline, in folders of its own.
-fn demo_app(name: &str) -> App {
-    let root = std::env::temp_dir().join(format!("spotifast-map-{name}-{}", std::process::id()));
-    let mut app = App::new(
-        &crate::backend::Waker::default(),
-        crate::paths::AppDirs {
-            config: root.join("config"),
-            state: root.join("state"),
-            cache: root.join("cache"),
-        },
-        crate::settings::Settings::default(),
-        crate::app::AppOptions {
-            media_controls: false,
-            restore_sign_in: false,
-            tray: false,
-            autostart: false,
-        },
-    );
-    crate::demo::populate(&mut app);
-    app
-}
-
-fn node(key: &str, radius: f32) -> Node {
-    Node {
-        key: key.into(),
-        kind: Kind::Library,
-        name: key.into(),
-        radius,
-        songs: None,
-        image: None,
-    }
-}
-
-/// Bigger playlists are bigger nodes, within bounds.
-#[test]
-fn playlists_grow_with_their_songs_within_bounds() {
-    assert!(playlist_radius(0) < playlist_radius(10));
-    assert!(playlist_radius(10) < playlist_radius(200));
-    assert_eq!(playlist_radius(1_000_000), 46.0);
-    assert!(playlist_radius(0) >= 9.0);
-}
-
-/// The graph follows the folder tree: folders hang from the library or
-/// their folder, playlists from theirs, and playlists the tree does not
-/// hold from the library; each appears once.
-#[test]
-fn the_graph_follows_the_folders() {
-    use crate::player::RootlistEntry::{FolderEnd, FolderStart, Playlist};
-    let mut app = demo_app("playlist-map-graph");
-    let uris: Vec<String> = app
-        .library
-        .playlists
-        .get()
-        .unwrap()
-        .iter()
-        .map(|playlist| playlist.uri.clone())
-        .collect();
-    assert!(uris.len() >= 4);
-    app.rootlist = vec![
-        FolderStart {
-            id: "outer".into(),
-            name: "Outer".into(),
-        },
-        Playlist(uris[0].clone()),
-        FolderStart {
-            id: "inner".into(),
-            name: "Inner".into(),
-        },
-        Playlist(uris[1].clone()),
-        FolderEnd,
-        FolderEnd,
-        Playlist(uris[2].clone()),
-        Playlist(uris[2].clone()),
-    ];
-    let (nodes, links) = graph(&app);
-    let index = |key: &str| nodes.iter().position(|node| node.key == key).unwrap();
-    let parent = |key: &str| {
-        let child = index(key);
-        links
-            .iter()
-            .find(|(_, held)| *held == child)
-            .map(|(parent, _)| nodes[*parent].key.clone())
-            .unwrap()
-    };
-    assert_eq!(nodes[0].kind, Kind::Library);
-    assert_eq!(parent("liked"), "library");
-    assert_eq!(parent("folder:outer"), "library");
-    assert_eq!(parent(&uris[0]), "folder:outer");
-    assert_eq!(parent("folder:inner"), "folder:outer");
-    assert_eq!(parent(&uris[1]), "folder:inner");
-    assert_eq!(parent(&uris[2]), "library");
-    assert_eq!(parent(&uris[3]), "library", "a playlist out of the tree");
-    for uri in &uris {
-        assert_eq!(nodes.iter().filter(|node| &node.key == uri).count(), 1);
-    }
-    assert_eq!(links.len(), nodes.len() - 1, "a tree");
-    app.backend.shutdown();
-}
-
-/// The layout spreads nodes that start on top of each other until none
-/// overlaps, pulls linked ones together, and leaves a held node in place.
-#[test]
-fn the_layout_spreads_nodes_and_leaves_a_held_one() {
-    let nodes = vec![
-        node("a", 20.0),
-        node("b", 20.0),
-        node("c", 20.0),
-        node("d", 20.0),
-    ];
-    let links = vec![(0, 1), (0, 2), (0, 3)];
-    let mut state = MapState::default();
-    for key in ["a", "b", "c", "d"] {
-        state.nodes.insert(key.into(), Body::default());
-    }
-    settle(&mut state, &nodes, &links, Some("a"), 600);
-    let at = |key: &str| state.nodes[key].at;
-    assert_eq!(at("a"), Vec2::ZERO, "the held node stays put");
-    for (x, y) in [("b", "c"), ("b", "d"), ("c", "d"), ("a", "b")] {
-        let apart = (at(x) - at(y)).length();
-        assert!(apart > 40.0, "{x} and {y} overlap at {apart}");
-        assert!(apart < 600.0, "{x} and {y} drift apart at {apart}");
-    }
-}
-
-/// A node met for the first time starts beside its parent, the same place
-/// every time.
-#[test]
-fn new_nodes_start_beside_their_parent() {
-    let nodes = vec![node("library", 18.0), node("x", 10.0)];
-    let links = vec![(0, 1)];
-    let mut first = MapState::default();
-    first.nodes.insert(
-        "library".into(),
-        Body {
-            at: vec2(500.0, 500.0),
-            speed: Vec2::ZERO,
-        },
-    );
-    let mut second = MapState {
-        nodes: first.nodes.clone(),
-        ..Default::default()
-    };
-    settle(&mut first, &nodes, &links, None, 0);
-    settle(&mut second, &nodes, &links, None, 0);
-    let start = first.nodes["x"].at;
-    assert_eq!(start, second.nodes["x"].at);
-    assert!((start - vec2(500.0, 500.0)).length() < 80.0);
-}
-
-/// A node let go anywhere is let go, even off the map, and the layout
-/// comes to rest, after which it runs no more.
-#[test]
-fn the_map_lets_go_and_comes_to_rest() {
-    let ctx = egui::Context::default();
-    let mut app = demo_app("playlist-map-rest");
-    let held_id = egui::Id::new("playlist-map-held");
-    ctx.data_mut(|data| data.insert_temp(held_id, "spotify:playlist:pl1".to_string()));
-    let frame = |app: &mut App| {
-        let mut output = ctx.run_ui(egui::RawInput::default(), |ui| show(app, ui));
-        output.textures_delta.clear();
-    };
-    frame(&mut app);
-    assert_eq!(ctx.data(|data| data.get_temp::<String>(held_id)), None);
-    for _ in 0..1000 {
-        if app.playlist_map.steps_left == 0 {
-            break;
+/// A library of many folders, some inside others, and loose playlists of
+/// every size, built as `graph` builds one.
+fn big_library() -> Vec<Node> {
+    let mut nodes = Vec::new();
+    let add = |nodes: &mut Vec<Node>, parent: Option<usize>, holds: bool, songs: u32| {
+        let index = nodes.len();
+        nodes.push(Node {
+            key: format!("n{index}"),
+            kind: if holds {
+                Kind::Folder(format!("f{index}"))
+            } else {
+                Kind::Item(Page::Playlist(format!("p{index}")))
+            },
+            name: format!("n{index}"),
+            image: None,
+            round: false,
+            songs: Some(songs),
+            takes_songs: false,
+            parent,
+            children: Vec::new(),
+            depth: parent.map_or(0, |parent: usize| nodes[parent].depth + 1),
+            focus: true,
+            radius: if holds {
+                12.0
+            } else {
+                4.5 + (songs as f32).sqrt() * 0.2
+            },
+        });
+        if let Some(parent) = parent {
+            nodes[parent].children.push(index);
         }
-        frame(&mut app);
+        index
+    };
+    let root = add(&mut nodes, None, true, 0);
+    for folder in 0..6 {
+        let outer = add(&mut nodes, Some(root), true, 0);
+        for song in 0..30 {
+            add(&mut nodes, Some(outer), false, song * 7);
+        }
+        if folder % 2 == 0 {
+            let inner = add(&mut nodes, Some(outer), true, 0);
+            for song in 0..12 {
+                add(&mut nodes, Some(inner), false, song * 31);
+            }
+        }
     }
-    assert_eq!(app.playlist_map.steps_left, 0, "the layout rests");
-    let at_rest: Vec<(String, Vec2)> = app
-        .playlist_map
-        .nodes
-        .iter()
-        .map(|(key, body)| (key.clone(), body.at))
-        .collect();
-    frame(&mut app);
-    for (key, at) in at_rest {
-        assert_eq!(app.playlist_map.nodes[&key].at, at, "{key} moved at rest");
+    for song in 0..40 {
+        add(&mut nodes, Some(root), false, song * 3);
     }
-    app.backend.shutdown();
+    nodes
+}
+
+/// However large the library, no two nodes of the round tree overlap, and
+/// in circles each folder holds what is in it while nothing else overlaps;
+/// a node grown under the pointer keeps the gap to the others.
+#[test]
+fn large_libraries_lay_out_without_overlaps() {
+    let nodes = big_library();
+    let clear = |places: &[Place], x: usize, y: usize| {
+        (places[x].at - places[y].at).length() + 0.5 >= places[x].radius + places[y].radius + GAP
+    };
+    let mut tree = radial(&nodes, 2.0);
+    for x in 0..nodes.len() {
+        for y in x + 1..nodes.len() {
+            assert!(clear(&tree, x, y), "the tree overlaps {x} and {y}");
+        }
+    }
+    make_room(&mut tree, &nodes, 20, 60.0, false);
+    assert_eq!(tree[20].radius, 60.0);
+    for x in 0..nodes.len() {
+        for y in x + 1..nodes.len() {
+            assert!(clear(&tree, x, y), "growing 20 overlaps {x} and {y}");
+        }
+    }
+
+    let circles = nested(&nodes, 2.0);
+    for (index, node) in nodes.iter().enumerate() {
+        for &child in &node.children {
+            let reach = (circles[child].at - circles[index].at).length() + circles[child].radius;
+            assert!(
+                reach <= circles[index].radius + 0.5,
+                "{child} leaves {index}"
+            );
+        }
+        for (position, &x) in node.children.iter().enumerate() {
+            for &y in &node.children[position + 1..] {
+                let apart = (circles[x].at - circles[y].at).length();
+                assert!(
+                    apart + 0.5 >= circles[x].radius + circles[y].radius,
+                    "{x} and {y}"
+                );
+            }
+        }
+    }
+
+    // In circles a hovered playlist's neighbours step aside inside their
+    // folder, a folder beside it taking all it holds along.
+    let leaf = nodes[1].children[nodes[1].children.len() - 2];
+    let mut grown = circles.clone();
+    make_room(&mut grown, &nodes, leaf, 40.0, true);
+    for (index, node) in nodes.iter().enumerate() {
+        for &child in &node.children {
+            let held = grown[child].at - grown[index].at;
+            let was = circles[child].at - circles[index].at;
+            assert!(
+                index == 1 || (held - was).length() < 0.01,
+                "{child} left its place in {index}"
+            );
+        }
+    }
+    let inside = &nodes[1].children;
+    for &child in inside {
+        let reach = (grown[child].at - grown[1].at).length() + grown[child].radius;
+        assert!(reach <= grown[1].radius + 0.5, "{child} left its folder");
+    }
+    for (position, &x) in inside.iter().enumerate() {
+        for &y in &inside[position + 1..] {
+            assert!(
+                clear(&grown, x, y),
+                "{x} and {y} overlap after growing {leaf}"
+            );
+        }
+    }
 }

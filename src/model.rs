@@ -1292,6 +1292,16 @@ pub enum Action {
     /// Keep each kind together in a Library of more than one kind, or mix
     /// them in one list.
     SetLibraryGroupKinds(bool),
+    /// The kinds ticked in the Library's filters; none ticked lists them all.
+    SetLibraryKinds(Vec<crate::settings::LibraryShelf>),
+    /// How the Home map draws the folders.
+    SetMapLayout(crate::settings::MapLayout),
+    /// What the Home map does with the rest while a folder is open
+    /// (`folder`), or with what the Library's filters leave out.
+    SetMapFocus {
+        folder: bool,
+        focus: crate::settings::MapFocus,
+    },
     SetLibrarySort {
         shelf: crate::settings::LibraryShelf,
         sort: crate::settings::LibrarySort,

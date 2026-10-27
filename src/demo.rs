@@ -1102,6 +1102,14 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
             "library-by-you" => app.settings.library_by_you = true,
             // Home as the map of the playlists.
             "playlist-map" => app.settings.home.playlist_map = true,
+            "map-folder" => {
+                app.settings.home.playlist_map = true;
+                app.library_folder = Some("f1".into());
+            }
+            "map-circles" => {
+                app.settings.home.playlist_map = true;
+                app.settings.home.map_layout = crate::settings::MapLayout::Circles;
+            }
             // The colour editor open, starting from the colours in use.
             "theme-editor" => app.theme_draft = Some(app.palette),
             // This fork's Terminal theme in use.
@@ -2852,6 +2860,11 @@ mod tests {
             pointer_click(albums, egui::PointerButton::Primary),
             view,
         );
+        // The ticked kinds are kept with the settings, as the app does
+        // after the frame.
+        for action in std::mem::take(&mut app.actions) {
+            app.apply(action, &ctx);
+        }
         for _ in 0..30 {
             view_frame(&ctx, &mut app, vec![], view);
         }
@@ -2903,6 +2916,12 @@ mod tests {
             pointer_click(chip, egui::PointerButton::Primary),
             view,
         );
+        // The ticked kinds are kept with the settings after the frame.
+        for action in std::mem::take(&mut app.actions) {
+            if matches!(action, Action::SetLibraryKinds(_)) {
+                app.apply(action, &ctx);
+            }
+        }
         let shows: Vec<(String, String)> = app
             .library
             .shows
@@ -3369,7 +3388,13 @@ mod tests {
                 pointer_click(position, egui::PointerButton::Primary),
                 view,
             );
-            app.actions.clear();
+            // Only the ticked kinds are kept, as the app keeps them after
+            // the frame; what that frame asked to load is asked again.
+            for action in std::mem::take(&mut app.actions) {
+                if matches!(action, Action::SetLibraryKinds(_)) {
+                    app.apply(action, &ctx);
+                }
+            }
             view_frame(&ctx, &mut app, vec![], view);
             assert!(
                 app.actions
@@ -6725,6 +6750,264 @@ mod tests {
             app.frame_ui(ui);
         });
         output.textures_delta.clear();
+    }
+
+    /// Runs the whole app long enough for the Home map to come to rest,
+    /// and returns the last frame's screen-reader tree.
+    fn settled_map(
+        ctx: &egui::Context,
+        app: &mut App,
+        events: Vec<egui::Event>,
+    ) -> egui::accesskit::TreeUpdate {
+        accessible_frame(ctx, app, events);
+        for _ in 0..120 {
+            accessible_frame(ctx, app, vec![]);
+        }
+        accessible_frame(ctx, app, vec![])
+    }
+
+    /// Where the Home map draws the node named `name`, if it is in view.
+    /// The sidebar's rows and the map's own buttons lie elsewhere.
+    fn map_node(tree: &egui::accesskit::TreeUpdate, name: &str) -> Option<egui::Rect> {
+        map_nodes(tree)
+            .into_iter()
+            .find(|(label, _)| label == name || label.starts_with(&format!("{name}, ")))
+            .map(|(_, rect)| rect)
+    }
+
+    fn map_nodes(tree: &egui::accesskit::TreeUpdate) -> Vec<(String, egui::Rect)> {
+        tree.nodes
+            .iter()
+            .filter_map(|(_, node)| {
+                let bounds = node.bounds()?;
+                let rect = egui::Rect::from_min_max(
+                    egui::pos2(bounds.x0 as f32, bounds.y0 as f32),
+                    egui::pos2(bounds.x1 as f32, bounds.y1 as f32),
+                );
+                let label = node.label()?;
+                (node.role() == egui::accesskit::Role::Button
+                    && rect.center().x > 274.0
+                    && rect.center().y > 195.0
+                    && rect.center().y < 690.0)
+                    .then(|| (label.to_string(), rect))
+            })
+            .collect()
+    }
+
+    /// The Home map shows what the Library's filters list, in focus, with
+    /// the other kinds further out; with Only, nothing else. The ticked
+    /// kinds and the map's choices are kept with the settings.
+    #[test]
+    fn the_home_map_follows_the_library_filters_and_keeps_them() {
+        use crate::settings::{LibraryShelf, MapFocus};
+        use egui::accesskit::{Action as Do, Role};
+        let (ctx, mut app) = accessible_app("map-filters");
+        apply_flags(&mut app, None, Some("playlist-map,folders"));
+        let album = app.library.albums.items[0].album.name.clone();
+        let tree = settled_map(&ctx, &mut app, vec![]);
+        assert!(map_node(&tree, "Late night focus").is_some());
+        assert!(
+            map_node(&tree, &album).is_none(),
+            "albums wait outside the view"
+        );
+        assert!(
+            app.playlist_map
+                .draws(&app.library.albums.items[0].album.uri)
+        );
+
+        let albums = accessible_node(&tree, "Albums", Role::CheckBox);
+        let tree = settled_map(
+            &ctx,
+            &mut app,
+            vec![accessible_action(albums, Do::Click, None)],
+        );
+        assert_eq!(
+            app.settings.library_kinds,
+            [LibraryShelf::Playlists, LibraryShelf::Albums]
+        );
+        assert!(
+            map_node(&tree, &album).is_some(),
+            "a ticked kind comes into view"
+        );
+        assert!(map_node(&tree, "Late night focus").is_some());
+
+        let only = accessible_node(&tree, "Only what they list", Role::RadioButton);
+        let tree = accessible_frame(
+            &ctx,
+            &mut app,
+            vec![accessible_action(only, Do::Click, None)],
+        );
+        assert_eq!(app.settings.home.map_filters, MapFocus::Only);
+        let playlists = accessible_node(&tree, "Playlists", Role::CheckBox);
+        let tree = settled_map(
+            &ctx,
+            &mut app,
+            vec![accessible_action(playlists, Do::Click, None)],
+        );
+        assert_eq!(app.settings.library_kinds, [LibraryShelf::Albums]);
+        assert!(map_node(&tree, &album).is_some());
+        assert!(
+            !app.playlist_map.draws("spotify:playlist:pl1"),
+            "with Only, what the filters leave out leaves the map"
+        );
+
+        let kept: Settings =
+            serde_json::from_str(&serde_json::to_string(&app.settings).unwrap()).unwrap();
+        assert_eq!(kept.library_kinds, [LibraryShelf::Albums]);
+        assert_eq!(kept.home.map_filters, MapFocus::Only);
+        let older: Settings = serde_json::from_str("{}").unwrap();
+        assert_eq!(older.library_kinds, [LibraryShelf::Playlists]);
+        app.backend.shutdown();
+    }
+
+    /// Clicking a folder on the map opens it as the root: what it holds in
+    /// view and the rest further out, or, with Only, the rest shrinking
+    /// away. Clicking the root goes back out.
+    #[test]
+    fn a_folder_opened_on_the_map_is_its_root() {
+        use crate::settings::MapLayout;
+        use egui::accesskit::{Action as Do, Role};
+        for layout in [MapLayout::Tree, MapLayout::Circles] {
+            let (ctx, mut app) = accessible_app(&format!("map-folder-{layout:?}"));
+            apply_flags(&mut app, None, Some("playlist-map,folders"));
+            app.settings.home.map_layout = layout;
+            let tree = settled_map(&ctx, &mut app, vec![]);
+            let folder = map_node(&tree, "Focus").expect("the folder on the map");
+            let tree = settled_map(
+                &ctx,
+                &mut app,
+                pointer_click(folder.center(), egui::PointerButton::Primary),
+            );
+            assert_eq!(app.library_folder.as_deref(), Some("f1"));
+            assert!(map_node(&tree, "Late night focus").is_some());
+            assert!(map_node(&tree, "Sunday morning").is_some());
+            assert!(
+                map_node(&tree, "Release Radar").is_none(),
+                "the rest is out of view"
+            );
+            assert!(app.playlist_map.draws("spotify:playlist:pl4"));
+
+            let only = accessible_node(&tree, "Only its contents", Role::RadioButton);
+            accessible_frame(
+                &ctx,
+                &mut app,
+                vec![accessible_action(only, Do::Click, None)],
+            );
+            accessible_frame(&ctx, &mut app, vec![]);
+            assert!(
+                app.playlist_map.draws("spotify:playlist:pl4"),
+                "it shrinks away"
+            );
+            let tree = settled_map(&ctx, &mut app, vec![]);
+            assert!(!app.playlist_map.draws("spotify:playlist:pl4"));
+            assert!(map_node(&tree, "Late night focus").is_some());
+
+            let root = map_node(&tree, "Focus").expect("the folder is the root");
+            settled_map(
+                &ctx,
+                &mut app,
+                pointer_click(root.center(), egui::PointerButton::Primary),
+            );
+            assert_eq!(app.library_folder, None);
+            app.backend.shutdown();
+        }
+    }
+
+    /// Under the pointer a node grows, and the others move to keep the
+    /// usual gap from it and from each other, in both layouts.
+    #[test]
+    fn a_hovered_map_node_grows_and_the_others_keep_clear() {
+        use crate::settings::MapLayout;
+        for layout in [MapLayout::Tree, MapLayout::Circles] {
+            let (ctx, mut app) = accessible_app(&format!("map-hover-{layout:?}"));
+            apply_flags(&mut app, None, Some("playlist-map,folders"));
+            app.settings.home.map_layout = layout;
+            let tree = settled_map(&ctx, &mut app, vec![]);
+            let before = map_node(&tree, "Berlin nights").expect("in view");
+            let tree = settled_map(
+                &ctx,
+                &mut app,
+                vec![egui::Event::PointerMoved(before.center())],
+            );
+            let after = map_node(&tree, "Berlin nights").expect("still in view");
+            assert!(
+                after.width() > before.width() && after.width() >= 50.0,
+                "{layout:?}: {before:?} grew to {after:?}"
+            );
+            // Folders' circles hold what is in them; everything else keeps
+            // clear of everything else.
+            let leaves: Vec<(String, egui::Rect)> = map_nodes(&tree)
+                .into_iter()
+                .filter(|(label, _)| label.contains(", "))
+                .collect();
+            assert!(leaves.len() >= 6, "{layout:?}: {leaves:?}");
+            for (index, (a, x)) in leaves.iter().enumerate() {
+                for (b, y) in &leaves[index + 1..] {
+                    let apart = (x.center() - y.center()).length();
+                    assert!(
+                        apart + 1.0 >= (x.width() + y.width()) / 2.0,
+                        "{layout:?}: {a} and {b} overlap"
+                    );
+                }
+            }
+            app.backend.shutdown();
+        }
+    }
+
+    /// A song dragged onto a playlist on the map is added to it, as on the
+    /// sidebar's row, asking first when it is there already.
+    #[test]
+    fn a_song_dropped_on_a_map_playlist_is_added_to_it() {
+        let (ctx, mut app) = accessible_app("map-drop");
+        apply_flags(&mut app, None, Some("playlist-map,folders"));
+        let tree = settled_map(&ctx, &mut app, vec![]);
+        let target = map_node(&tree, "Late night focus")
+            .expect("in view")
+            .center();
+        let start = egui::pos2(40.0, 755.0);
+        frame_events(
+            &ctx,
+            &mut app,
+            vec![
+                egui::Event::PointerMoved(start),
+                egui::Event::PointerButton {
+                    pos: start,
+                    button: egui::PointerButton::Primary,
+                    pressed: true,
+                    modifiers: egui::Modifiers::NONE,
+                },
+            ],
+        );
+        frame_events(
+            &ctx,
+            &mut app,
+            vec![egui::Event::PointerMoved(start + egui::vec2(20.0, -10.0))],
+        );
+        assert!(egui::DragAndDrop::has_payload_of_type::<DragTrack>(&ctx));
+        for _ in 0..30 {
+            frame_events(&ctx, &mut app, vec![egui::Event::PointerMoved(target)]);
+        }
+        frame_events(
+            &ctx,
+            &mut app,
+            vec![egui::Event::PointerButton {
+                pos: target,
+                button: egui::PointerButton::Primary,
+                pressed: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+        // The song is in that playlist already, so, as from the sidebar,
+        // adding it again is asked about first.
+        assert!(
+            matches!(
+                &app.dialog,
+                Some(Dialog::ConfirmPlaylistDuplicates { playlist_id, items, .. })
+                    if playlist_id == "pl1" && items[0].uri() == "spotify:track:trk0"
+            ),
+            "dropping on the map adds to the playlist"
+        );
+        app.backend.shutdown();
     }
 
     /// A click just past the end of the mini player's volume bar is near

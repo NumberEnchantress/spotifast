@@ -170,15 +170,39 @@ pub const FORK_THEMES: &[(&str, &str)] = &[
     ),
 ];
 
+/// Each of [`FORK_THEMES`] as it shipped before: a copy in the themes folder
+/// still exactly like one of these was never changed by hand, so it is
+/// brought up to date.
+const FORK_THEMES_EARLIER: &[(&str, &str)] = &[
+    (
+        "Terminal.json",
+        include_str!("../assets/themes/earlier/Terminal-1.json"),
+    ),
+    (
+        "Incarnadine.json",
+        include_str!("../assets/themes/earlier/Incarnadine-1.json"),
+    ),
+];
+
 /// The file in the themes folder listing this fork's palettes already put
 /// there, one filename per line.
 pub const FORK_INSTALLED: &str = ".installed-spotifast-palettes";
 
+/// A palette's text with the spacing and letter case that do not change it
+/// taken out, to tell an untouched copy from an edited one.
+fn palette_text(text: &str) -> String {
+    text.chars()
+        .filter(|c| !c.is_whitespace())
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
 /// Puts each of [`FORK_THEMES`] not yet recorded in [`FORK_INSTALLED`] into
 /// `directory`, unless something already has its name, and records it.
-/// Like the shared palettes, they are the user's from then on: never
-/// rewritten, and one deleted stays deleted. Files go through a temporary
-/// file and a rename. Returns whether any palette was written.
+/// Like the shared palettes, they are the user's from then on: one edited
+/// is never rewritten, and one deleted stays deleted. One still exactly as
+/// an earlier version shipped is brought up to date. Files go through a
+/// temporary file and a rename. Returns whether any palette was written.
 ///
 /// # Errors
 ///
@@ -193,6 +217,18 @@ pub fn install_fork_themes(directory: &std::path::Path) -> std::io::Result<bool>
     let mut recorded = false;
     for (name, contents) in FORK_THEMES {
         if installed.iter().any(|held| held == name) {
+            let path = directory.join(name);
+            let untouched = std::fs::read_to_string(&path).is_ok_and(|held| {
+                let held = palette_text(&held);
+                held != palette_text(contents)
+                    && FORK_THEMES_EARLIER
+                        .iter()
+                        .any(|(earlier, text)| earlier == name && palette_text(text) == held)
+            });
+            if untouched {
+                write_through_temporary(directory, name, contents)?;
+                written = true;
+            }
             continue;
         }
         let path = directory.join(name);
@@ -1299,10 +1335,10 @@ mod tests {
         }
     }
 
-    /// The fork's Terminal theme is a valid palette: black, green text, and
-    /// the purple accent.
+    /// The fork's Terminal theme is a valid palette: black, green text, the
+    /// purple accent, and orange for what is secondary.
     #[test]
-    fn terminal_is_black_green_and_purple() {
+    fn terminal_is_black_green_purple_and_orange() {
         let (name, text) = FORK_THEMES[0];
         assert_eq!(name, "Terminal.json");
         let terminal: Palette = fastframe_theme::parse_palette(text).unwrap();
@@ -1310,19 +1346,61 @@ mod tests {
         assert_eq!(terminal.window, Color32::BLACK);
         assert_eq!(terminal.text, Color32::from_rgb(0x00, 0xff, 0x00));
         assert_eq!(terminal.accent, Color32::from_rgb(0x80, 0x00, 0xff));
+        assert_eq!(terminal.secondary, Color32::from_rgb(0xff, 0x80, 0x00));
     }
 
-    /// Incarnadine is Spotify gone evil: near black with a red cast, blood red
-    /// where Spotify is green.
+    /// Incarnadine is Spotify gone evil: black, green text, and rust red where
+    /// Spotify is green.
     #[test]
     fn incarnadine_is_spotify_gone_evil() {
         let (name, text) = FORK_THEMES[1];
         assert_eq!(name, "Incarnadine.json");
         let incarnadine: Palette = fastframe_theme::parse_palette(text).unwrap();
         assert!(incarnadine.dark);
-        assert_eq!(incarnadine.accent, Color32::from_rgb(0xe0, 0x10, 0x2f));
-        let [r, g, b, _] = incarnadine.window.to_array();
-        assert!(r > g && r > b && r < 0x20, "{:?}", incarnadine.window);
+        assert_eq!(incarnadine.window, Color32::BLACK);
+        assert_eq!(incarnadine.text, Color32::from_rgb(0x00, 0xff, 0x00));
+        assert_eq!(incarnadine.accent, Color32::from_rgb(0x80, 0x20, 0x10));
+    }
+
+    /// A copy still as an earlier version shipped is brought up to date;
+    /// one edited by hand is left as it is.
+    #[test]
+    fn untouched_fork_themes_are_brought_up_to_date() {
+        let folder =
+            std::env::temp_dir().join(format!("spotifast-fork-update-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&folder);
+        std::fs::create_dir_all(&folder).unwrap();
+        std::fs::write(
+            folder.join(FORK_INSTALLED),
+            "Terminal.json\nIncarnadine.json\n",
+        )
+        .unwrap();
+        let earlier = |name: &str| {
+            FORK_THEMES_EARLIER
+                .iter()
+                .find(|(held, _)| *held == name)
+                .unwrap()
+                .1
+        };
+        // Written back with other line endings, as an editor might.
+        std::fs::write(
+            folder.join("Terminal.json"),
+            earlier("Terminal.json").replace('\n', "\r\n"),
+        )
+        .unwrap();
+        let edited = earlier("Incarnadine.json").replace("#e0102f\"", "#123456\"");
+        std::fs::write(folder.join("Incarnadine.json"), &edited).unwrap();
+        assert!(install_fork_themes(&folder).unwrap());
+        assert_eq!(
+            std::fs::read_to_string(folder.join("Terminal.json")).unwrap(),
+            FORK_THEMES[0].1
+        );
+        assert_eq!(
+            std::fs::read_to_string(folder.join("Incarnadine.json")).unwrap(),
+            edited
+        );
+        assert!(!install_fork_themes(&folder).unwrap(), "once is enough");
+        std::fs::remove_dir_all(&folder).unwrap();
     }
 
     /// A theme added to the fork later arrives where an earlier one was

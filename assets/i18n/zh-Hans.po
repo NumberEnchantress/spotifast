@@ -3778,10 +3778,6 @@ msgstr "在首页显示播放列表地图"
 msgid "Show your playlists on Home as a map: each sized by its songs, linked by folder, opened with a click."
 msgstr "在首页以地图显示你的播放列表：大小取决于歌曲数，按文件夹相连，点击即可打开。"
 
-#: src/ui/playlist_map.rs:269
-msgid "Scroll to zoom, drag to move, double-click to centre. Click a playlist to open it."
-msgstr "滚动可缩放，拖动可移动，双击可居中。点击播放列表即可打开。"
-
 #. Translators: {name} is the name of a theme made in the colour editor.
 #: src/app.rs:2507
 #, rust-format
@@ -3800,3 +3796,42 @@ msgstr "从顶栏搜索设置"
 #: src/ui/settings.rs:1323
 msgid "On this page, the search box at the top searches the settings instead of Spotify."
 msgstr "在此页面上，顶部的搜索框会搜索设置，而不是 Spotify。"
+
+#. Translators: Home map layout: a round tree, each level of folders a ring further out.
+#: src/ui/playlist_map.rs:755
+msgid "Tree"
+msgstr "树状"
+
+#. Translators: Home map layout: each folder a circle around what it holds.
+#: src/ui/playlist_map.rs:763
+msgid "Circles"
+msgstr "圆圈"
+
+#. Translators: Home map: what to do with the rest of the Library while a folder is open.
+#: src/ui/playlist_map.rs:772
+msgid "Open folder:"
+msgstr "打开的文件夹："
+
+#. Translators: Home map: keep the rest further out and zoom in on the open folder, or on what the Library's filters list.
+#: src/ui/playlist_map.rs:777
+msgid "Zoom in"
+msgstr "放大"
+
+#. Translators: Home map: show only what the open folder holds.
+#: src/ui/playlist_map.rs:787
+msgid "Only its contents"
+msgstr "仅其内容"
+
+#. Translators: Home map: what to do with what the Library's filters (Playlists, Albums, By You, search) leave out.
+#: src/ui/playlist_map.rs:799
+msgid "Filters:"
+msgstr "筛选："
+
+#. Translators: Home map: show only what the Library's filters list.
+#: src/ui/playlist_map.rs:812
+msgid "Only what they list"
+msgstr "仅筛选结果"
+
+#: src/ui/playlist_map.rs:833
+msgid "Scroll to zoom, drag to move, double-click to fit. Click to open; drop songs on a playlist to add them."
+msgstr "滚动以缩放，拖动以移动，双击以适应窗口。点击以打开；将歌曲拖到歌单上即可添加。"

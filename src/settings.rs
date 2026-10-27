@@ -79,6 +79,34 @@ pub struct HomeSettings {
     pub recommendations: HomeShelfSettings,
     /// Home shows a map of the playlists in place of its shelves.
     pub playlist_map: bool,
+    /// How the map draws the folders.
+    pub map_layout: MapLayout,
+    /// What the map does with the rest while a folder is open.
+    pub map_folder: MapFocus,
+    /// What the map does with what the Library's filters leave out.
+    pub map_filters: MapFocus,
+}
+
+/// How the Home map draws the Library's folders.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MapLayout {
+    /// A round tree: each level of folders a ring further from the centre.
+    #[default]
+    Tree,
+    /// Each folder a circle around all it holds.
+    Circles,
+}
+
+/// What the Home map does with what lies outside its focus, the open
+/// folder or what the Library's filters list: zooms in past it, or leaves
+/// it out.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MapFocus {
+    #[default]
+    Zoom,
+    Only,
 }
 
 /// What moves behind the player bar's controls.
@@ -376,6 +404,8 @@ pub struct Settings {
     /// A Library of more than one kind keeps each kind together, the way
     /// the shelves list them, rather than mixing them in one list.
     pub library_group_kinds: bool,
+    /// The kinds ticked in the Library's filters; none ticked lists them all.
+    pub library_kinds: Vec<LibraryShelf>,
     /// Interface zoom, egui's zoom factor; Ctrl+plus/minus changes it.
     pub zoom: f32,
     /// The Winamp window is open.
@@ -538,6 +568,7 @@ impl Default for Settings {
             settings_search_in_topbar: true,
             library_mixed_sort: None,
             library_group_kinds: true,
+            library_kinds: vec![LibraryShelf::Playlists],
             zoom: 1.0,
             winamp_window: false,
             winamp_show_taskbar: true,

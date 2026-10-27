@@ -3817,10 +3817,6 @@ msgstr "홈에 플레이리스트 지도"
 msgid "Show your playlists on Home as a map: each sized by its songs, linked by folder, opened with a click."
 msgstr "홈에 플레이리스트를 지도로 표시합니다. 곡 수에 따라 크기가 정해지고, 폴더별로 연결되며, 클릭하면 열립니다."
 
-#: src/ui/playlist_map.rs:269
-msgid "Scroll to zoom, drag to move, double-click to centre. Click a playlist to open it."
-msgstr "스크롤로 확대·축소하고, 드래그로 이동하고, 두 번 클릭해 가운데로 맞추세요. 플레이리스트를 클릭하면 열립니다."
-
 #. Translators: {name} is the name of a theme made in the colour editor.
 #: src/app.rs:2507
 #, rust-format
@@ -3839,3 +3835,42 @@ msgstr "상단 표시줄에서 설정 검색"
 #: src/ui/settings.rs:1323
 msgid "On this page, the search box at the top searches the settings instead of Spotify."
 msgstr "이 페이지에서는 상단 검색창이 Spotify 대신 설정을 검색합니다."
+
+#. Translators: Home map layout: a round tree, each level of folders a ring further out.
+#: src/ui/playlist_map.rs:755
+msgid "Tree"
+msgstr "트리"
+
+#. Translators: Home map layout: each folder a circle around what it holds.
+#: src/ui/playlist_map.rs:763
+msgid "Circles"
+msgstr "원"
+
+#. Translators: Home map: what to do with the rest of the Library while a folder is open.
+#: src/ui/playlist_map.rs:772
+msgid "Open folder:"
+msgstr "열린 폴더:"
+
+#. Translators: Home map: keep the rest further out and zoom in on the open folder, or on what the Library's filters list.
+#: src/ui/playlist_map.rs:777
+msgid "Zoom in"
+msgstr "확대"
+
+#. Translators: Home map: show only what the open folder holds.
+#: src/ui/playlist_map.rs:787
+msgid "Only its contents"
+msgstr "내용만"
+
+#. Translators: Home map: what to do with what the Library's filters (Playlists, Albums, By You, search) leave out.
+#: src/ui/playlist_map.rs:799
+msgid "Filters:"
+msgstr "필터:"
+
+#. Translators: Home map: show only what the Library's filters list.
+#: src/ui/playlist_map.rs:812
+msgid "Only what they list"
+msgstr "표시되는 항목만"
+
+#: src/ui/playlist_map.rs:833
+msgid "Scroll to zoom, drag to move, double-click to fit. Click to open; drop songs on a playlist to add them."
+msgstr "스크롤하여 확대/축소, 드래그하여 이동, 두 번 클릭하여 맞춤. 클릭하여 열고, 노래를 플레이리스트에 놓으면 추가됩니다."

@@ -358,6 +358,7 @@ main fields are:
 | `library_by_you` | `false` | Show only playlists owned by the signed-in account, alongside Liked Songs; applies only to the Playlists shelf |
 | `library_mixed_sort` | `null` | The order of a Library listing more than one kind: `recently_played` (the default), `name`, or `recently_added` where every listed kind has dates |
 | `library_group_kinds` | `true` | A Library listing more than one kind keeps each kind together; `false` mixes them in one list |
+| `library_kinds` | `["playlists"]` | The kinds ticked above the Library: `playlists`, `albums`, `artists`, `podcasts`; `[]` lists them all |
 | `sidebar_order` | `[]` | Saved local playlist arrangement, including an unpinned Liked Songs, retained when another sort is selected |
 | `pinned_contexts` | `[]` | Local Library pin order; Liked Songs uses `spotifast:liked-songs`, a local key never sent to Spotify |
 | `liked_songs_pinned` | `true` | Keep Liked Songs in the pin block; older settings place it first until moved |
@@ -496,12 +497,32 @@ directory; the ordinary demo does not scan your real themes folder.
 ## Home shelves
 
 **Playlist map on Home**, in Settings → Appearance (`"home": {"playlist_map":
-true}`), shows Home as a map of your playlists in place of its shelves: each
-playlist a node sized by its songs, hung from the Spotify folder that holds
-it, the folders from theirs, and the rest from the library at the centre,
-with Liked Songs beside it. Scroll or pinch to zoom, drag the map or a node
-to move it, and double-click the background to centre it again. Clicking a
-playlist opens it; clicking a folder opens it in the Library.
+true}`), shows Home as a map of your Library in place of its shelves. It
+holds what the Library lists, in its order: the kinds ticked above the
+Library, By You and the Library search, each folder holding what it holds,
+the Library at the root. Nodes are small, larger the nearer the root, and
+grow under the pointer while their neighbours move aside, keeping the same
+gap; nothing overlaps. Everything eases into place, grows in as it arrives
+and shrinks back into its folder as it goes.
+
+Above the map, **Tree** draws the folders as a round tree, each level a ring
+further from the root, its branches thicker the nearer the root; **Circles**
+draws each folder as a circle around everything it holds. A folder opened,
+on the map or in the Library, becomes the root: **Open folder: Zoom in**
+keeps the rest of the Library further out and zooms in on the folder, and
+**Only its contents** leaves the rest out. What the Library's filters leave
+out is handled the same way, with **Filters: Zoom in** and **Only what they
+list**; another kind already loaded waits further out on a branch of its
+own. Zoom in is the default for both. Clicking the open folder at the root
+goes back out of it.
+
+Scroll or pinch to zoom, drag to move, and double-click the background to
+fit the view to the focus again; the view also fits itself whenever the
+focus changes, until you move it. Click a node to open it (in Circles, a
+folder by its name, so the space inside it stays the map's), and drop songs
+on a playlist, or on Liked Songs, to add them, as on the Library's rows. The
+choices are kept as `"home": {"map_layout": "tree"}` (or `"circles"`),
+`"map_folder"` and `"map_filters"`, each `"zoom"` or `"only"`.
 
 Since 0.8.0, you can hide **Made for you** and **Recommended for you**
 from Home independently. Quit Spotifast before editing `settings.json`, then
@@ -576,13 +597,15 @@ dark or light base, showing at once. **Save theme** writes it to the
 already has that name), as an ordinary palette file, and
 uses it; **Discard** goes back to the theme you had.
 
-This fork also ships **Terminal**: black, with green text (`#00ff00`) and a
-purple accent (`#8000ff`) for the playing song, buttons and highlights, and
-**Incarnadine**, Spotify gone evil: near black with a red cast, blood red
-(`#e0102f`) where Spotify is green, and a faint red wash at the top of
-pages. Each is put in the `themes` folder once, like the palettes above,
-and is yours from then on; `.installed-spotifast-palettes` records which
-were added.
+This fork also ships **Terminal**: black, with green text (`#00ff00`), orange
+(`#ff8000`) for secondary text and icons, and a purple accent (`#8000ff`) for
+the playing song, buttons and highlights; and **Incarnadine**, Spotify gone evil:
+black, with green text (`#00ff00`) and rust red (`#802010`) where Spotify is
+green and in its surfaces. Each is put in the `themes` folder once, like the
+palettes above, and is yours from then on; `.installed-spotifast-palettes`
+records which were added. A copy still exactly as an earlier version of
+Spotifast put it there is brought up to date; one you have edited is left
+as it is.
 
 **Search settings from the top bar**, on by default, turns the search box
 at the top of the window into the settings search while the Settings page

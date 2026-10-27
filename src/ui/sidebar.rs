@@ -420,6 +420,23 @@ impl Shown {
         Self(Self::bit(shelf))
     }
 
+    /// The kinds saved as ticked.
+    fn of(ticked: &[Filter]) -> Self {
+        Self(
+            ticked
+                .iter()
+                .fold(0, |bits, shelf| bits | Self::bit(*shelf)),
+        )
+    }
+
+    /// The kinds ticked, none when none is, as the settings keep them.
+    fn ticked(self) -> Vec<Filter> {
+        SHELVES
+            .into_iter()
+            .filter(|shelf| self.has(*shelf))
+            .collect()
+    }
+
     fn has(self, shelf: Filter) -> bool {
         self.0 & Self::bit(shelf) != 0
     }
@@ -440,11 +457,6 @@ impl Shown {
             ticked
         }
     }
-}
-
-/// Where the sidebar keeps the ticked kinds between frames.
-fn shown_id() -> egui::Id {
-    egui::Id::new("sidebar-shelves")
 }
 
 /// The kinds the list holds now. A folder opened into lists only what it
@@ -514,7 +526,15 @@ fn library_rows(app: &App, shelves: &[Filter], needle: &str) -> LibraryRows {
     };
     for &shelf in shelves {
         let mut group = Vec::new();
-        let status = shelf_rows(app, shelf, sort_of(shelf), needle, grouped, &mut group);
+        let status = shelf_rows(
+            app,
+            shelf,
+            sort_of(shelf),
+            needle,
+            grouped,
+            false,
+            &mut group,
+        );
         rows.loading |= status.loading;
         if rows.error.is_none() {
             rows.error = status.error;
@@ -532,6 +552,239 @@ fn library_rows(app: &App, shelves: &[Filter], needle: &str) -> LibraryRows {
         order_entries(app, shelves[0], mixed_sort(app, shelves), &mut rows.entries);
     }
     rows
+}
+
+/// One thing on the Home map, in the order the Library lists it, held by
+/// the last row before it that sits one `depth` higher.
+pub(crate) struct MapRow {
+    pub(crate) key: String,
+    pub(crate) name: String,
+    pub(crate) image: Option<String>,
+    pub(crate) round: bool,
+    /// What a click opens; a folder or a kind's branch has no page.
+    pub(crate) page: Option<Page>,
+    /// A folder's rootlist id.
+    pub(crate) folder: Option<String>,
+    /// A kind's own branch, while the map holds more than one kind.
+    pub(crate) group: Option<Filter>,
+    pub(crate) depth: u8,
+    pub(crate) songs: Option<u32>,
+    /// Songs dropped on it are added: Liked Songs, and the playlists the
+    /// account may change.
+    pub(crate) takes_songs: bool,
+    /// The Library's own choices list it: a ticked kind, By You and the
+    /// search. A folder or branch is listed while anything in it is.
+    pub(crate) listed: bool,
+}
+
+/// Whether a kind has anything to show without loading more.
+fn shelf_loaded(app: &App, shelf: Filter) -> bool {
+    match shelf {
+        Filter::Playlists => true,
+        Filter::Albums => !app.library.albums.items.is_empty(),
+        Filter::Artists => !app.library.artists.items.is_empty(),
+        Filter::Podcasts => !app.library.shows.items.is_empty(),
+    }
+}
+
+/// The whole Library for the Home map, in the sidebar's order and with
+/// every folder open: the kinds ticked, then any other kind already loaded,
+/// each on a branch of its own. Ticked kinds kept together get a branch
+/// each too, where more than one is ticked; mixed, they share the top in
+/// one order.
+pub(crate) fn map_rows(app: &App) -> Vec<MapRow> {
+    let locale = app.locale;
+    let listed = Shown::of(&app.settings.library_kinds).shelves();
+    let others: Vec<Filter> = SHELVES
+        .into_iter()
+        .filter(|shelf| !listed.contains(shelf) && shelf_loaded(app, *shelf))
+        .collect();
+    let mixed = listed.len() > 1 && !app.settings.library_group_kinds;
+    let branches = listed.len() > 1;
+    let needle = app.library.filter.trim().to_lowercase();
+    let mut rows = Vec::new();
+    let block = |rows: &mut Vec<MapRow>,
+                 shelves: &[Filter],
+                 sort: LibrarySort,
+                 ticked: bool,
+                 branch: bool| {
+        let start = rows.len();
+        if branch {
+            let shelf = shelves[0];
+            rows.push(MapRow {
+                key: format!("kind:{shelf:?}"),
+                name: match shelf {
+                    Filter::Playlists => gettext(locale, "Playlists"),
+                    Filter::Albums => gettext(locale, "Albums"),
+                    Filter::Artists => gettext(locale, "Artists"),
+                    Filter::Podcasts => gettext(locale, "Podcasts"),
+                }
+                .into_owned(),
+                image: None,
+                round: false,
+                page: None,
+                folder: None,
+                group: Some(shelf),
+                depth: 0,
+                songs: None,
+                takes_songs: false,
+                listed: false,
+            });
+        }
+        map_block(app, shelves, sort, &needle, ticked, u8::from(branch), rows);
+        if branch {
+            rows[start].listed = rows[start + 1..].iter().any(|row| row.listed);
+        }
+    };
+    if mixed {
+        block(&mut rows, &listed, mixed_sort(app, &listed), true, false);
+    } else {
+        // Kinds kept together share the order of a Library of several, as
+        // the sidebar lists them.
+        for &shelf in &listed {
+            let sort = if branches {
+                mixed_sort(app, &listed)
+            } else {
+                selected_sort(app, shelf)
+            };
+            block(&mut rows, &[shelf], sort, true, branches);
+        }
+    }
+    for &shelf in &others {
+        block(&mut rows, &[shelf], selected_sort(app, shelf), false, true);
+    }
+    rows
+}
+
+/// The map's rows of `shelves`, `base` levels down, ordered as the sidebar
+/// orders them: a tree order as it is, any other with each folder taking
+/// the place of the first row it holds.
+fn map_block(
+    app: &App,
+    shelves: &[Filter],
+    sort: LibrarySort,
+    needle: &str,
+    ticked: bool,
+    base: u8,
+    rows: &mut Vec<MapRow>,
+) {
+    let mut tree = Vec::new();
+    for &shelf in shelves {
+        shelf_rows(app, shelf, LibrarySort::Spotify, "", true, true, &mut tree);
+    }
+    if shelves == [Filter::Playlists] && matches!(sort, LibrarySort::Spotify | LibrarySort::Name) {
+        order_entries(app, Filter::Playlists, sort, &mut tree);
+    } else {
+        let mut flat = Vec::new();
+        for &shelf in shelves {
+            shelf_rows(app, shelf, sort, "", false, true, &mut flat);
+        }
+        order_entries(app, shelves[0], sort, &mut flat);
+        let ranks = first_ranks(flat.iter().map(Entry::ordering_key));
+        let order = tree_order(&tree, |entry| {
+            ranks
+                .get(entry.ordering_key())
+                .copied()
+                .unwrap_or(usize::MAX)
+        });
+        permute(&mut tree, &order);
+    }
+    // The search matches as the sidebar's does, an album by its artists too.
+    let found: Option<std::collections::HashSet<String>> = (!needle.is_empty()).then(|| {
+        let mut found = Vec::new();
+        for &shelf in shelves {
+            shelf_rows(app, shelf, sort, needle, false, true, &mut found);
+        }
+        found
+            .iter()
+            .map(|entry| entry.ordering_key().to_string())
+            .collect()
+    });
+    let by_you = app.settings.library_by_you;
+    let playlists = app.library.playlists.get();
+    let start = rows.len();
+    for entry in tree {
+        let songs = if entry.liked {
+            app.library.liked.total
+        } else {
+            entry
+                .playlist_index
+                .and_then(|index| playlists?.get(index))
+                .map(crate::api::models::Playlist::track_total)
+        };
+        let listed = ticked
+            && !(by_you && entry.playlist_index.is_some() && !entry.owned)
+            && found
+                .as_ref()
+                .is_none_or(|found| found.contains(entry.ordering_key()));
+        let page = entry.folder.is_none().then(|| entry.page.clone());
+        rows.push(MapRow {
+            key: match (&entry.folder, &entry.page) {
+                (Some((id, _, _)), _) => format!("folder:{id}"),
+                (None, Page::LocalFiles) => "local-files".to_string(),
+                _ => entry.ordering_key().to_string(),
+            },
+            takes_songs: entry.liked || entry.editable,
+            folder: entry.folder.map(|(id, _, _)| id),
+            name: entry.name,
+            image: entry.image,
+            round: entry.round,
+            page,
+            group: None,
+            depth: base + entry.depth,
+            songs,
+            listed,
+        });
+    }
+    // A folder is listed while anything inside it is: walking back, each
+    // depth remembers whether a listed row lay below it.
+    let mut below = vec![false; 258];
+    for row in rows[start..].iter_mut().rev() {
+        let depth = usize::from(row.depth);
+        if row.folder.is_some() {
+            row.listed = below[depth + 1];
+            below[depth + 1..].iter_mut().for_each(|seen| *seen = false);
+        }
+        if row.listed {
+            below[..=depth].iter_mut().for_each(|seen| *seen = true);
+        }
+    }
+}
+
+/// The order that puts each folder's rows by `rank`, a folder ranked by the
+/// first of what it holds, keeping every row under its folder.
+fn tree_order(entries: &[Entry], rank: impl Fn(&Entry) -> usize) -> Vec<usize> {
+    let top = entries.len();
+    let mut children: Vec<Vec<usize>> = vec![Vec::new(); top + 1];
+    let mut open: Vec<(u8, usize)> = Vec::new();
+    for (index, entry) in entries.iter().enumerate() {
+        while open.last().is_some_and(|(depth, _)| *depth >= entry.depth) {
+            open.pop();
+        }
+        children[open.last().map_or(top, |(_, folder)| *folder)].push(index);
+        if entry.folder.is_some() {
+            open.push((entry.depth, index));
+        }
+    }
+    let mut best: Vec<usize> = entries.iter().map(rank).collect();
+    best.push(usize::MAX);
+    // Rows come after the folder that holds them, so walking back meets
+    // every row before its folder.
+    for index in (0..top).rev() {
+        if let Some(first) = children[index].iter().map(|child| best[*child]).min() {
+            best[index] = best[index].min(first);
+        }
+    }
+    for list in &mut children {
+        list.sort_by_key(|child| best[*child]);
+    }
+    let mut order = Vec::with_capacity(top);
+    let mut stack: Vec<usize> = children[top].iter().rev().copied().collect();
+    while let Some(index) = stack.pop() {
+        order.push(index);
+        stack.extend(children[index].iter().rev().copied());
+    }
+    order
 }
 
 /// Keeps a kind loading while its first page has not come, and, ordered
@@ -581,6 +834,7 @@ fn shelf_rows(
     sort: LibrarySort,
     needle: &str,
     tree: bool,
+    whole: bool,
     entries: &mut Vec<Entry>,
 ) -> ShelfStatus {
     let locale = app.locale;
@@ -588,7 +842,7 @@ fn shelf_rows(
     let mut status = ShelfStatus::default();
     match shelf {
         Filter::Playlists => {
-            playlist_rows_with(app, sort, needle, tree, entries);
+            playlist_rows_with(app, sort, needle, tree, whole, entries);
             match &app.library.playlists {
                 Loadable::Loaded(_) => {}
                 Loadable::Loading | Loadable::NotLoaded => status.loading = true,
@@ -1218,19 +1472,21 @@ fn paint_expanded_art(app: &mut App, ui: &mut egui::Ui, rect: Rect) {
 /// collapsed folders remain reachable. Liked Songs belongs to the account.
 #[cfg(test)]
 fn playlist_rows(app: &App, sort: LibrarySort, needle: &str, entries: &mut Vec<Entry>) {
-    playlist_rows_with(app, sort, needle, true, entries);
+    playlist_rows_with(app, sort, needle, true, false, entries);
 }
 
 /// The playlist rows, in Spotify's folders where `tree` keeps them and the
-/// order shows them, or flat.
+/// order shows them, or flat. `whole` lists the whole Library, as the map
+/// does: no folder opened or rolled up, and By You leaving nothing out.
 fn playlist_rows_with(
     app: &App,
     sort: LibrarySort,
     needle: &str,
     tree: bool,
+    whole: bool,
     entries: &mut Vec<Entry>,
 ) {
-    let entered = entered_span(app);
+    let entered = if whole { None } else { entered_span(app) };
     let liked = liked_entry(app);
     if entered.is_none() && (needle.is_empty() || liked.name.to_lowercase().contains(needle)) {
         entries.push(liked);
@@ -1255,7 +1511,7 @@ fn playlist_rows_with(
             _ => false,
         };
     if folders && needle.is_empty() {
-        folder_rows(app, user_id.unwrap_or(""), entries);
+        folder_rows_in(app, user_id.unwrap_or(""), whole, entries);
     } else if let Some(playlists) = app.library.playlists.get() {
         // Opened into a folder, a flat list holds only what the folder holds,
         // in folders inside it too.
@@ -1275,7 +1531,10 @@ fn playlist_rows_with(
             {
                 continue;
             }
-            if app.settings.library_by_you && !user_id.is_some_and(|id| playlist.owned_by(id)) {
+            if !whole
+                && app.settings.library_by_you
+                && !user_id.is_some_and(|id| playlist.owned_by(id))
+            {
                 continue;
             }
             if !needle.is_empty() && !playlist.name.to_lowercase().contains(needle) {
@@ -1298,7 +1557,14 @@ fn playlist_rows_with(
 /// With By You on, the tree keeps its shape and its open and closed
 /// folders but holds only the account's own playlists; a folder holding
 /// none of them leaves the view.
+#[cfg(test)]
 fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
+    folder_rows_in(app, user_id, false, entries);
+}
+
+/// [`folder_rows`], or with `whole` the whole tree: every folder open, none
+/// entered, and By You leaving nothing out.
+fn folder_rows_in(app: &App, user_id: &str, whole: bool, entries: &mut Vec<Entry>) {
     use crate::player::RootlistEntry;
     let Some(playlists) = app.library.playlists.get() else {
         return;
@@ -1308,7 +1574,7 @@ fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
         .enumerate()
         .map(|(index, playlist)| (playlist.uri.as_str(), (index, playlist)))
         .collect();
-    let by_you = app.settings.library_by_you;
+    let by_you = app.settings.library_by_you && !whole;
     let keep = |uri: &str| {
         !by_you
             || by_uri
@@ -1320,7 +1586,7 @@ fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
     let pins = app.library_pins();
     // Opened into a folder, only what it holds is listed, from its own rows
     // down, whether or not it is rolled up in the tree.
-    let entered = entered_span(app);
+    let entered = if whole { None } else { entered_span(app) };
     let rows = match entered {
         Some((start, end)) => &app.rootlist[start + 1..end],
         None => &app.rootlist[..],
@@ -1335,7 +1601,8 @@ fn folder_rows(app: &App, user_id: &str, entries: &mut Vec<Entry>) {
             RootlistEntry::FolderStart { id, name } => {
                 // The grid has no arrows: a folder there is a card that
                 // opens, its contents inside it, as in Spotify's grid.
-                let collapsed = app.settings.sidebar_grid || app.collapsed_folders.contains(id);
+                let collapsed =
+                    !whole && (app.settings.sidebar_grid || app.collapsed_folders.contains(id));
                 let count = counts.get(id.as_str()).copied().unwrap_or(0);
                 let (own_playlists, own_folders) =
                     holdings.get(id.as_str()).copied().unwrap_or_default();
@@ -1692,9 +1959,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
     );
     ui.add_space(10.0);
 
-    let mut shown = ui
-        .data(|data| data.get_temp::<Shown>(shown_id()))
-        .unwrap_or_default();
+    let mut shown = Shown::of(&app.settings.library_kinds);
     let filter = listed_shelves(app, shown)[0];
     let show_search_id = egui::Id::new("sidebar-show-search");
     let mut show_search = ui
@@ -1852,6 +2117,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
             });
             if response.clicked() {
                 shown = shown.toggled(value);
+                app.actions.push(Action::SetLibraryKinds(shown.ticked()));
             }
         }
     });
@@ -1888,10 +2154,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
             }
         }
     });
-    ui.data_mut(|data| {
-        data.insert_temp(shown_id(), shown);
-        data.insert_temp(show_search_id, show_search);
-    });
+    ui.data_mut(|data| data.insert_temp(show_search_id, show_search));
     if show_search {
         ui.add_space(4.0);
         let response = super::widgets::search_field(

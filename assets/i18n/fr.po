@@ -3938,10 +3938,6 @@ msgstr "Carte des playlists sur l’accueil"
 msgid "Show your playlists on Home as a map: each sized by its songs, linked by folder, opened with a click."
 msgstr "Affichez vos playlists sur l’accueil sous forme de carte : chacune à la taille de ses titres, reliées par dossier, ouvertes d’un clic."
 
-#: src/ui/playlist_map.rs:269
-msgid "Scroll to zoom, drag to move, double-click to centre. Click a playlist to open it."
-msgstr "Faites défiler pour zoomer, glissez pour déplacer, double-cliquez pour centrer. Cliquez sur une playlist pour l’ouvrir."
-
 #. Translators: {name} is the name of a theme made in the colour editor.
 #: src/app.rs:2507
 #, rust-format
@@ -3960,3 +3956,42 @@ msgstr "Rechercher dans les réglages depuis la barre du haut"
 #: src/ui/settings.rs:1323
 msgid "On this page, the search box at the top searches the settings instead of Spotify."
 msgstr "Sur cette page, le champ de recherche du haut cherche dans les réglages plutôt que dans Spotify."
+
+#. Translators: Home map layout: a round tree, each level of folders a ring further out.
+#: src/ui/playlist_map.rs:755
+msgid "Tree"
+msgstr "Arbre"
+
+#. Translators: Home map layout: each folder a circle around what it holds.
+#: src/ui/playlist_map.rs:763
+msgid "Circles"
+msgstr "Cercles"
+
+#. Translators: Home map: what to do with the rest of the Library while a folder is open.
+#: src/ui/playlist_map.rs:772
+msgid "Open folder:"
+msgstr "Dossier ouvert :"
+
+#. Translators: Home map: keep the rest further out and zoom in on the open folder, or on what the Library's filters list.
+#: src/ui/playlist_map.rs:777
+msgid "Zoom in"
+msgstr "Zoomer"
+
+#. Translators: Home map: show only what the open folder holds.
+#: src/ui/playlist_map.rs:787
+msgid "Only its contents"
+msgstr "Seulement son contenu"
+
+#. Translators: Home map: what to do with what the Library's filters (Playlists, Albums, By You, search) leave out.
+#: src/ui/playlist_map.rs:799
+msgid "Filters:"
+msgstr "Filtres :"
+
+#. Translators: Home map: show only what the Library's filters list.
+#: src/ui/playlist_map.rs:812
+msgid "Only what they list"
+msgstr "Seulement ce qu’ils affichent"
+
+#: src/ui/playlist_map.rs:833
+msgid "Scroll to zoom, drag to move, double-click to fit. Click to open; drop songs on a playlist to add them."
+msgstr "Faites défiler pour zoomer, glissez pour déplacer, double-cliquez pour tout ajuster. Cliquez pour ouvrir ; déposez des titres sur une playlist pour les ajouter."

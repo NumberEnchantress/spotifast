@@ -396,7 +396,7 @@ take (**Recently played** and **Name**, and **Recently added** when every one
 has dates), shared by all of them, and two layouts: **Group by kind** keeps
 each kind together, a thin line between them, playlists first with their
 folders; **Mix together** lists everything in one list. Spotifast remembers
-the choice. One kind alone keeps its own order, Spotify's or yours included;
+the choice, and which kinds are ticked. One kind alone keeps its own order, Spotify's or yours included;
 rows of several kinds cannot be dragged into a new order. A folder you open
 lists only what it holds, whatever else is ticked.
 
@@ -787,7 +787,7 @@ use a personal Spotify app, reconnect it in Settings as well.
 ## This fork's version
 
 The window title, and the taskbar's, end with Spotifast's version and this
-fork's, such as `Spotifast 0.14.1 · mod 4`, after the playing song.
+fork's, such as `Spotifast 0.14.1 · mod 5`, after the playing song.
 
 ## Local files
 

@@ -12091,6 +12091,22 @@ impl App {
                 self.settings.library_group_kinds = grouped;
                 self.mark_settings_dirty();
             }
+            Action::SetLibraryKinds(kinds) => {
+                self.settings.library_kinds = kinds;
+                self.mark_settings_dirty();
+            }
+            Action::SetMapLayout(layout) => {
+                self.settings.home.map_layout = layout;
+                self.mark_settings_dirty();
+            }
+            Action::SetMapFocus { folder, focus } => {
+                if folder {
+                    self.settings.home.map_folder = focus;
+                } else {
+                    self.settings.home.map_filters = focus;
+                }
+                self.mark_settings_dirty();
+            }
             Action::SetLibraryGrid(grid) => {
                 self.settings.sidebar_grid = grid;
                 self.mark_settings_dirty();
@@ -13657,7 +13673,7 @@ fn increase_playlist_total(playlist: &mut Playlist, added: u32) {
 
 /// This fork's own version, after Spotifast's: one more each round of
 /// changes it ships.
-pub const FORK_VERSION: &str = "mod 4";
+pub const FORK_VERSION: &str = "mod 5";
 
 /// The window's title: the playing song, if any, then Spotifast's version
 /// and this fork's.
