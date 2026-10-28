@@ -1062,6 +1062,7 @@ impl App {
             .as_deref()
             .and_then(Page::decode)
             .filter(|page| !matches!(page, Page::Settings | Page::Queue))
+            .filter(|page| !(settings.only_what_i_ask_for && *page == Page::NewReleases))
             .unwrap_or(Page::Home);
 
         let palette = settings.fixed_palette().unwrap_or_else(Palette::dark);
@@ -3402,7 +3403,7 @@ impl App {
         }
         if let Some(seed) = autoplay_seed(
             self.local_list.as_deref(),
-            self.settings.autoplay,
+            self.settings.autoplay_on(),
             &self.local,
             &state,
         ) {
@@ -5614,7 +5615,9 @@ impl App {
                     }
                     let filter = page.filter;
                     self.load_artist_albums(&id, filter);
-                    if page_related_needs_load(&self.artist_pages, &id) {
+                    if !self.settings.only_what_i_ask_for
+                        && page_related_needs_load(&self.artist_pages, &id)
+                    {
                         if let Some(page) = self.artist_pages.get_mut(&id) {
                             page.related = Loadable::Loading;
                         }
@@ -5717,6 +5720,11 @@ impl App {
 
     /// Asks for the New releases shelf again, keeping the cards it shows.
     fn load_new_releases(&mut self) {
+        // Spotify's suggestions are never asked for while only what was
+        // asked for shows.
+        if self.settings.only_what_i_ask_for {
+            return;
+        }
         self.home.new_releases_generation += 1;
         if !self.home.new_releases_loading {
             self.home.awaiting += 1;
@@ -5734,6 +5742,9 @@ impl App {
     /// `force` reads the songs again even when they belong to the releases
     /// on the shelf.
     fn load_new_release_page(&mut self, force: bool) {
+        if self.settings.only_what_i_ask_for {
+            return;
+        }
         let Some(albums) = self.home.new_releases.get().cloned() else {
             if !self.home.new_releases_loading {
                 self.load_new_releases();
@@ -5818,6 +5829,9 @@ impl App {
 
     /// Supersedes an older shelf request without clearing its visible cards.
     fn load_made_for_you(&mut self, force: bool) {
+        if self.settings.only_what_i_ask_for {
+            return;
+        }
         self.home.made_for_you_generation += 1;
         if !self.home.made_for_you_loading {
             self.home.awaiting += 1;
@@ -7366,10 +7380,10 @@ impl App {
                         .filter_map(|track| track.id.clone())
                         .take(5)
                         .collect();
-                    if seeds.is_empty() {
-                        // Nothing to seed recommendations with: an empty
-                        // shelf is hidden, where one never asked for would
-                        // show its loading rows for good.
+                    if seeds.is_empty() || self.settings.only_what_i_ask_for {
+                        // Nothing to seed recommendations with, or none
+                        // wanted: an empty shelf is hidden, where one never
+                        // asked for would show its loading rows for good.
                         if self.home.recommendations.get().is_none() {
                             self.home.recommendations = Loadable::Loaded(Vec::new());
                         }
@@ -13673,7 +13687,7 @@ fn increase_playlist_total(playlist: &mut Playlist, added: u32) {
 
 /// This fork's own version, after Spotifast's: one more each round of
 /// changes it ships.
-pub const FORK_VERSION: &str = "mod 7";
+pub const FORK_VERSION: &str = "mod 8";
 
 /// The window's title: the playing song, if any, then Spotifast's version
 /// and this fork's.
@@ -13727,7 +13741,7 @@ pub fn engine_config(
         device_name: settings.device_name.trim().to_string(),
         bitrate_kbps: settings.bitrate,
         normalisation: settings.normalisation,
-        autoplay: settings.autoplay,
+        autoplay: settings.autoplay_on(),
         gapless: settings.gapless,
         buffer_ms: settings.audio_buffer_ms,
         audio_device: settings

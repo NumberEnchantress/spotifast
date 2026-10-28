@@ -16,6 +16,20 @@ use super::widgets;
 pub fn page(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     let locale = app.locale;
+    // Reached from history while only what was asked for shows: nothing is
+    // asked of Spotify, and nothing is listed.
+    if app.settings.only_what_i_ask_for {
+        ui.add_space(12.0);
+        theme::text(
+            ui,
+            gettext(locale, "New releases"),
+            theme::bold(30.0),
+            palette.text,
+        );
+        ui.add_space(12.0);
+        theme::subtle(ui, &palette, &gettext(locale, "Nothing here yet."));
+        return;
+    }
     if app.home.new_release_tracks.get().is_none() && !app.home.new_release_tracks.is_loading() {
         app.ensure_loaded(Page::NewReleases);
     }

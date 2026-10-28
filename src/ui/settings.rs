@@ -941,7 +941,14 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 }
             });
             filtered_row(ui, &palette, &needle, &playback, &playback_rows[4], |ui| {
-                if widgets::switch(ui, &palette, &autoplay, &mut app.settings.autoplay).changed() {
+                // Off, and shown off, while only what was asked for plays.
+                if app.settings.only_what_i_ask_for {
+                    ui.add_enabled_ui(false, |ui| {
+                        widgets::switch(ui, &palette, &autoplay, &mut false);
+                    });
+                } else if widgets::switch(ui, &palette, &autoplay, &mut app.settings.autoplay)
+                    .changed()
+                {
                     changed = true;
                     playback_dirty = true;
                 }
@@ -2363,6 +2370,50 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     }
                 });
             }
+        });
+    }
+
+    // Translators: A settings section about what Spotify suggests: mixes, recommendations, related artists.
+    let suggestions = gettext(locale, "Suggestions");
+    // Translators: A setting: show only what you look for, click or open, none of Spotify's suggestions.
+    let only_asked = gettext(locale, "Only what I ask for");
+    let suggestion_rows = [RowText::new(
+        only_asked.clone(),
+        gettext(
+            locale,
+            "Hide what Spotify suggests: Made for you, top mixes, new releases, Recommended for you, Fans also like, and Autoplay.",
+        ),
+    )];
+    if section_matches(&needle, &suggestions, &suggestion_rows) {
+        any_visible = true;
+        section(ui, &palette, &suggestions, |ui| {
+            filtered_row(
+                ui,
+                &palette,
+                &needle,
+                &suggestions,
+                &suggestion_rows[0],
+                |ui| {
+                    if widgets::switch(
+                        ui,
+                        &palette,
+                        &only_asked,
+                        &mut app.settings.only_what_i_ask_for,
+                    )
+                    .changed()
+                    {
+                        changed = true;
+                        // Autoplay is part of playback, set when it starts.
+                        if app.settings.autoplay {
+                            playback_dirty = true;
+                        }
+                        // Turned off, Home asks for the suggestions again.
+                        if !app.settings.only_what_i_ask_for {
+                            app.actions.push(Action::Reload(crate::model::Page::Home));
+                        }
+                    }
+                },
+            );
         });
     }
 

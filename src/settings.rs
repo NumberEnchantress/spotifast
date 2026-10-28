@@ -418,6 +418,10 @@ pub struct Settings {
     /// With Spotifast's own title bar, show Spotifast's version and this
     /// fork's in the top bar, where the borderless window has no title.
     pub show_version: bool,
+    /// Show only what was asked for: none of Spotify's suggestions (Made
+    /// for you, top mixes, new releases, recommendations, Fans also like),
+    /// and no Autoplay. Nothing is asked of Spotify for them either.
+    pub only_what_i_ask_for: bool,
     /// Skin file or folder name. `None` selects the built-in skin.
     pub skin: Option<String>,
     /// Pick a different skin each time the mini player opens; `skin` holds
@@ -513,6 +517,14 @@ impl std::fmt::Debug for Settings {
     }
 }
 
+impl Settings {
+    /// Whether to play similar songs once the music ends: Autoplay, unless
+    /// only what was asked for is to play.
+    pub fn autoplay_on(&self) -> bool {
+        self.autoplay && !self.only_what_i_ask_for
+    }
+}
+
 impl Default for Settings {
     /// Supply the initial preferences and defaults for fields absent from older
     /// settings files, including an inactive playlist ownership filter.
@@ -577,6 +589,7 @@ impl Default for Settings {
             winamp_show_taskbar: true,
             custom_titlebar: false,
             show_version: false,
+            only_what_i_ask_for: false,
             skin: None,
             random_skin: false,
             skin_scale: None,

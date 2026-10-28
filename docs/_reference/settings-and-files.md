@@ -370,6 +370,7 @@ main fields are:
 | `winamp_show_taskbar` | `true` | Windows since 0.8.0, and Linux X11 sessions: show the Winamp window's taskbar button; the main window always keeps its button. Wayland and macOS ignore it |
 | `settings_search_in_topbar` | `true` | On the Settings page, the top bar's search box searches the settings instead of Spotify |
 | `custom_titlebar` | `false` | Windows and Linux: draw Spotifast's own title bar and window buttons instead of the desktop's |
+| `only_what_i_ask_for` | `false` | Show only what you look for, click or open: hides Made for you, Your top mixes, New releases, Recommended for you and an artist's Fans also like, asks Spotify for none of them, and turns Autoplay off |
 | `show_version` | `false` | With `custom_titlebar`, show Spotifast's version and this fork's in the top bar, beside the update button, since the borderless window has no title |
 | `skin` | none | File or folder name in the skins folder; blank uses the built-in skin |
 | `random_skin` | `false` | Since 0.11.0: pick a different skin (built-in or installed) each time the mini player opens; `skin` holds the one picked |
@@ -526,6 +527,16 @@ folder by its name, so the space inside it stays the map's), and drop songs
 on a playlist, or on Liked Songs, to add them, as on the Library's rows. The
 choices are kept as `"home": {"map_layout": "tree"}` (or `"circles"`),
 `"map_folder"` and `"map_filters"`, each `"zoom"` or `"only"`.
+
+**Only what I ask for**, in Settings → Suggestions, hides everything
+Spotify suggests rather than what you looked for, clicked or opened: Home's
+Made for you, Your top mixes, New releases and Recommended for you, and an
+artist's Fans also like. Spotifast stops asking Spotify for them, which also
+spares its request quota, and Autoplay is off, so the music stops when what
+you chose ends: at once for a list of songs, and for this computer's player
+once playback is applied and restarts. A device you control through Spotify
+Connect keeps its own Autoplay setting. Recently played, your podcasts, and your top artists
+and songs, which come from your own listening, stay.
 
 Since 0.8.0, you can hide **Made for you** and **Recommended for you**
 from Home independently. Quit Spotifast before editing `settings.json`, then

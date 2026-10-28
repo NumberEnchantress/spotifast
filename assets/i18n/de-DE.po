@@ -3992,3 +3992,17 @@ msgstr "Version anzeigen"
 #: src/ui/settings.rs:1339
 msgid "With the custom title bar, show Spotifast's version and this fork's beside the update button."
 msgstr "Mit der eigenen Titelleiste die Version von Spotifast und dieses Forks neben der Update-Schaltfläche anzeigen."
+
+#. Translators: A settings section about what Spotify suggests: mixes, recommendations, related artists.
+#: src/ui/settings.rs:2375
+msgid "Suggestions"
+msgstr "Vorschläge"
+
+#. Translators: A setting: show only what you look for, click or open, none of Spotify's suggestions.
+#: src/ui/settings.rs:2377
+msgid "Only what I ask for"
+msgstr "Nur, was ich suche"
+
+#: src/ui/settings.rs:2382
+msgid "Hide what Spotify suggests: Made for you, top mixes, new releases, Recommended for you, Fans also like, and Autoplay."
+msgstr "Blendet aus, was Spotify vorschlägt: Für dich erstellt, Top-Mixes, Neuerscheinungen, Empfehlungen für dich, Fans mögen auch und Autoplay."

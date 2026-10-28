@@ -3960,3 +3960,17 @@ msgstr "Sürümü göster"
 #: src/ui/settings.rs:1339
 msgid "With the custom title bar, show Spotifast's version and this fork's beside the update button."
 msgstr "Özel başlık çubuğunda, güncelleme düğmesinin yanında Spotifast'in ve bu çatalın sürümünü gösterir."
+
+#. Translators: A settings section about what Spotify suggests: mixes, recommendations, related artists.
+#: src/ui/settings.rs:2375
+msgid "Suggestions"
+msgstr "Öneriler"
+
+#. Translators: A setting: show only what you look for, click or open, none of Spotify's suggestions.
+#: src/ui/settings.rs:2377
+msgid "Only what I ask for"
+msgstr "Yalnızca istediklerim"
+
+#: src/ui/settings.rs:2382
+msgid "Hide what Spotify suggests: Made for you, top mixes, new releases, Recommended for you, Fans also like, and Autoplay."
+msgstr "Spotify'ın önerdiklerini gizler: Senin İçin Hazırlandı, en çok dinlediğin mix'ler, yeni çıkanlar, Senin için önerilenler, Hayranlar bunları da beğendi ve otomatik çalma."

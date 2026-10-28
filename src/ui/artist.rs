@@ -217,6 +217,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, id: &str) {
             // Related.
             if let Loadable::Loaded(related) = &page.related
                 && !related.is_empty()
+                && !app.settings.only_what_i_ask_for
             {
                 let artist_label = gettext(locale, "Artist");
                 let title = gettext(locale, "Fans also like");

@@ -6957,6 +6957,85 @@ mod tests {
         }
     }
 
+    /// Only what I ask for, ticked in Settings, takes away what Spotify
+    /// suggests: Home's Made for you, top mixes, new releases and
+    /// recommendations, an artist's Fans also like, and Autoplay, whose own
+    /// switch then cannot be turned on. What was asked for stays.
+    #[test]
+    fn only_what_i_ask_for_hides_spotifys_suggestions() {
+        use egui::accesskit::{Action as Do, Role};
+        let (ctx, mut app) = accessible_app("only-asked");
+        app.settings.autoplay = true;
+        // A page as tall as Home with all its shelves, drawn twice so the
+        // second frame has every shelf's size.
+        let shows = |app: &mut App, view: fn(&mut App, &mut egui::Ui), title: &str| {
+            let size = egui::vec2(1280.0, 3200.0);
+            view_frame_sized(&ctx, app, vec![], view, size);
+            view_frame_sized(&ctx, app, vec![], view, size)
+                .iter()
+                .any(|(text, _)| text == title)
+        };
+        fn home(app: &mut App, ui: &mut egui::Ui) {
+            crate::ui::home::show(app, ui);
+        }
+        fn artist(app: &mut App, ui: &mut egui::Ui) {
+            crate::ui::artist::show(app, ui, "art0");
+        }
+        for title in ["Made for you", "New releases", "Recommended for you"] {
+            assert!(shows(&mut app, home, title), "{title} shows by default");
+        }
+        assert!(shows(&mut app, artist, "Fans also like"));
+        assert!(app.settings.autoplay_on());
+
+        app.open(Page::Settings);
+        accessible_frame(&ctx, &mut app, vec![]);
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        let only = accessible_node(&tree, "Only what I ask for", Role::CheckBox);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![accessible_action(only, Do::Click, None)],
+        );
+        assert!(app.settings.only_what_i_ask_for);
+        assert!(!app.settings.autoplay_on(), "no Autoplay");
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        let autoplay = tree
+            .nodes
+            .iter()
+            .find(|(_, node)| node.label() == Some("Autoplay"))
+            .map(|(_, node)| node)
+            .expect("the Autoplay switch");
+        assert!(autoplay.is_disabled(), "Autoplay's switch is off limits");
+        // Nothing suggested is asked of Spotify, however Home is loaded.
+        app.home.made_for_you_loading = false;
+        app.home.new_releases_loading = false;
+        app.apply(Action::Reload(Page::Home), &ctx);
+        app.apply(Action::Open(Page::NewReleases), &ctx);
+        assert!(!app.home.made_for_you_loading && !app.home.new_releases_loading);
+        assert!(
+            !app.home.new_release_tracks.is_loading(),
+            "nor the releases' songs"
+        );
+
+        for title in [
+            "Made for you",
+            "Your top mixes",
+            "New releases",
+            "Recommended for you",
+        ] {
+            assert!(!shows(&mut app, home, title), "{title} is a suggestion");
+        }
+        assert!(!shows(&mut app, artist, "Fans also like"));
+        assert!(
+            shows(&mut app, artist, "Popular"),
+            "the artist asked for stays"
+        );
+        for title in ["Recently played", "Your top songs"] {
+            assert!(shows(&mut app, home, title), "{title} is the account's own");
+        }
+        app.backend.shutdown();
+    }
+
     /// Show version, ticked in Settings, puts Spotifast's version and this
     /// fork's in the top bar of the borderless window, beside the update
     /// badge; with the desktop's own title bar, which has the title, it

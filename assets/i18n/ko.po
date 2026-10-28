@@ -3883,3 +3883,17 @@ msgstr "버전 표시"
 #: src/ui/settings.rs:1339
 msgid "With the custom title bar, show Spotifast's version and this fork's beside the update button."
 msgstr "사용자 지정 제목 표시줄에서 업데이트 버튼 옆에 Spotifast와 이 포크의 버전을 표시합니다."
+
+#. Translators: A settings section about what Spotify suggests: mixes, recommendations, related artists.
+#: src/ui/settings.rs:2375
+msgid "Suggestions"
+msgstr "제안"
+
+#. Translators: A setting: show only what you look for, click or open, none of Spotify's suggestions.
+#: src/ui/settings.rs:2377
+msgid "Only what I ask for"
+msgstr "요청한 것만"
+
+#: src/ui/settings.rs:2382
+msgid "Hide what Spotify suggests: Made for you, top mixes, new releases, Recommended for you, Fans also like, and Autoplay."
+msgstr "Spotify의 제안을 숨깁니다: 나를 위한 추천, 인기 믹스, 최신 발매, 추천, 팬들이 좋아하는 다른 아티스트, 자동 재생."

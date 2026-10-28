@@ -51,16 +51,20 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     quick_access(app, ui);
     ui.add_space(16.0);
 
-    if app.settings.home.made_for_you.visible {
+    // Spotify's suggestions, unless only what was asked for shows.
+    let suggestions = !app.settings.only_what_i_ask_for;
+    if suggestions && app.settings.home.made_for_you.visible {
         made_for_you(app, ui);
         top_mixes(app, ui);
     }
-    new_releases(app, ui);
+    if suggestions {
+        new_releases(app, ui);
+    }
     recently_played(app, ui);
     podcasts(app, ui);
     top_artists(app, ui);
     top_tracks(app, ui);
-    if app.settings.home.recommendations.visible {
+    if suggestions && app.settings.home.recommendations.visible {
         recommendations(app, ui);
     }
 }

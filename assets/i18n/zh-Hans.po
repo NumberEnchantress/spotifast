@@ -3844,3 +3844,17 @@ msgstr "显示版本"
 #: src/ui/settings.rs:1339
 msgid "With the custom title bar, show Spotifast's version and this fork's beside the update button."
 msgstr "使用自定义标题栏时，在更新按钮旁显示 Spotifast 及此分支的版本。"
+
+#. Translators: A settings section about what Spotify suggests: mixes, recommendations, related artists.
+#: src/ui/settings.rs:2375
+msgid "Suggestions"
+msgstr "推荐内容"
+
+#. Translators: A setting: show only what you look for, click or open, none of Spotify's suggestions.
+#: src/ui/settings.rs:2377
+msgid "Only what I ask for"
+msgstr "只显示我要的"
+
+#: src/ui/settings.rs:2382
+msgid "Hide what Spotify suggests: Made for you, top mixes, new releases, Recommended for you, Fans also like, and Autoplay."
+msgstr "隐藏 Spotify 推荐的内容：为你打造、热门合辑、新发行、为你推荐、粉丝也喜欢和自动播放。"
