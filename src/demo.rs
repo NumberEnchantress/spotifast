@@ -1102,6 +1102,45 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
             "library-by-you" => app.settings.library_by_you = true,
             // Home as the map of the playlists.
             "playlist-map" => app.settings.home.playlist_map = true,
+            // A large library, for the map: hundreds of playlists in nested
+            // folders, many of them followed, with every kind listed and By
+            // You on.
+            "big-library" => {
+                use crate::player::RootlistEntry;
+                app.settings.home.playlist_map = true;
+                app.settings.library_kinds = Vec::new();
+                app.settings.library_by_you = true;
+                let playlists: Vec<Playlist> = (0..320).map(playlist).collect();
+                let mut rootlist = Vec::new();
+                let mut next = 0;
+                let mut take = |rootlist: &mut Vec<RootlistEntry>, count: usize| {
+                    for _ in 0..count {
+                        rootlist.push(RootlistEntry::Playlist(format!(
+                            "spotify:playlist:pl{next}"
+                        )));
+                        next += 1;
+                    }
+                };
+                for folder in 0..9 {
+                    rootlist.push(RootlistEntry::FolderStart {
+                        id: format!("big{folder}"),
+                        name: format!("Folder {}", folder + 1),
+                    });
+                    take(&mut rootlist, 12 + folder * 3);
+                    if folder % 3 == 0 {
+                        rootlist.push(RootlistEntry::FolderStart {
+                            id: format!("big{folder}-inner"),
+                            name: format!("Inside {}", folder + 1),
+                        });
+                        take(&mut rootlist, 10);
+                        rootlist.push(RootlistEntry::FolderEnd);
+                    }
+                    rootlist.push(RootlistEntry::FolderEnd);
+                }
+                take(&mut rootlist, 60);
+                app.rootlist = rootlist;
+                app.library.playlists = Loadable::Loaded(playlists);
+            }
             "map-folder" => {
                 app.settings.home.playlist_map = true;
                 app.library_folder = Some("f1".into());
@@ -6909,6 +6948,23 @@ mod tests {
                 pointer_click(root.center(), egui::PointerButton::Primary),
             );
             assert_eq!(app.library_folder, None);
+            app.backend.shutdown();
+        }
+    }
+
+    /// A large library, hundreds of playlists in folders with every kind
+    /// listed, fits in the first view in both layouts, nothing to drag or
+    /// zoom to see it all.
+    #[test]
+    fn a_large_library_fits_the_map_at_once() {
+        use crate::settings::MapLayout;
+        for layout in [MapLayout::Tree, MapLayout::Circles] {
+            let (ctx, mut app) = accessible_app(&format!("map-large-{layout:?}"));
+            apply_flags(&mut app, None, Some("big-library"));
+            app.settings.home.map_layout = layout;
+            let tree = settled_map(&ctx, &mut app, vec![]);
+            let shown = map_nodes(&tree).len();
+            assert!(shown >= 320, "{layout:?}: only {shown} in view");
             app.backend.shutdown();
         }
     }

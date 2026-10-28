@@ -3899,40 +3899,40 @@ msgid "On this page, the search box at the top searches the settings instead of 
 msgstr "På den här sidan söker sökrutan högst upp i inställningarna i stället för i Spotify."
 
 #. Translators: Home map layout: a round tree, each level of folders a ring further out.
-#: src/ui/playlist_map.rs:755
+#: src/ui/playlist_map.rs:824
 msgid "Tree"
 msgstr "Träd"
 
 #. Translators: Home map layout: each folder a circle around what it holds.
-#: src/ui/playlist_map.rs:763
+#: src/ui/playlist_map.rs:832
 msgid "Circles"
 msgstr "Cirklar"
 
 #. Translators: Home map: what to do with the rest of the Library while a folder is open.
-#: src/ui/playlist_map.rs:772
+#: src/ui/playlist_map.rs:841
 msgid "Open folder:"
 msgstr "Öppen mapp:"
 
 #. Translators: Home map: keep the rest further out and zoom in on the open folder, or on what the Library's filters list.
-#: src/ui/playlist_map.rs:777
+#: src/ui/playlist_map.rs:846
 msgid "Zoom in"
 msgstr "Zooma in"
 
 #. Translators: Home map: show only what the open folder holds.
-#: src/ui/playlist_map.rs:787
+#: src/ui/playlist_map.rs:856
 msgid "Only its contents"
 msgstr "Bara innehållet"
 
 #. Translators: Home map: what to do with what the Library's filters (Playlists, Albums, By You, search) leave out.
-#: src/ui/playlist_map.rs:799
+#: src/ui/playlist_map.rs:868
 msgid "Filters:"
 msgstr "Filter:"
 
 #. Translators: Home map: show only what the Library's filters list.
-#: src/ui/playlist_map.rs:812
+#: src/ui/playlist_map.rs:881
 msgid "Only what they list"
 msgstr "Bara det de visar"
 
-#: src/ui/playlist_map.rs:833
-msgid "Scroll to zoom, drag to move, double-click to fit. Click to open; drop songs on a playlist to add them."
-msgstr "Scrolla för att zooma, dra för att flytta, dubbelklicka för att anpassa. Klicka för att öppna; släpp låtar på en spellista för att lägga till dem."
+#: src/ui/playlist_map.rs:902
+msgid "Scroll to zoom, drag to move, double-click to switch between everything and the focus. Click to open; drop songs on a playlist to add them."
+msgstr "Scrolla för att zooma, dra för att flytta, dubbelklicka för att växla mellan allt och fokus. Klicka för att öppna; släpp låtar på en spellista för att lägga till dem."

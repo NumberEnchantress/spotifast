@@ -506,19 +506,21 @@ gap; nothing overlaps. Everything eases into place, grows in as it arrives
 and shrinks back into its folder as it goes.
 
 Above the map, **Tree** draws the folders as a round tree, each level a ring
-further from the root, its branches thicker the nearer the root; **Circles**
-draws each folder as a circle around everything it holds. A folder opened,
-on the map or in the Library, becomes the root: **Open folder: Zoom in**
-keeps the rest of the Library further out and zooms in on the folder, and
-**Only its contents** leaves the rest out. What the Library's filters leave
-out is handled the same way, with **Filters: Zoom in** and **Only what they
-list**; another kind already loaded waits further out on a branch of its
-own. Zoom in is the default for both. Clicking the open folder at the root
-goes back out of it.
+further from the root, its branches thicker the nearer the root, and each
+folder's playlists, albums and the like gathered close round it, so even a
+large library fits in one view; **Circles** draws each folder as a circle
+around everything it holds. A folder opened, on the map or in the Library,
+becomes the root: **Open folder: Zoom in** keeps the rest of the Library
+further out and zooms in on the folder, and **Only its contents** leaves the
+rest out. **Filters: Zoom in** keeps what the Library's filters leave out
+beside the rest, faded, and zooms in on what they list; **Only what they
+list** leaves it out. Another kind already loaded has a branch of its own.
+Zoom in is the default for both. Clicking the open folder at the root goes
+back out of it.
 
-Scroll or pinch to zoom, drag to move, and double-click the background to
-fit the view to the focus again; the view also fits itself whenever the
-focus changes, until you move it. Click a node to open it (in Circles, a
+Scroll or pinch to zoom and drag to move. Double-click the background to
+see everything at once, and again to go back to the focus; the view also
+fits itself to the focus whenever it changes, until you move it. Click a node to open it (in Circles, a
 folder by its name, so the space inside it stays the map's), and drop songs
 on a playlist, or on Liked Songs, to add them, as on the Library's rows. The
 choices are kept as `"home": {"map_layout": "tree"}` (or `"circles"`),
@@ -597,11 +599,12 @@ dark or light base, showing at once. **Save theme** writes it to the
 already has that name), as an ordinary palette file, and
 uses it; **Discard** goes back to the theme you had.
 
-This fork also ships **Terminal**: black, with green text (`#00ff00`), orange
-(`#ff8000`) for secondary text and icons, and a purple accent (`#8000ff`) for
-the playing song, buttons and highlights; and **Incarnadine**, Spotify gone evil:
-black, with green text (`#00ff00`) and rust red (`#802010`) where Spotify is
-green and in its surfaces. Each is put in the `themes` folder once, like the
+This fork also ships **Terminal**: black and green (`#00ff00`), with a purple
+accent (`#8000ff`) for the playing song, buttons and highlights, and orange
+(`#ff8000`) now and then, under the pointer on the accent and for warnings;
+and **Incarnadine**, Spotify gone evil: black, with warm white text and rust red
+(`#802010`) where Spotify is green and in its surfaces, and no green at
+all. Each is put in the `themes` folder once, like the
 palettes above, and is yours from then on; `.installed-spotifast-palettes`
 records which were added. A copy still exactly as an earlier version of
 Spotifast put it there is brought up to date; one you have edited is left

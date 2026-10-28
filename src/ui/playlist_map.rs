@@ -35,6 +35,9 @@ pub struct MapState {
     hovered: Option<String>,
     /// What the view was last fitted to, to fit it again when that changes.
     fitted: Option<u64>,
+    /// A double-click fits the view to everything, and another to the
+    /// focus again.
+    whole: bool,
 }
 
 #[cfg(test)]
@@ -50,6 +53,9 @@ impl MapState {
 pub(crate) struct Place {
     pub(crate) at: Vec2,
     pub(crate) radius: f32,
+    /// In the tree, where a folder's branch turns round its ring, as a
+    /// share of its distance from the root.
+    pub(crate) elbow: f32,
 }
 
 /// A node as drawn, with what it is now or, gone, was last.
@@ -63,6 +69,7 @@ struct Drawn {
     shown: f32,
     /// Still in the Library; one that left shrinks into its parent.
     here: bool,
+    elbow: f32,
     node: Node,
     parent: Option<String>,
 }
@@ -103,6 +110,8 @@ pub(crate) struct Node {
     /// Inside what the map is about: the open folder, and what the
     /// Library's filters list.
     pub(crate) focus: bool,
+    /// Outside the open folder: the way back out, kept out of view.
+    pub(crate) away: bool,
     pub(crate) radius: f32,
 }
 
@@ -135,6 +144,7 @@ pub(crate) fn graph(app: &App) -> Vec<Node> {
         children: Vec::new(),
         depth: 0,
         focus: true,
+        away: false,
         radius: 0.0,
     });
     let mut listed = vec![true];
@@ -175,6 +185,7 @@ pub(crate) fn graph(app: &App) -> Vec<Node> {
             children: Vec::new(),
             depth: 0,
             focus: true,
+            away: false,
             radius: 0.0,
         });
         listed.push(row.listed);
@@ -222,6 +233,7 @@ pub(crate) fn graph(app: &App) -> Vec<Node> {
         node.focus = (index == root && inside[index])
             || Some(index) == folder
             || (listed[index] && inside[index]);
+        node.away = !inside[index];
         nodes.push(node);
         if let Some(parent) = parent {
             nodes[parent].children.push(at);
@@ -262,101 +274,152 @@ pub(crate) fn graph(app: &App) -> Vec<Node> {
     nodes
 }
 
-/// The round tree: the root in the middle, each level a ring further out,
-/// each node given a share of the circle by the room the leaves under it
-/// take, so nothing on a ring overlaps. What lies outside the focus starts
-/// on a ring of its own, `outside` times as far as the focus reaches, past
-/// what a view fitted to the focus shows.
+/// The round tree: the root in the middle and each level of folders a ring
+/// further out, each folder given a share of the circle by the room it and
+/// the folders under it take, so nothing on a ring overlaps. What a node
+/// holds that holds nothing itself, its playlists, albums and the like, is
+/// packed close round it, what is in focus nearest, so a large library
+/// stays compact. The way back out of an open folder starts on a ring of
+/// its own, `outside` times as far as the folder reaches, past what a view
+/// fitted to it shows.
 pub(crate) fn radial(nodes: &[Node], outside: f32) -> Vec<Place> {
     let count = nodes.len();
     if count == 0 {
         return Vec::new();
     }
-    // What lies outside the focus sits on rings far out, where a narrow
-    // share of the circle is still room enough; the focus gets the rest.
-    // Beside the focus, what lies outside it takes a slim share at most,
-    // so the focus spreads round its root.
-    let mut room = vec![0.0f32; count];
-    for index in (0..count).rev() {
-        let node = &nodes[index];
-        let own = (2.0 * node.radius + GAP) * if node.focus { 1.0 } else { 0.25 };
-        let focused: f32 = node
+    let branch = |index: usize| index == 0 || !nodes[index].children.is_empty();
+    let branches = |index: usize| {
+        nodes[index]
             .children
             .iter()
-            .filter(|child| nodes[**child].focus)
-            .map(|child| room[*child])
-            .sum();
-        if node.focus && focused > 0.0 {
-            for &child in &node.children {
-                if !nodes[child].focus {
-                    room[child] = room[child].min(focused * 0.3);
-                }
-            }
+            .copied()
+            .filter(|child| branch(*child))
+            .collect::<Vec<usize>>()
+    };
+    // Each branch with what it holds packed round it: how far that reaches.
+    let mut offset = vec![Vec2::ZERO; count];
+    let mut reach = vec![0.0f32; count];
+    for index in (0..count).filter(|index| branch(*index)) {
+        let mut leaves: Vec<usize> = nodes[index]
+            .children
+            .iter()
+            .copied()
+            .filter(|child| !branch(*child))
+            .collect();
+        leaves.sort_by_key(|leaf| !nodes[*leaf].focus);
+        let mut radii = Vec::with_capacity(leaves.len() + 1);
+        radii.push(nodes[index].radius + GAP / 2.0);
+        radii.extend(leaves.iter().map(|leaf| nodes[*leaf].radius + GAP / 2.0));
+        let (centres, _) = pack(&radii);
+        let middle = centres[0];
+        let mut extent = radii[0];
+        for ((leaf, centre), radius) in leaves.iter().zip(&centres[1..]).zip(&radii[1..]) {
+            offset[*leaf] = *centre - middle;
+            extent = extent.max(offset[*leaf].length() + radius);
         }
-        let under: f32 = node.children.iter().map(|child| room[*child]).sum();
-        room[index] = under.max(own);
+        reach[index] = extent;
     }
-    let focus_ring = nodes
-        .iter()
-        .filter(|node| node.focus)
-        .map(|node| node.depth)
+    // Rings: a level of branches each, the way out past the rest.
+    let mut level = vec![0usize; count];
+    for index in 1..count {
+        level[index] = level[nodes[index].parent.unwrap_or(0)] + 1;
+    }
+    let home = (0..count)
+        .filter(|index| branch(*index) && !nodes[*index].away)
+        .map(|index| level[index])
         .max()
         .unwrap_or(0);
     let mut ring = vec![0usize; count];
-    for index in 1..count {
+    for index in (1..count).filter(|index| branch(*index)) {
         let parent = nodes[index].parent.unwrap_or(0);
-        ring[index] = if !nodes[index].focus && nodes[parent].focus {
-            (ring[parent] + 1).max(focus_ring + 2)
+        ring[index] = if nodes[index].away && !nodes[parent].away {
+            (ring[parent] + 1).max(home + 2)
         } else {
             ring[parent] + 1
         };
     }
+    // A share of the circle by room; beside the open folder, the way out
+    // takes a slim share at most.
+    let mut room = vec![0.0f32; count];
+    for index in (0..count).rev().filter(|index| branch(*index)) {
+        let kids = branches(index);
+        let near: f32 = kids
+            .iter()
+            .filter(|kid| !nodes[**kid].away)
+            .map(|kid| room[*kid])
+            .sum();
+        if !nodes[index].away && near > 0.0 {
+            for &kid in &kids {
+                if nodes[kid].away {
+                    room[kid] = room[kid].min(near * 0.3);
+                }
+            }
+        }
+        let under: f32 = kids.iter().map(|kid| room[*kid]).sum();
+        room[index] = under.max(2.0 * reach[index] + GAP);
+    }
     let mut start = vec![-PI / 2.0; count];
     let mut span = vec![TAU; count];
-    for index in 0..count {
-        let under: f32 = nodes[index].children.iter().map(|child| room[*child]).sum();
+    for index in (0..count).filter(|index| branch(*index)) {
+        let kids = branches(index);
+        let under: f32 = kids.iter().map(|kid| room[*kid]).sum();
         let mut angle = start[index];
-        for &child in &nodes[index].children {
-            span[child] = span[index] * room[child] / under.max(f32::EPSILON);
-            start[child] = angle;
-            angle += span[child];
+        for kid in kids {
+            span[kid] = span[index] * room[kid] / under.max(f32::EPSILON);
+            start[kid] = angle;
+            angle += span[kid];
         }
     }
     let rings = ring.iter().max().copied().unwrap_or(0) + 1;
     let mut largest = vec![0.0f32; rings];
     let mut needed = vec![0.0f32; rings];
-    for index in 1..count {
-        let radius = nodes[index].radius;
-        largest[ring[index]] = largest[ring[index]].max(radius);
+    for index in (1..count).filter(|index| branch(*index)) {
+        let k = ring[index];
+        largest[k] = largest[k].max(reach[index]);
         // Neighbours on a ring sit a chord apart: wide enough for this one.
         let half = (span[index].min(PI) / 2.0).sin().max(1e-4);
-        needed[ring[index]] = needed[ring[index]].max((2.0 * radius + GAP) / (2.0 * half));
+        needed[k] = needed[k].max((2.0 * reach[index] + GAP) / (2.0 * half));
     }
-    largest[0] = nodes[0].radius;
+    largest[0] = reach[0];
     let mut distance = vec![0.0f32; rings];
-    for step in 1..rings {
-        let mut reach = distance[step - 1] + largest[step - 1] + largest[step] + GAP * 2.5;
-        reach = reach.max(needed[step]);
-        if step == focus_ring + 2 && largest[step] > 0.0 {
-            reach = reach.max(
-                (distance[focus_ring] + largest[focus_ring]) * outside + largest[step] + GAP * 6.0,
-            );
+    for k in 1..rings {
+        let mut out = distance[k - 1] + largest[k - 1] + largest[k] + GAP * 2.0;
+        out = out.max(needed[k]);
+        if k == home + 2 && largest[k] > 0.0 {
+            out = out.max((distance[home] + largest[home]) * outside + largest[k] + GAP * 6.0);
         }
-        distance[step] = reach;
+        distance[k] = out;
     }
-    (0..count)
-        .map(|index| {
-            let angle = start[index] + span[index] / 2.0;
+    let mut places = vec![Place::default(); count];
+    for index in 0..count {
+        let radius = nodes[index].radius;
+        places[index] = if index == 0 {
             Place {
-                at: if index == 0 {
-                    Vec2::ZERO
-                } else {
-                    vec2(angle.cos(), angle.sin()) * distance[ring[index]]
-                },
-                radius: nodes[index].radius,
+                at: Vec2::ZERO,
+                radius,
+                elbow: 0.0,
             }
-        })
-        .collect()
+        } else if branch(index) {
+            let k = ring[index];
+            let angle = start[index] + span[index] / 2.0;
+            // The branch turns in the empty band between this ring and the
+            // one inside it.
+            let turn = (distance[k - 1] + largest[k - 1] + distance[k] - largest[k]) / 2.0;
+            Place {
+                at: vec2(angle.cos(), angle.sin()) * distance[k],
+                radius,
+                elbow: turn / distance[k].max(1e-3),
+            }
+        } else {
+            let parent = nodes[index].parent.unwrap_or(0);
+            Place {
+                at: places[parent].at + offset[index],
+                radius,
+                elbow: 0.0,
+            }
+        };
+    }
+    places
 }
 
 /// Circles in circles: each folder around everything it holds, packed
@@ -379,7 +442,7 @@ pub(crate) fn nested(nodes: &[Node], outside: f32) -> Vec<Place> {
         let radii: Vec<f32> = order
             .iter()
             .map(|child| {
-                let clear = if nodes[*child].focus && !node.focus {
+                let clear = if !nodes[*child].away && node.away {
                     outside
                 } else {
                     1.0
@@ -403,6 +466,7 @@ pub(crate) fn nested(nodes: &[Node], outside: f32) -> Vec<Place> {
         places[index] = Place {
             at,
             radius: size[index],
+            elbow: 0.0,
         };
     }
     places
@@ -705,17 +769,18 @@ fn focus_of(app: &App) -> u64 {
     hasher.finish()
 }
 
-/// The pan and zoom that show everything in focus in `size`, with room
-/// for names. In circles the Library around it all is framed by what is in
-/// focus inside it, not by its whole circle.
-fn fit(nodes: &[Node], places: &[Place], size: Vec2, circles: bool) -> (Vec2, f32) {
+/// The pan and zoom that show everything in focus in `size`, or with
+/// `whole` everything there is, with room for names. In circles the
+/// Library around it all is framed by what is in focus inside it, not by
+/// its whole circle.
+fn fit(nodes: &[Node], places: &[Place], size: Vec2, circles: bool, whole: bool) -> (Vec2, f32) {
     let mut bounds = Rect::NOTHING;
     for (index, (node, place)) in nodes.iter().zip(places).enumerate() {
         let framed_inside = circles
             && index == 0
             && node.kind == Kind::Library
             && node.children.iter().any(|child| nodes[*child].focus);
-        if node.focus && !framed_inside {
+        if whole || (node.focus && !framed_inside) {
             bounds = bounds.union(Rect::from_center_size(
                 place.at.to_pos2(),
                 Vec2::splat(place.radius * 2.0),
@@ -723,7 +788,11 @@ fn fit(nodes: &[Node], places: &[Place], size: Vec2, circles: bool) -> (Vec2, f3
         }
     }
     if !bounds.is_positive() {
-        return (Vec2::ZERO, 1.0);
+        return if whole || nodes.is_empty() {
+            (Vec2::ZERO, 1.0)
+        } else {
+            fit(nodes, places, size, circles, true)
+        };
     }
     let room = (size - Vec2::splat(56.0)).max(Vec2::splat(40.0));
     // Circles keep their contents small, so a small folder takes more zoom.
@@ -830,7 +899,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         ui,
         gettext(
             locale,
-            "Scroll to zoom, drag to move, double-click to fit. Click to open; drop songs on a playlist to add them.",
+            "Scroll to zoom, drag to move, double-click to switch between everything and the focus. Click to open; drop songs on a playlist to add them.",
         ),
         theme::regular(12.5),
         palette.dim,
@@ -875,15 +944,21 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     if state.fitted != Some(focus) {
         state.fitted = Some(focus);
         state.camera.auto = true;
+        state.whole = false;
     }
+    // A double-click switches between everything and the focus; after the
+    // view was moved by hand, the first one fits it again as it was.
     if background.double_clicked() {
+        if state.camera.auto {
+            state.whole = !state.whole;
+        }
         state.camera.auto = true;
     }
     let dt = ui.input(|input| input.stable_dt).clamp(1.0 / 240.0, 0.1);
     let ease = 1.0 - (-dt * 11.0).exp();
     let mut moving = false;
     if state.camera.auto {
-        let (pan, zoom) = fit(&nodes, &base, rect.size(), circles);
+        let (pan, zoom) = fit(&nodes, &base, rect.size(), circles, state.whole);
         if first {
             state.camera.pan = pan;
             state.camera.zoom = zoom;
@@ -954,10 +1029,12 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 radius: 0.0,
                 shown: 0.0,
                 here: true,
+                elbow: 0.0,
                 node: node.clone(),
                 parent: parent.clone(),
             });
         let target = goal[index];
+        drawn.elbow = target.elbow;
         drawn.at += (target.at - drawn.at) * ease;
         drawn.radius += (target.radius - drawn.radius) * ease;
         drawn.shown += (1.0 - drawn.shown) * ease;
@@ -1030,6 +1107,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     // the child, thicker the nearer the root.
     if !circles {
         for (drawn, node) in &order {
+            if node.children.is_empty() {
+                continue;
+            }
             let Some(parent) = drawn.parent.as_ref().and_then(|key| state.drawn.get(key)) else {
                 continue;
             };
@@ -1042,7 +1122,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 palette.outline
             }
             .gamma_multiply(presence);
-            let points = branch(parent.at - root_at, drawn.at - root_at, zoom)
+            let turn = (drawn.at - root_at).length() * drawn.elbow;
+            let points = branch(parent.at - root_at, drawn.at - root_at, turn, zoom)
                 .into_iter()
                 .map(|at| screen(at + root_at))
                 .collect();
@@ -1128,11 +1209,22 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     },
                 ),
             );
+            // A folder's name in the band at its top, or, where it is too
+            // small for that, just below it.
             if radius > 28.0 {
                 names.push((
                     0,
                     radius,
                     centre - vec2(0.0, radius - 3.0),
+                    egui::Align2::CENTER_TOP,
+                    node.name.chars().take(28).collect(),
+                    presence,
+                ));
+            } else if radius > 8.0 {
+                names.push((
+                    0,
+                    radius,
+                    centre + vec2(0.0, radius + 3.0),
                     egui::Align2::CENTER_TOP,
                     node.name.chars().take(28).collect(),
                     presence,
@@ -1198,8 +1290,13 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             }
             if pointed {
                 hovered_label = Some((centre + vec2(0.0, radius + 4.0), label.clone()));
-            } else if radius >= 9.0 && (node.focus || node.holds()) {
-                let outward = (drawn.at - root_at).normalized();
+            } else if (radius >= 9.0 && node.focus) || (node.holds() && radius >= 2.5) {
+                let from = drawn
+                    .parent
+                    .as_ref()
+                    .and_then(|key| state.drawn.get(key))
+                    .map_or(root_at, |parent| parent.at);
+                let outward = (drawn.at - from).normalized();
                 let (at, align) = if circles || node.holds() || !outward.is_finite() {
                     (centre + vec2(0.0, radius + 4.0), egui::Align2::CENTER_TOP)
                 } else if outward.x >= 0.0 {
@@ -1272,17 +1369,29 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     // pointer still shows it.
     names.sort_by(|a, b| a.0.cmp(&b.0).then(b.1.total_cmp(&a.1)));
     let mut taken: Vec<Rect> = Vec::new();
-    for (_, _, at, align, name, presence) in names {
+    for (rank, _, at, align, name, presence) in names {
         let galley = painter.layout_no_wrap(
             name,
             theme::regular(11.5),
             palette.secondary.gamma_multiply(presence),
         );
         let place = align.anchor_size(at, galley.size());
-        if taken.iter().any(|held| held.expand(2.0).intersects(place)) {
+        if taken
+            .iter()
+            .any(|held| held.expand2(vec2(5.0, 2.0)).intersects(place))
+        {
             continue;
         }
         taken.push(place);
+        // A folder's name sits on a backing, readable over what is
+        // gathered round it.
+        if rank == 0 {
+            painter.rect_filled(
+                place.expand2(vec2(4.0, 1.0)),
+                egui::CornerRadius::same(5),
+                palette.overlay.gamma_multiply(0.6 * presence),
+            );
+        }
         painter.galley(place.min, galley, Color32::PLACEHOLDER);
     }
     if let Some((at, label)) = hovered_label {
@@ -1305,28 +1414,29 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
 }
 
 /// A branch of the round tree from a parent at `from` to a child at `to`,
-/// both from the root: out from the parent halfway to the child's ring,
-/// round that ring to the child's angle, and out to the child. From the
-/// root it is a straight line.
-fn branch(from: Vec2, to: Vec2, zoom: f32) -> Vec<Vec2> {
+/// both from the root: out from the parent to the `turn` distance, round
+/// that ring to the child's angle, and out to the child. From the root it
+/// is a straight line.
+fn branch(from: Vec2, to: Vec2, turn: f32, zoom: f32) -> Vec<Vec2> {
     let (inner, outer) = (from.length(), to.length());
     if inner < 1.0 || outer < 1.0 {
         return vec![from, to];
     }
     let (start, end) = (from.y.atan2(from.x), to.y.atan2(to.x));
-    let mut turn = end - start;
-    while turn > PI {
-        turn -= TAU;
+    let mut sweep = end - start;
+    while sweep > PI {
+        sweep -= TAU;
     }
-    while turn < -PI {
-        turn += TAU;
+    while sweep < -PI {
+        sweep += TAU;
     }
-    let elbow = inner + (outer - inner) * 0.5;
-    let steps = ((turn.abs() * elbow * zoom / 6.0).ceil() as usize).clamp(1, 48);
+    // While things move a parent can be further out than its child.
+    let elbow = turn.clamp(inner.min(outer), inner.max(outer));
+    let steps = ((sweep.abs() * elbow * zoom / 6.0).ceil() as usize).clamp(1, 48);
     let mut points = Vec::with_capacity(steps + 3);
     points.push(from);
     for step in 0..=steps {
-        let angle = start + turn * step as f32 / steps as f32;
+        let angle = start + sweep * step as f32 / steps as f32;
         points.push(vec2(angle.cos(), angle.sin()) * elbow);
     }
     points.push(to);

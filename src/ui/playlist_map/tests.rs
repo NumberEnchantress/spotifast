@@ -22,6 +22,7 @@ fn big_library() -> Vec<Node> {
             children: Vec::new(),
             depth: parent.map_or(0, |parent: usize| nodes[parent].depth + 1),
             focus: true,
+            away: false,
             radius: if holds {
                 12.0
             } else {

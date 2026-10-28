@@ -182,6 +182,14 @@ const FORK_THEMES_EARLIER: &[(&str, &str)] = &[
         "Incarnadine.json",
         include_str!("../assets/themes/earlier/Incarnadine-1.json"),
     ),
+    (
+        "Terminal.json",
+        include_str!("../assets/themes/earlier/Terminal-2.json"),
+    ),
+    (
+        "Incarnadine.json",
+        include_str!("../assets/themes/earlier/Incarnadine-2.json"),
+    ),
 ];
 
 /// The file in the themes folder listing this fork's palettes already put
@@ -1335,10 +1343,11 @@ mod tests {
         }
     }
 
-    /// The fork's Terminal theme is a valid palette: black, green text, the
-    /// purple accent, and orange for what is secondary.
+    /// The fork's Terminal theme is a valid palette: black and green, the
+    /// purple accent for what matters, and orange now and then: under the
+    /// pointer on the accent, and for warnings.
     #[test]
-    fn terminal_is_black_green_purple_and_orange() {
+    fn terminal_is_black_green_purple_and_a_little_orange() {
         let (name, text) = FORK_THEMES[0];
         assert_eq!(name, "Terminal.json");
         let terminal: Palette = fastframe_theme::parse_palette(text).unwrap();
@@ -1346,11 +1355,12 @@ mod tests {
         assert_eq!(terminal.window, Color32::BLACK);
         assert_eq!(terminal.text, Color32::from_rgb(0x00, 0xff, 0x00));
         assert_eq!(terminal.accent, Color32::from_rgb(0x80, 0x00, 0xff));
-        assert_eq!(terminal.secondary, Color32::from_rgb(0xff, 0x80, 0x00));
+        assert_eq!(terminal.secondary, Color32::from_rgb(0x00, 0xc0, 0x00));
+        assert_eq!(terminal.accent_hover, Color32::from_rgb(0xff, 0x80, 0x00));
     }
 
-    /// Incarnadine is Spotify gone evil: black, green text, and rust red where
-    /// Spotify is green.
+    /// Incarnadine is Spotify gone evil: black, and rust red where Spotify is
+    /// green, with not a trace of green anywhere.
     #[test]
     fn incarnadine_is_spotify_gone_evil() {
         let (name, text) = FORK_THEMES[1];
@@ -1358,8 +1368,24 @@ mod tests {
         let incarnadine: Palette = fastframe_theme::parse_palette(text).unwrap();
         assert!(incarnadine.dark);
         assert_eq!(incarnadine.window, Color32::BLACK);
-        assert_eq!(incarnadine.text, Color32::from_rgb(0x00, 0xff, 0x00));
         assert_eq!(incarnadine.accent, Color32::from_rgb(0x80, 0x20, 0x10));
+        for colour in [
+            incarnadine.window,
+            incarnadine.panel,
+            incarnadine.surface,
+            incarnadine.surface_hover,
+            incarnadine.surface_active,
+            incarnadine.outline,
+            incarnadine.text,
+            incarnadine.secondary,
+            incarnadine.dim,
+            incarnadine.accent,
+            incarnadine.accent_hover,
+            incarnadine.on_accent,
+        ] {
+            let [r, g, b, _] = colour.to_array();
+            assert!(g <= r && g <= b.max(r), "green in Incarnadine: {colour:?}");
+        }
     }
 
     /// A copy still as an earlier version shipped is brought up to date;

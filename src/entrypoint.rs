@@ -56,7 +56,7 @@ struct Cli {
     /// `shuffle-selected`, `shuffle-started`, `undated-mix`, `signed-out`, `connecting`, `library-list`,
     /// `library-list-narrow`, `library-list-wide`, `library-grid`, `library-grid-narrow`,
     /// `library-grid-wide`, `library-mixed`, `playlist-map`, `map-circles`,
-    /// `map-folder`, `theme-editor`,
+    /// `map-folder`, `big-library`, `theme-editor`,
     /// `terminal`, or `incarnadine`.
     #[cfg(feature = "demo")]
     #[arg(long)]
