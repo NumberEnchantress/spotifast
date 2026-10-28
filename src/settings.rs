@@ -415,6 +415,9 @@ pub struct Settings {
     /// Windows and Linux: draw Spotifast's own title bar and window buttons
     /// instead of the desktop frame.
     pub custom_titlebar: bool,
+    /// With Spotifast's own title bar, show Spotifast's version and this
+    /// fork's in the top bar, where the borderless window has no title.
+    pub show_version: bool,
     /// Skin file or folder name. `None` selects the built-in skin.
     pub skin: Option<String>,
     /// Pick a different skin each time the mini player opens; `skin` holds
@@ -573,6 +576,7 @@ impl Default for Settings {
             winamp_window: false,
             winamp_show_taskbar: true,
             custom_titlebar: false,
+            show_version: false,
             skin: None,
             random_skin: false,
             skin_scale: None,

@@ -1191,6 +1191,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let tracklist_compact = gettext(locale, "Compact track list");
     let middle_click = gettext(locale, "Middle-click autoscroll");
     let custom_titlebar = gettext(locale, "Custom title bar");
+    // Translators: A setting: with Spotifast's own title bar, show the app's version in the top bar.
+    let show_version = gettext(locale, "Show version");
     let show_custom_titlebar = cfg!(target_os = "linux") || app.windows_controls_visible();
     let player_bar_vis = gettext(locale, "Player bar visualizer");
     let player_bar_vis_click = gettext(locale, "Click player bar to change visualizer");
@@ -1330,6 +1332,14 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 "Show your playlists on Home as a map: each sized by its songs, linked by folder, opened with a click.",
             ),
         ),
+        RowText::new(
+            show_version.clone(),
+            gettext(
+                locale,
+                "With the custom title bar, show Spotifast's version and this fork's beside the update button.",
+            ),
+        )
+        .when(show_custom_titlebar),
     ];
     if section_matches(&needle, &appearance, &appearance_rows) {
         any_visible = true;
@@ -1710,6 +1720,28 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                         if widgets::switch(ui, &palette, &custom_titlebar, &mut custom).changed() {
                             app.actions.push(Action::SetCustomTitlebar(custom));
                         }
+                    },
+                );
+                filtered_row(
+                    ui,
+                    &palette,
+                    &needle,
+                    &appearance,
+                    &appearance_rows[16],
+                    |ui| {
+                        // It shows only in the window without a title.
+                        ui.add_enabled_ui(app.settings.custom_titlebar, |ui| {
+                            if widgets::switch(
+                                ui,
+                                &palette,
+                                &show_version,
+                                &mut app.settings.show_version,
+                            )
+                            .changed()
+                            {
+                                changed = true;
+                            }
+                        });
                     },
                 );
             }

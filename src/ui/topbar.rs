@@ -315,13 +315,33 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 ui.painter()
                     .layout_no_wrap(label, theme::medium(12.5), palette.accent)
             });
+            // The borderless window has no title, so the versions can sit in
+            // the bar instead, beside the update badge.
+            let version_galley = (app.settings.show_version
+                && app.settings.custom_titlebar
+                && (cfg!(target_os = "linux") || app.windows_controls_visible()))
+            .then(|| {
+                ui.painter().layout_no_wrap(
+                    format!(
+                        "{} \u{b7} {}",
+                        env!("CARGO_PKG_VERSION"),
+                        crate::app::FORK_VERSION
+                    ),
+                    theme::regular(12.0),
+                    palette.dim,
+                )
+            });
             // Ask once, so the bar reserves room for exactly the spinner it
             // then draws.
             let activity = app.background_activity();
             let busy = activity.is_some();
-            let badges = |labels: bool| {
+            let badges = |labels: bool, version: bool| {
                 badge_width(device_galley.as_ref(), DEVICE_BADGE_PADDING, labels)
                     + badge_width(update_galley.as_ref(), UPDATE_BADGE_PADDING, labels)
+                    + match &version_galley {
+                        Some(galley) if version => galley.size().x + ITEM_SPACING,
+                        _ => 0.0,
+                    }
             };
             let controls = RIGHT_CONTROLS_WIDTH
                 + if !app.network_reachable {
@@ -341,7 +361,25 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             // keep room for it (`least_width`).
             let lead = width - ui.available_width() + window_controls.topbar_width;
             ui.ctx().data_mut(|data| data.insert_temp(lead_id(), lead));
-            let fit = topbar_fit(search_room, controls, badges(true), badges(false));
+            // The versions give way first, before the badges lose their
+            // labels: they show only where everything fits with them.
+            let with_version = topbar_fit(
+                search_room,
+                controls,
+                badges(true, true),
+                badges(false, false),
+            );
+            let show_version = version_galley.is_some() && with_version.labels;
+            let fit = if show_version {
+                with_version
+            } else {
+                topbar_fit(
+                    search_room,
+                    controls,
+                    badges(true, false),
+                    badges(false, false),
+                )
+            };
             let search_width = fit.search;
             // On the Settings page the box can search the settings instead.
             if matches!(app.page(), Page::Settings) && app.settings.settings_search_in_topbar {
@@ -646,6 +684,17 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     .clicked()
                 {
                     app.actions.push(Action::ShowUpdate);
+                }
+                if let Some(galley) = version_galley
+                    && show_version
+                {
+                    let text = galley.text().to_owned();
+                    let (rect, response) =
+                        ui.allocate_exact_size(galley.size(), egui::Sense::hover());
+                    response.widget_info(|| {
+                        egui::WidgetInfo::labeled(egui::WidgetType::Label, true, &text)
+                    });
+                    ui.painter().galley(rect.min, galley, palette.dim);
                 }
             });
         },

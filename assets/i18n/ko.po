@@ -3874,3 +3874,12 @@ msgstr "표시되는 항목만"
 #: src/ui/playlist_map.rs:902
 msgid "Scroll to zoom, drag to move, double-click to switch between everything and the focus. Click to open; drop songs on a playlist to add them."
 msgstr "스크롤하여 확대/축소, 드래그하여 이동, 두 번 클릭하여 전체와 초점 사이를 전환. 클릭하여 열고, 노래를 플레이리스트에 놓으면 추가됩니다."
+
+#. Translators: A setting: with Spotifast's own title bar, show the app's version in the top bar.
+#: src/ui/settings.rs:1195
+msgid "Show version"
+msgstr "버전 표시"
+
+#: src/ui/settings.rs:1339
+msgid "With the custom title bar, show Spotifast's version and this fork's beside the update button."
+msgstr "사용자 지정 제목 표시줄에서 업데이트 버튼 옆에 Spotifast와 이 포크의 버전을 표시합니다."

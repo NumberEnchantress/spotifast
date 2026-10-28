@@ -3835,3 +3835,12 @@ msgstr "仅筛选结果"
 #: src/ui/playlist_map.rs:902
 msgid "Scroll to zoom, drag to move, double-click to switch between everything and the focus. Click to open; drop songs on a playlist to add them."
 msgstr "滚动以缩放，拖动以移动，双击在全部与焦点之间切换。点击以打开；将歌曲拖到歌单上即可添加。"
+
+#. Translators: A setting: with Spotifast's own title bar, show the app's version in the top bar.
+#: src/ui/settings.rs:1195
+msgid "Show version"
+msgstr "显示版本"
+
+#: src/ui/settings.rs:1339
+msgid "With the custom title bar, show Spotifast's version and this fork's beside the update button."
+msgstr "使用自定义标题栏时，在更新按钮旁显示 Spotifast 及此分支的版本。"

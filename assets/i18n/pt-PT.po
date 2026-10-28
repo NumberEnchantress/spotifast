@@ -3967,3 +3967,12 @@ msgstr "Só o que mostram"
 #: src/ui/playlist_map.rs:902
 msgid "Scroll to zoom, drag to move, double-click to switch between everything and the focus. Click to open; drop songs on a playlist to add them."
 msgstr "Desloque para fazer zoom, arraste para mover, faça duplo clique para alternar entre tudo e o foco. Clique para abrir; largue músicas numa playlist para as adicionar."
+
+#. Translators: A setting: with Spotifast's own title bar, show the app's version in the top bar.
+#: src/ui/settings.rs:1195
+msgid "Show version"
+msgstr "Mostrar versão"
+
+#: src/ui/settings.rs:1339
+msgid "With the custom title bar, show Spotifast's version and this fork's beside the update button."
+msgstr "Com a barra de título personalizada, mostra a versão do Spotifast e a deste fork ao lado do botão de atualização."

@@ -1141,6 +1141,11 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
                 app.rootlist = rootlist;
                 app.library.playlists = Loadable::Loaded(playlists);
             }
+            "show-version" => {
+                app.demo_windows_controls = true;
+                app.settings.custom_titlebar = true;
+                app.settings.show_version = true;
+            }
             "map-folder" => {
                 app.settings.home.playlist_map = true;
                 app.library_folder = Some("f1".into());
@@ -6950,6 +6955,43 @@ mod tests {
             assert_eq!(app.library_folder, None);
             app.backend.shutdown();
         }
+    }
+
+    /// Show version, ticked in Settings, puts Spotifast's version and this
+    /// fork's in the top bar of the borderless window, beside the update
+    /// badge; with the desktop's own title bar, which has the title, it
+    /// does not.
+    #[test]
+    fn show_version_puts_the_versions_in_the_borderless_top_bar() {
+        use egui::accesskit::{Action as Do, Role};
+        let (ctx, mut app) = accessible_app("show-version");
+        app.demo_windows_controls = true;
+        app.settings.custom_titlebar = true;
+        let versions = format!(
+            "{} \u{b7} {}",
+            env!("CARGO_PKG_VERSION"),
+            crate::app::FORK_VERSION
+        );
+        let bar = |app: &mut App| {
+            view_frame(&ctx, app, vec![], crate::ui::topbar::show)
+                .iter()
+                .any(|(text, _)| *text == versions)
+        };
+        assert!(!bar(&mut app), "off by default");
+        app.open(Page::Settings);
+        accessible_frame(&ctx, &mut app, vec![]);
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        let switch = accessible_node(&tree, "Show version", Role::CheckBox);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![accessible_action(switch, Do::Click, None)],
+        );
+        assert!(app.settings.show_version);
+        assert!(bar(&mut app), "the versions are in the bar");
+        app.settings.custom_titlebar = false;
+        assert!(!bar(&mut app), "the desktop's title bar has them already");
+        app.backend.shutdown();
     }
 
     /// A large library, hundreds of playlists in folders with every kind
