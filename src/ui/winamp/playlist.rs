@@ -291,7 +291,7 @@ fn rows(app: &App, now: Option<&NowPlaying>) -> (Vec<Row>, Vec<String>) {
         let (album_id, artist_id) = ids(item);
         rows.push(Row {
             uri: item.uri().to_string(),
-            label: label(1, &item.subtitle(), item.name()),
+            label: label(1, &item.shown_subtitle(), &item.shown_name()),
             duration_ms: item.duration_ms(),
             current: true,
             queued: None,
@@ -320,7 +320,7 @@ fn rows(app: &App, now: Option<&NowPlaying>) -> (Vec<Row>, Vec<String>) {
         let (album_id, artist_id) = ids(item);
         rows.push(Row {
             uri: item.uri().to_string(),
-            label: label(rows.len() + 1, &item.subtitle(), item.name()),
+            label: label(rows.len() + 1, &item.shown_subtitle(), &item.shown_name()),
             duration_ms: item.duration_ms(),
             current: false,
             queued: Some(index),
@@ -759,7 +759,7 @@ fn list_menu(app: &mut App, ui: &mut egui::Ui, rows: &[Row], queue_uris: &[Strin
         .map(|playlists| {
             playlists
                 .iter()
-                .map(|playlist| (playlist.name.clone(), playlist.uri.clone()))
+                .map(|playlist| (playlist.shown_name().into_owned(), playlist.uri.clone()))
                 .collect()
         })
         .unwrap_or_default();
@@ -868,7 +868,7 @@ mod tests {
             },
         );
         crate::demo::populate(&mut app);
-        let now = app.now_playing();
+        let now = app.now_playing_shown();
         app.local_ready = true;
         app.local.track = Some(crate::player::LocalTrack {
             uri: now.as_ref().unwrap().uri.clone(),

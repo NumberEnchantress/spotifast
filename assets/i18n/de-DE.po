@@ -4045,3 +4045,189 @@ msgstr "Alle von Spotifast behaltenen Wiedergaben werden gelöscht, samt der Hö
 #: src/demo.rs:2997
 msgid "Show as"
 msgstr "Anzeigen als"
+
+#: src/ui/settings.rs:2421
+msgid "Vacuum"
+msgstr "Vacuum"
+
+#. Translators: Vacuum's main switch.
+#: src/ui/settings.rs:2423
+msgid "Listen in a vacuum"
+msgstr "Im Vakuum hören"
+
+#: src/ui/settings.rs:2424
+msgid "Hide artist descriptions"
+msgstr "Künstlerbeschreibungen ausblenden"
+
+#: src/ui/settings.rs:2425
+msgid "Hide playlist descriptions"
+msgstr "Playlist-Beschreibungen ausblenden"
+
+#: src/ui/settings.rs:2426
+msgid "Show titles of Spotify's theme playlists"
+msgstr "Titel von Spotifys Themen-Playlists zeigen"
+
+#: src/ui/settings.rs:2427
+msgid "Replace my own name and picture"
+msgstr "Meinen eigenen Namen und mein Bild ersetzen"
+
+#: src/ui/settings.rs:2428
+msgid "Replace my own playlists"
+msgstr "Meine eigenen Playlists ersetzen"
+
+#: src/ui/settings.rs:2429
+msgid "Hide pages about a person or popularity"
+msgstr "Seiten über eine Person oder Beliebtheit ausblenden"
+
+#: src/ui/settings.rs:2430
+msgid "Pictures"
+msgstr "Bilder"
+
+#: src/session_reads.rs:3005
+msgid "Seed"
+msgstr "Seed"
+
+#: src/ui/settings.rs:2437
+msgid "Every song, album, artist, playlist and person gets a stand-in name and picture, the same everywhere, and what centres on people and popularity is hidden. Alt+Shift+D switches it."
+msgstr "Jeder Song, jedes Album, jeder Künstler, jede Playlist und jede Person bekommt einen Ersatznamen und ein Ersatzbild, überall gleich, und was sich um Personen und Beliebtheit dreht, wird ausgeblendet. Alt+Umschalt+D schaltet es um."
+
+#: src/ui/settings.rs:2444
+msgid "Artist biographies show ???. Off, they show with the names Vacuum knows swapped."
+msgstr "Künstlerbiografien zeigen ???. Aus: Sie erscheinen mit den Namen, die Vacuum kennt, ersetzt."
+
+#: src/ui/settings.rs:2451
+msgid "Playlist and podcast descriptions show ???. Off, they show with the names Vacuum knows swapped."
+msgstr "Playlist- und Podcastbeschreibungen zeigen ???. Aus: Sie erscheinen mit den Namen, die Vacuum kennt, ersetzt."
+
+#: src/ui/settings.rs:2458
+msgid "Spotify's own playlists about a mood, genre or activity keep their real titles."
+msgstr "Spotifys eigene Playlists zu einer Stimmung, einem Genre oder einer Aktivität behalten ihre echten Titel."
+
+#: src/ui/settings.rs:2463
+msgid "Off, your own name and picture stay as they are."
+msgstr "Aus: Dein eigener Name und dein Bild bleiben, wie sie sind."
+
+#: src/ui/settings.rs:2469
+msgid "Off, your own playlists keep their titles, descriptions and the covers you gave them."
+msgstr "Aus: Deine eigenen Playlists behalten ihre Titel, Beschreibungen und die Cover, die du ihnen gegeben hast."
+
+#: src/ui/settings.rs:2476
+msgid "Playlists about one artist or a chart, your top songs and radio stations show a notice, with Show anyway."
+msgstr "Playlists über einen Künstler oder eine Hitliste, deine Top-Songs und Radiosender zeigen einen Hinweis mit „Trotzdem zeigen“."
+
+#: src/ui/settings.rs:2483
+msgid "Public-domain artworks from The Met, the Art Institute of Chicago and the Cleveland Museum of Art, shapes drawn offline, or a list of picture addresses of your own."
+msgstr "Gemeinfreie Kunstwerke aus dem Met, dem Art Institute of Chicago und dem Cleveland Museum of Art, offline gezeichnete Formen oder eine eigene Liste von Bildadressen."
+
+#: src/ui/settings.rs:2490
+msgid "Stand-ins come from a seed. Everyone shares one by default, so the same name has the same stand-in for everyone, here and in the Unfamiliar Sounds extension."
+msgstr "Ersatznamen entstehen aus einem Seed. Standardmäßig teilen ihn alle, also hat derselbe Name für alle denselben Ersatz, hier und in der Erweiterung Unfamiliar Sounds."
+
+#: src/ui/settings.rs:2527
+msgid "Museums"
+msgstr "Museen"
+
+#. Translators: Vacuum's pictures: shapes and rings drawn from each name.
+#: src/ui/settings.rs:2529
+msgid "Shapes"
+msgstr "Formen"
+
+#: src/ui/settings.rs:2530
+msgid "My list"
+msgstr "Meine Liste"
+
+#. Translators: {count} is how many picture addresses the list of your own holds.
+#: src/ui/settings.rs:2545
+#, rust-format
+msgid "{count} pictures"
+msgstr "{count} Bilder"
+
+#. Translators: {count} is how many picture addresses a list held.
+#: src/app.rs:2590
+#, rust-format
+msgid "{count} pictures loaded"
+msgstr "{count} Bilder geladen"
+
+#: src/ui/settings.rs:2554
+msgid "Load a list…"
+msgstr "Liste laden…"
+
+#: src/app.rs:2596
+msgid "Could not read that list of pictures"
+msgstr "Diese Bilderliste konnte nicht gelesen werden"
+
+#: src/ui/settings.rs:2573
+msgid "Using the shared seed"
+msgstr "Gemeinsamer Seed in Verwendung"
+
+#: src/ui/settings.rs:2587
+msgid "Using your own seed"
+msgstr "Eigener Seed in Verwendung"
+
+#: src/ui/settings.rs:2594
+msgid "Hide"
+msgstr "Ausblenden"
+
+#: src/ui/settings.rs:2596
+msgid "Show"
+msgstr "Zeigen"
+
+#: src/ui/settings.rs:2616
+msgid "Save…"
+msgstr "Speichern…"
+
+#: src/ui/settings.rs:2627
+msgid "Use the shared seed"
+msgstr "Gemeinsamen Seed verwenden"
+
+#: src/ui/settings.rs:2646
+msgid "A seed of your own, 8 to 500 characters"
+msgstr "Ein eigener Seed, 8 bis 500 Zeichen"
+
+#: src/ui/settings.rs:2660
+msgid "Use this seed"
+msgstr "Diesen Seed verwenden"
+
+#: src/app.rs:2598
+msgid "Seed saved"
+msgstr "Seed gespeichert"
+
+#: src/app.rs:2601
+msgid "Could not save the seed"
+msgstr "Der Seed konnte nicht gespeichert werden"
+
+#: src/app.rs:12258
+msgid "Vacuum is on"
+msgstr "Vacuum ist an"
+
+#: src/app.rs:12260
+msgid "Vacuum is off"
+msgstr "Vacuum ist aus"
+
+#: src/ui/topbar.rs:600
+msgid "Vacuum is on (Alt+Shift+D)"
+msgstr "Vacuum ist an (Alt+Umschalt+D)"
+
+#: src/ui/topbar.rs:602
+msgid "Vacuum is off (Alt+Shift+D)"
+msgstr "Vacuum ist aus (Alt+Umschalt+D)"
+
+#: src/ui/keys.rs:263
+msgid "Vacuum on or off"
+msgstr "Vacuum an oder aus"
+
+#: src/ui/friends.rs:99
+msgid "Hidden by Vacuum"
+msgstr "Von Vacuum ausgeblendet"
+
+#: src/ui/friends.rs:102
+msgid "What your friends play stays out of sight while Vacuum is on."
+msgstr "Was deine Freunde hören, bleibt verborgen, solange Vacuum an ist."
+
+#: src/ui/mod.rs:382
+msgid "This page is about a person, or about what is popular."
+msgstr "Diese Seite dreht sich um eine Person oder um das, was beliebt ist."
+
+#: src/demo.rs:2264
+msgid "Show anyway"
+msgstr "Trotzdem zeigen"

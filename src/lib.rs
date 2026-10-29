@@ -61,6 +61,7 @@ pub mod thumbbar;
 pub mod ui;
 pub mod updates;
 pub mod util;
+pub mod vacuum;
 pub mod vis;
 pub mod winamp;
 pub mod window;

@@ -489,6 +489,25 @@ pub struct App {
     pub home: HomeData,
     /// Local play history. See [`crate::history`].
     pub plays: crate::history::History,
+    /// What Vacuum's gate was last built from, to build it again only when
+    /// that changes. See [`crate::vacuum`].
+    vacuum_built: Option<u64>,
+    /// Vacuum's verdicts on playlists, by ID. Person and popularity
+    /// verdicts stick. See [`crate::vacuum::collections`].
+    pub vacuum_verdicts: HashMap<String, crate::vacuum::collections::Verdict>,
+    /// Pages about a person or popularity shown anyway, until restart.
+    pub vacuum_shown_anyway: HashSet<String>,
+    /// The seed whose learnt stand-ins were read from disk.
+    vacuum_names_loaded: Option<String>,
+    /// The seed's derivation, kept with its cache across rebuilds.
+    vacuum_deriver: Option<(String, std::sync::Arc<crate::vacuum::Deriver>)>,
+    /// What the gate was last told your own playlists from.
+    vacuum_own_key: Option<(usize, u64, Option<String>)>,
+    /// What the gate learnt before Vacuum was last switched off.
+    vacuum_learnt: Option<(String, Vec<(String, String)>)>,
+    /// Playlists Vacuum has judged, with how many rows it saw then, so a
+    /// playlist is judged again only when its page shows more.
+    vacuum_judged: HashMap<String, usize>,
     /// Writes settings, session and history off the UI thread.
     files: fastframe_file::Writer,
     /// Current track timing used to decide when a play counts.
@@ -1187,6 +1206,14 @@ impl App {
             liked_recheck_at: None,
             home: HomeData::default(),
             plays,
+            vacuum_built: None,
+            vacuum_verdicts: HashMap::new(),
+            vacuum_shown_anyway: HashSet::new(),
+            vacuum_judged: HashMap::new(),
+            vacuum_names_loaded: None,
+            vacuum_deriver: None,
+            vacuum_own_key: None,
+            vacuum_learnt: None,
             files: fastframe_file::Writer::new(),
             listening: None,
             recents: crate::model::CursorList::default(),
@@ -1963,6 +1990,49 @@ impl App {
         }))
     }
 
+    /// What is playing as the screen and the system may show it: through
+    /// Vacuum's gate when it is on. Its URIs and timings are the real ones;
+    /// only names and pictures differ. Logic keeps [`Self::now_playing`].
+    pub fn now_playing_shown(&self) -> Option<NowPlaying> {
+        let mut now = self.now_playing()?;
+        if !crate::vacuum::gate::on() {
+            return Some(now);
+        }
+        use crate::vacuum::gate::{self, ArtKind};
+        let real_title = now.title.clone();
+        if now.is_episode {
+            now.title = gate::show(&now.title).into_owned();
+            now.subtitle = gate::show(&now.subtitle).into_owned();
+            now.album_name = gate::show(&now.album_name).into_owned();
+        } else {
+            now.title = gate::song(&now.title).into_owned();
+            for artist in &mut now.artists {
+                artist.name = gate::artist(&artist.name).into_owned();
+            }
+            now.subtitle = crate::api::models::join_names(
+                now.artists.iter().map(|artist| artist.name.as_str()),
+            );
+            now.album_name = gate::album(&now.album_name).into_owned();
+        }
+        let (kind, id) = if now.is_episode {
+            (
+                ArtKind::Show,
+                now.show_id.clone().or_else(|| now.id.clone()),
+            )
+        } else if now.album_id.as_deref().is_some_and(|id| !id.is_empty()) {
+            (ArtKind::Album, now.album_id.clone())
+        } else {
+            (ArtKind::Track, now.id.clone())
+        };
+        let shown =
+            |url: &Option<String>| gate::art(kind, id.as_deref(), &real_title, url.as_deref());
+        // One picture for both sizes, so the bar and the big view agree.
+        let picture = shown(&now.art_url).or_else(|| shown(&now.art_small));
+        now.art_url = picture.clone();
+        now.art_small = picture;
+        Some(now)
+    }
+
     pub fn now_playing(&self) -> Option<NowPlaying> {
         if let Some(now) = &self.frame_now {
             return Some(now.clone());
@@ -2284,7 +2354,8 @@ impl App {
 
     /// The colour to tint the interface with, from the playing art.
     pub fn now_playing_tint(&self) -> Option<Color32> {
-        if !self.settings.accent_from_art {
+        // Vacuum: a colour read from the real cover would tell of it.
+        if !self.settings.accent_from_art || crate::vacuum::gate::on() {
             return None;
         }
         let now = self.now_playing()?;
@@ -2294,7 +2365,7 @@ impl App {
 
     /// The playing art's colours, the accent first, for the visualizer.
     pub fn now_playing_palette(&self) -> Option<&[[u8; 3]]> {
-        if !self.settings.accent_from_art {
+        if !self.settings.accent_from_art || crate::vacuum::gate::on() {
             return None;
         }
         let now = self.now_playing()?;
@@ -2303,6 +2374,10 @@ impl App {
     }
 
     pub fn tint_for(&mut self, url: Option<&str>) -> Option<Color32> {
+        // Vacuum: no real cover is fetched or read for its colours.
+        if crate::vacuum::gate::on() {
+            return None;
+        }
         let url = url?;
         if let Some(color) = self.accents.get(url) {
             return Some(*color);
@@ -2521,6 +2596,24 @@ impl App {
                 }
                 Event::LocalFilesCopied(copied) => self.local_files_copied(copied),
                 Event::LocalFilesFolderChosen(None) => {}
+                Event::VacuumPicturesChosen(Ok(count)) => {
+                    // Built again with the new list.
+                    self.vacuum_built = None;
+                    self.toast(
+                        // Translators: {count} is how many picture addresses a list held.
+                        gettext(self.locale, "{count} pictures loaded")
+                            .replace("{count}", &count.to_string()),
+                    );
+                }
+                Event::VacuumPicturesChosen(Err(error)) => {
+                    log::warn!("could not read the list of pictures: {error}");
+                    self.toast_error(gettext(self.locale, "Could not read that list of pictures"));
+                }
+                Event::VacuumSeedSaved(Ok(())) => self.toast(gettext(self.locale, "Seed saved")),
+                Event::VacuumSeedSaved(Err(error)) => {
+                    log::warn!("could not save the seed: {error}");
+                    self.toast_error(gettext(self.locale, "Could not save the seed"));
+                }
                 Event::SpotifyEqPresets(result) => self.spotify_eq_presets_read(result),
                 // A palette this fork ships was put in the themes folder.
                 Event::ForkThemesInstalled(true) => self.actions.push(Action::ReloadThemes),
@@ -3526,6 +3619,11 @@ impl App {
             return Some(PlayingFrom {
                 name: self
                     .station_name(&context)
+                    .map(|name| {
+                        let seed = util::station_seed(&context).unwrap_or_default();
+                        let id = seed.rsplit(':').next().unwrap_or_default().to_owned();
+                        crate::vacuum::gate::playlist(&id, None, &name).into_owned()
+                    })
                     .unwrap_or_else(|| gettext(self.locale, "Radio").into_owned()),
                 page: util::station_seed(&context).map(Page::Radio),
             });
@@ -3536,12 +3634,12 @@ impl App {
             "playlist" => {
                 let name = self
                     .library_entry(&id)
-                    .map(|playlist| playlist.name.clone())
+                    .map(|playlist| playlist.shown_name().into_owned())
                     .or_else(|| {
                         self.playlist_pages
                             .get(&id)
                             .and_then(|page| page.playlist.get())
-                            .map(|playlist| playlist.name.clone())
+                            .map(|playlist| playlist.shown_name().into_owned())
                     });
                 (
                     name.unwrap_or_else(|| gettext(self.locale, "Playlist").into_owned()),
@@ -3553,11 +3651,11 @@ impl App {
                     .album_pages
                     .get(&id)
                     .and_then(|page| page.album.get())
-                    .map(|album| album.name.clone())
+                    .map(|album| album.shown_name().into_owned())
                     .or_else(|| {
                         self.now_playing()
                             .filter(|now| now.album_id.as_deref() == Some(id.as_str()))
-                            .map(|now| now.album_name)
+                            .map(|now| crate::vacuum::gate::album(&now.album_name).into_owned())
                     });
                 (
                     name.unwrap_or_else(|| gettext(self.locale, "Album").into_owned()),
@@ -3569,13 +3667,15 @@ impl App {
                     .artist_pages
                     .get(&id)
                     .and_then(|page| page.artist.get())
-                    .map(|artist| artist.name.clone())
+                    .map(|artist| artist.shown_name().into_owned())
                     .or_else(|| {
                         self.now_playing().and_then(|now| {
                             now.artists
                                 .into_iter()
                                 .find(|artist| artist.id.as_deref() == Some(id.as_str()))
-                                .map(|artist| artist.name)
+                                .map(|artist| {
+                                    crate::vacuum::gate::artist(&artist.name).into_owned()
+                                })
                         })
                     });
                 (
@@ -3588,14 +3688,14 @@ impl App {
                     .show_pages
                     .get(&id)
                     .and_then(|page| page.show.get())
-                    .map(|show| show.name.clone())
+                    .map(|show| show.shown_name().into_owned())
                     .or_else(|| {
                         self.library
                             .shows
                             .items
                             .iter()
                             .find(|saved| saved.show.id == id)
-                            .map(|saved| saved.show.name.clone())
+                            .map(|saved| saved.show.shown_name().into_owned())
                     });
                 (
                     name.unwrap_or_else(|| gettext(self.locale, "Podcast").into_owned()),
@@ -4160,14 +4260,17 @@ impl App {
         let seconds = self.settings.milkdrop_seconds;
         let scale = self.settings.milkdrop_scale.max(1);
         // Track metadata shown when the song changes.
-        let song = self.now_playing().filter(|now| !now.resuming).map(|now| {
-            // Title, artist, and album.
-            vec![
-                now.title.clone(),
-                now.subtitle.clone(),
-                now.album_name.clone(),
-            ]
-        });
+        let song = self
+            .now_playing_shown()
+            .filter(|now| !now.resuming)
+            .map(|now| {
+                // Title, artist, and album.
+                vec![
+                    now.title.clone(),
+                    now.subtitle.clone(),
+                    now.album_name.clone(),
+                ]
+            });
         if self.milkdrop_host.is_none() {
             let tap = std::sync::Arc::clone(&self.winamp.tap);
             self.milkdrop_host = Some(crate::milkdrop::host::Host::new(tap));
@@ -4787,10 +4890,20 @@ impl App {
 
     fn sync_media_controls(&mut self, ctx: &egui::Context) {
         let art_file = self
-            .now_playing()
+            .now_playing_shown()
             .and_then(|now| now.art_url)
             .and_then(|url| self.media_art_file(ctx, &url));
-        let state = match self.now_playing() {
+        let state = self.media_state(art_file);
+        if let Some(controls) = &mut self.media_controls {
+            controls.update(state);
+        }
+        self.sync_tray_playing();
+    }
+
+    /// What the system's media controls are told: what is playing as the
+    /// screen may show it, so Vacuum's stand-ins reach them too.
+    pub(crate) fn media_state(&self, art_file: Option<PathBuf>) -> MediaState {
+        match self.now_playing_shown() {
             Some(now) => MediaState {
                 // Still loading reads as paused: Play resumes it.
                 playback: if now.playing {
@@ -4809,10 +4922,10 @@ impl App {
                     album: now.album_name.clone(),
                     duration: Some(Duration::from_millis(u64::from(now.duration_ms))),
                     art_file,
-                    art_url: now
-                        .art_url
-                        .clone()
-                        .filter(|url| !url.starts_with(crate::local_tags::ART_SCHEME)),
+                    art_url: now.art_url.clone().filter(|url| {
+                        !url.starts_with(crate::local_tags::ART_SCHEME)
+                            && !crate::vacuum::gate::is_vacuum_art(url)
+                    }),
                     url: Some(now.uri.clone()),
                     ..MediaTrack::default()
                 }),
@@ -4832,10 +4945,10 @@ impl App {
                 repeat: Some(MediaRepeat::Off),
                 ..MediaState::default()
             },
-        };
-        if let Some(controls) = &mut self.media_controls {
-            controls.update(state);
         }
+    }
+
+    fn sync_tray_playing(&mut self) {
         let playing = self.now_playing().is_some_and(|now| now.playing);
         if let Some(tray) = &mut self.tray
             && self.tray_playing != playing
@@ -4871,8 +4984,8 @@ impl App {
     /// not: something to draw, whether the heart is filled, and where the
     /// sound is coming out. They are appended rather than woven in, so a
     /// script written against the older nine fields still reads correctly.
-    fn control_snapshot(&self) -> String {
-        let Some(now) = self.now_playing() else {
+    pub(crate) fn control_snapshot(&self) -> String {
+        let Some(now) = self.now_playing_shown() else {
             return crate::single_instance::NOTHING_PLAYING.to_owned();
         };
         let state = if now.playing { "playing" } else { "paused" };
@@ -6730,6 +6843,11 @@ impl App {
     }
 
     fn run_search(&mut self, query: String) {
+        // Vacuum: a stand-in finds the real thing it stands for. What is
+        // asked is the real query; what is shown and kept in the history
+        // is what was typed.
+        self.search.typed = query.trim().to_string();
+        let query = crate::vacuum::gate::real_query(&query);
         if !query.is_empty()
             && query == self.search.committed
             && !self.search.results.needs_load()
@@ -7869,7 +7987,7 @@ impl App {
                         self.toast(
                             // Translators: {name} is a playlist name.
                             gettext(self.locale, "Created {name}")
-                                .replace("{name}", &playlist.name),
+                                .replace("{name}", &playlist.shown_name()),
                         );
                         let settled_by = self.library.playlists_generation + 1;
                         self.edit_playlists(PlaylistEdit {
@@ -7884,7 +8002,7 @@ impl App {
                         {
                             self.backend.api(ApiRequest::AddToPlaylist {
                                 playlist_id: playlist.id.clone(),
-                                playlist_name: playlist.name.clone(),
+                                playlist_name: playlist.shown_name().into_owned(),
                                 uris: add_uris,
                                 position: None,
                             });
@@ -8372,7 +8490,8 @@ impl App {
                     Ok(page) => {
                         self.search.playlists = Some((serial, page));
                         self.show_search_playlists();
-                        self.remember_search(&query);
+                        let typed = self.search.typed.clone();
+                        self.remember_search(&typed);
                     }
                     Err(error) => self.search_failed(&gettext(self.locale, "Playlists"), error),
                 }
@@ -8395,7 +8514,8 @@ impl App {
                             .map(|track| track.uri.clone())
                             .collect();
                         self.request_contains(uris);
-                        self.remember_search(&query);
+                        let typed = self.search.typed.clone();
+                        self.remember_search(&typed);
                         self.search.results = Loadable::Loaded(results);
                         self.search.results_serial = serial;
                         self.show_search_playlists();
@@ -10166,7 +10286,10 @@ impl App {
             request,
         });
         // Translators: {name} is an album name.
-        self.toast(gettext(self.locale, "Loading {name} to queue…").replace("{name}", &label));
+        self.toast(
+            gettext(self.locale, "Loading {name} to queue…")
+                .replace("{name}", &crate::vacuum::gate::name(&label)),
+        );
     }
 
     fn receive_album_queue(
@@ -10202,7 +10325,7 @@ impl App {
                 self.toast_error(
                     // Translators: {name} is an album name and {error} is an error message.
                     gettext(self.locale, "Couldn't add {name} to queue: {error}")
-                        .replace("{name}", &pending.label)
+                        .replace("{name}", &crate::vacuum::gate::name(&pending.label))
                         .replace("{error}", &error.to_string()),
                 );
                 return;
@@ -10273,7 +10396,7 @@ impl App {
                 count as u32,
             )
             .replace("{count}", &count.to_string())
-            .replace("{name}", &label),
+            .replace("{name}", &crate::vacuum::gate::name(&label)),
         );
         if self.local.is_active() && self.target() == Target::Local {
             for uri in uris {
@@ -10356,7 +10479,10 @@ impl App {
         self.show_queued_song(&uri, &label);
         if announce {
             // Translators: {name} is a song, episode, album, or playlist name.
-            self.toast(gettext(self.locale, "{name} added to queue").replace("{name}", &label));
+            self.toast(
+                gettext(self.locale, "{name} added to queue")
+                    .replace("{name}", &crate::vacuum::gate::name(&label)),
+            );
         }
         // Queue tracks, episodes and local files directly on the active
         // local engine. Other targets and item types use the Web API.
@@ -10797,6 +10923,11 @@ impl App {
     /// The cover for `item` drawn about `pixels` wide: Spotify's, or for a
     /// local file the one in the file.
     pub fn item_image(&self, item: &PlayableItem, pixels: u32) -> Option<String> {
+        // Vacuum: a local file's own cover is a real one, so it too gives
+        // way to the stand-in's picture.
+        if crate::vacuum::gate::on() {
+            return item.shown_image(pixels);
+        }
         item.image(pixels)
             .map(str::to_string)
             .or_else(|| self.local_art(item.uri()))
@@ -11034,7 +11165,7 @@ impl App {
             .get(&playlist_id)
             .and_then(|page| page.playlist.get())
             .filter(|playlist| self.can_edit_playlist(playlist))
-            .map(|playlist| playlist.name.clone())
+            .map(|playlist| playlist.shown_name().into_owned())
         else {
             return;
         };
@@ -11162,7 +11293,7 @@ impl App {
 
     // ---- actions -----------------------------------------------------------------
 
-    fn apply_actions(&mut self, ctx: &egui::Context) {
+    pub(crate) fn apply_actions(&mut self, ctx: &egui::Context) {
         for cover in self.uploaded_covers.values() {
             ctx.include_bytes(cover.cover.uri.clone(), cover.cover.jpeg.clone());
         }
@@ -11883,9 +12014,9 @@ impl App {
             }
             Action::Search(query) => {
                 // Enter submits what was typed; a recent search or a link
-                // starts afresh.
+                // starts afresh. Vacuum: the field shows the stand-in.
                 let typed = query == self.search.query;
-                self.search.query = query.clone();
+                self.search.query = crate::vacuum::gate::name(&query).into_owned();
                 self.search.typed_at = None;
                 self.open(Page::Search);
                 if typed {
@@ -12142,6 +12273,18 @@ impl App {
             Action::SetMapLayout(layout) => {
                 self.settings.home.map_layout = layout;
                 self.mark_settings_dirty();
+            }
+            Action::VacuumShowAnyway(page) => {
+                self.vacuum_shown_anyway.insert(page);
+            }
+            Action::SetVacuum(on) => {
+                self.settings.vacuum.on = on;
+                self.mark_settings_dirty();
+                self.toast(if on {
+                    gettext(self.locale, "Vacuum is on")
+                } else {
+                    gettext(self.locale, "Vacuum is off")
+                });
             }
             Action::SetMapListening(listening) => {
                 self.settings.home.map_listening = listening;
@@ -12970,7 +13113,7 @@ impl App {
                 playlists
                     .iter()
                     .filter(|playlist| self.can_edit_playlist(playlist))
-                    .map(|playlist| (playlist.id.clone(), playlist.name.clone()))
+                    .map(|playlist| (playlist.id.clone(), playlist.shown_name().into_owned()))
                     .collect()
             })
             .unwrap_or_default()
@@ -13001,6 +13144,7 @@ impl App {
         #[cfg(feature = "milkdrop")]
         self.sync_milkdrop(ctx);
         self.apply_actions(ctx);
+        self.sync_vacuum(ctx);
         self.sync_media_controls(ctx);
         self.sync_window_title(ctx);
         self.remember_geometry(ctx);
@@ -13183,6 +13327,409 @@ impl App {
         }
     }
 
+    /// Builds Vacuum's gate again when its settings, the account or what is
+    /// known about playlists changed, and puts it in charge of drawing; or,
+    /// switched off, lets everything be real again at once.
+    pub fn sync_vacuum(&mut self, ctx: &egui::Context) {
+        use std::hash::{Hash, Hasher};
+        // Off, nothing is worked out: the gate is let go once, and every
+        // later frame costs one comparison.
+        if !self.settings.vacuum.on {
+            if self.vacuum_built != Some(VACUUM_OFF) {
+                self.vacuum_built = Some(VACUUM_OFF);
+                self.save_vacuum_names();
+                self.vacuum_learnt = crate::vacuum::gate::current()
+                    .map(|gate| (gate.seed_id.clone(), gate.learnt()));
+                // The search box shows what was typed, real again.
+                if let Some(real) = crate::vacuum::gate::current()
+                    .and_then(|gate| gate.real_for(&self.search.query))
+                {
+                    self.search.query = real;
+                }
+                crate::vacuum::gate::set(None);
+                crate::vacuum::gate::set_probe(None);
+                crate::vacuum::art::configure(None);
+                self.vacuum_names_loaded = None;
+                self.vacuum_own_key = None;
+                ctx.request_repaint();
+            }
+            return;
+        }
+        // The gate is built again only when its settings or the account
+        // change. What is learnt as the library loads (your own playlists,
+        // verdicts) is brought up to date in place.
+        let settings = &self.settings.vacuum;
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        format!("{settings:?}").hash(&mut hasher);
+        self.user
+            .as_ref()
+            .map(|user| (&user.id, &user.display_name))
+            .hash(&mut hasher);
+        // Never the off marker, which would leave the gate unbuilt.
+        let fingerprint = hasher.finish().max(1);
+        if self.vacuum_built != Some(fingerprint) {
+            self.vacuum_built = Some(fingerprint);
+            self.vacuum_own_key = None;
+            self.build_vacuum(ctx);
+        }
+        self.vacuum_sync_own();
+        self.vacuum_judge();
+    }
+
+    fn build_vacuum(&mut self, ctx: &egui::Context) {
+        let settings = &self.settings.vacuum;
+        let seed = crate::vacuum::Seed::from_setting(settings.seed.as_deref());
+        let seed_id = seed.id.clone();
+        // A seed's derivation, and its cache, is kept across rebuilds.
+        let deriver = match &self.vacuum_deriver {
+            Some((id, deriver)) if *id == seed_id => deriver.clone(),
+            _ => {
+                let deriver = std::sync::Arc::new(crate::vacuum::deriver(&seed));
+                self.vacuum_deriver = Some((seed_id.clone(), deriver.clone()));
+                deriver
+            }
+        };
+        let gate = crate::vacuum::gate::Gate::new(
+            crate::vacuum::gate::Level::Disguised,
+            deriver.clone(),
+            seed_id.clone(),
+            settings.options(),
+            crate::vacuum::gate::Own {
+                user_id: self.user_id().map(str::to_owned),
+                user_name: self
+                    .user
+                    .as_ref()
+                    .and_then(|user| user.display_name.clone()),
+                playlists: HashSet::new(),
+            },
+        );
+        for (id, verdict) in &self.vacuum_verdicts {
+            gate.set_verdict(id, *verdict);
+        }
+        let pictures = settings.pictures;
+        let was_on = crate::vacuum::gate::on();
+        crate::vacuum::gate::set(Some(gate));
+        self.vacuum_sync_own();
+        // Stand-ins learnt in earlier runs find their real things in search:
+        // from memory when Vacuum was on earlier in this run, else the file.
+        if self.vacuum_names_loaded.as_deref() != Some(seed_id.as_str()) {
+            self.vacuum_names_loaded = Some(seed_id.clone());
+            let read = match self.vacuum_learnt.take() {
+                Some((id, learnt)) if id == seed_id => learnt,
+                _ => std::fs::read_to_string(self.vacuum_names_file(&seed_id))
+                    .ok()
+                    .and_then(|text| serde_json::from_str::<Vec<(String, String)>>(&text).ok())
+                    .unwrap_or_default(),
+            };
+            if let Some(gate) = crate::vacuum::gate::current() {
+                gate.learn(read);
+            }
+        }
+        // Every name already loaded is learnt at once, so text that holds
+        // one (a search typed before, a toast) shows its stand-in from the
+        // first frame.
+        self.vacuum_learn_loaded();
+        if !was_on {
+            self.search.query = crate::vacuum::gate::name(&self.search.query).into_owned();
+        }
+        crate::vacuum::art::configure(Some(crate::vacuum::art::Config {
+            seed_id,
+            deriver,
+            pictures,
+            custom: std::sync::Arc::new(self.vacuum_picture_list()),
+            state_dir: self.dirs.state.clone(),
+        }));
+        // A museum picture shows once it is ready; until then the generated
+        // one does, and the museum's is asked for.
+        let art = self.backend.art().clone();
+        let probe_ctx = ctx.clone();
+        crate::vacuum::gate::set_probe(Some(Box::new(move |uri: &str| {
+            if art.is_ready(uri) {
+                true
+            } else {
+                art.prefetch(&probe_ctx, uri);
+                false
+            }
+        })));
+        ctx.request_repaint();
+    }
+
+    /// Tells the gate which playlists are yours, when the Library or the
+    /// account changed since it was last told.
+    fn vacuum_sync_own(&mut self) {
+        let key = (
+            self.library.playlists.get().map_or(0, Vec::len),
+            self.library.playlists_generation,
+            self.user_id().map(str::to_owned),
+        );
+        if self.vacuum_own_key.as_ref() == Some(&key) {
+            return;
+        }
+        let Some(gate) = crate::vacuum::gate::current() else {
+            return;
+        };
+        self.vacuum_own_key = Some(key);
+        let playlists = match (self.library.playlists.get(), self.user_id()) {
+            (Some(playlists), Some(me)) => playlists
+                .iter()
+                .filter(|playlist| playlist.owner.id.as_deref() == Some(me))
+                .map(|playlist| playlist.id.clone())
+                .collect(),
+            _ => HashSet::new(),
+        };
+        gate.set_own(crate::vacuum::gate::Own {
+            user_id: self.user_id().map(str::to_owned),
+            user_name: self
+                .user
+                .as_ref()
+                .and_then(|user| user.display_name.clone()),
+            playlists,
+        });
+    }
+
+    /// Judges each playlist the app knows, as the extension does: about a
+    /// theme, a person or popularity. Its title and description decide,
+    /// with, once its page is open, the artists on its rows; artist names
+    /// seen anywhere count too. A playlist about a person or popularity
+    /// stays so; one judged a theme is judged again when its page shows
+    /// more rows.
+    fn vacuum_judge(&mut self) {
+        use crate::vacuum::collections::{Evidence, classify};
+        let mut playlists: Vec<&crate::api::models::Playlist> = Vec::new();
+        playlists.extend(self.library.playlists.get().into_iter().flatten());
+        playlists.extend(self.home.made_for_you.get().into_iter().flatten());
+        playlists.extend(self.home.top_mixes.get().into_iter().flatten());
+        if let Some(results) = self.search.results.get() {
+            for page in results.playlists.iter() {
+                playlists.extend(&page.items);
+            }
+        }
+        for page in self.playlist_pages.values() {
+            playlists.extend(page.playlist.get());
+        }
+        let rows_seen = |id: &str| {
+            self.playlist_pages
+                .get(id)
+                .map_or(0, |page| page.items.items.len())
+        };
+        let due: Vec<&crate::api::models::Playlist> = playlists
+            .into_iter()
+            .filter(|playlist| {
+                let sticky = self
+                    .vacuum_verdicts
+                    .get(&playlist.id)
+                    .is_some_and(|verdict| verdict.sticky());
+                !sticky
+                    && self
+                        .vacuum_judged
+                        .get(&playlist.id)
+                        .is_none_or(|seen| *seen < rows_seen(&playlist.id))
+            })
+            .collect();
+        if due.is_empty() {
+            return;
+        }
+        // Every artist name the app has seen, as the extension's session.
+        let mut session: Vec<&str> = self
+            .library
+            .artists
+            .items
+            .iter()
+            .map(|artist| artist.name.as_str())
+            .collect();
+        for page in self.artist_pages.values() {
+            session.extend(page.artist.get().map(|artist| artist.name.as_str()));
+        }
+        if let Some(results) = self.search.results.get() {
+            for page in results.artists.iter() {
+                session.extend(page.items.iter().map(|artist| artist.name.as_str()));
+            }
+        }
+        session.sort_unstable();
+        session.dedup();
+        let mut judged = Vec::new();
+        for playlist in due {
+            let page = self.playlist_pages.get(&playlist.id);
+            let tracks: Vec<&Track> = page
+                .map(|page| {
+                    page.items
+                        .items
+                        .iter()
+                        .filter_map(|item| match item.playable() {
+                            Some(PlayableItem::Track(track)) => Some(track),
+                            _ => None,
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            let names: Vec<&str> = tracks
+                .iter()
+                .flat_map(|track| track.artists.iter().map(|artist| artist.name.as_str()))
+                .collect();
+            let rows: Vec<Vec<&str>> = tracks
+                .iter()
+                .map(|track| {
+                    track
+                        .artists
+                        .iter()
+                        .map(|artist| artist.id.as_deref().unwrap_or(artist.name.as_str()))
+                        .collect()
+                })
+                .collect();
+            let description = playlist
+                .description
+                .as_deref()
+                .map(crate::util::strip_html)
+                .unwrap_or_default();
+            let (verdict, _) = classify(&Evidence {
+                title: &playlist.name,
+                description: &description,
+                names,
+                session_names: session.clone(),
+                rows,
+                format: "",
+            });
+            judged.push((playlist.id.clone(), verdict, rows_seen(&playlist.id)));
+        }
+        let gate = crate::vacuum::gate::current();
+        for (id, verdict, rows) in judged {
+            if let Some(gate) = &gate {
+                gate.set_verdict(&id, verdict);
+            }
+            self.vacuum_judged.insert(id.clone(), rows);
+            self.vacuum_verdicts.insert(id, verdict);
+        }
+    }
+
+    /// Shows every name loaded so far to Vacuum's gate, so it knows their
+    /// stand-ins: for searching by a stand-in, and for names inside text.
+    fn vacuum_learn_loaded(&self) {
+        use crate::vacuum::gate;
+        let track = |track: &Track| {
+            gate::song(&track.name);
+            for artist in &track.artists {
+                gate::artist(&artist.name);
+            }
+            if let Some(album) = &track.album {
+                gate::album(&album.name);
+            }
+        };
+        let album = |album: &crate::api::models::Album| {
+            gate::album(&album.name);
+            for artist in &album.artists {
+                gate::artist(&artist.name);
+            }
+        };
+        let playlist = |playlist: &crate::api::models::Playlist| {
+            playlist.shown_name();
+        };
+        for item in self.library.playlists.get().into_iter().flatten() {
+            playlist(item);
+        }
+        for saved in &self.library.liked.items {
+            track(&saved.track);
+        }
+        for saved in &self.library.albums.items {
+            album(&saved.album);
+        }
+        for artist in &self.library.artists.items {
+            gate::artist(&artist.name);
+        }
+        for saved in &self.library.shows.items {
+            gate::show(&saved.show.name);
+        }
+        for page in self.playlist_pages.values() {
+            page.playlist.get().map(playlist);
+            for item in &page.items.items {
+                if let Some(crate::api::models::PlayableItem::Track(song)) = item.playable() {
+                    track(song);
+                }
+            }
+        }
+        for page in self.album_pages.values() {
+            page.album.get().map(album);
+            page.tracks.items.iter().for_each(track);
+        }
+        for page in self.artist_pages.values() {
+            if let Some(artist) = page.artist.get() {
+                gate::artist(&artist.name);
+            }
+            page.top_tracks.get().into_iter().flatten().for_each(track);
+        }
+        if let Some(results) = self.search.results.get() {
+            for page in results.tracks.iter() {
+                page.items.iter().for_each(track);
+            }
+            for page in results.albums.iter() {
+                page.items.iter().for_each(album);
+            }
+            for page in results.artists.iter() {
+                for artist in &page.items {
+                    gate::artist(&artist.name);
+                }
+            }
+            for page in results.playlists.iter() {
+                page.items.iter().for_each(playlist);
+            }
+            for page in results.shows.iter() {
+                for show in &page.items {
+                    gate::show(&show.name);
+                }
+            }
+        }
+        for play in &self.recents.items {
+            track(&play.track);
+        }
+        if let Some(now) = self.now_playing() {
+            gate::song(&now.title);
+            for artist in &now.artists {
+                gate::artist(&artist.name);
+            }
+            gate::album(&now.album_name);
+        }
+    }
+
+    /// Where a seed's learnt stand-ins and their real names are kept, so a
+    /// stand-in searched for later still finds what it stands for. Kept
+    /// on this computer only, by the seed's id, never the seed.
+    fn vacuum_names_file(&self, seed_id: &str) -> std::path::PathBuf {
+        self.dirs
+            .state
+            .join("vacuum")
+            .join(format!("names-{seed_id}.json"))
+    }
+
+    /// Hands the stand-ins Vacuum learnt to the file writer, at most the
+    /// newest 20,000.
+    fn save_vacuum_names(&self) {
+        let Some(gate) = crate::vacuum::gate::current() else {
+            return;
+        };
+        let mut learnt = gate.learnt();
+        learnt.truncate(20_000);
+        if let Ok(text) = serde_json::to_string(&learnt) {
+            self.files.write(
+                &self.vacuum_names_file(&gate.seed_id),
+                text,
+                fastframe_file::Access::Private,
+            );
+        }
+    }
+
+    /// Where the picture addresses of your own are kept, beside the
+    /// settings.
+    pub fn vacuum_picture_file(&self) -> std::path::PathBuf {
+        self.dirs.config.join("vacuum-pictures.txt")
+    }
+
+    /// The picture addresses of your own Vacuum uses with Pictures: your
+    /// list.
+    pub fn vacuum_picture_list(&self) -> Vec<String> {
+        std::fs::read_to_string(self.vacuum_picture_file())
+            .map(|text| crate::vacuum::art::parse_picture_list(&text))
+            .unwrap_or_default()
+    }
+
     /// Records a track after enough active listening time.
     ///
     /// Paused time and seeking do not count. Each track is recorded once.
@@ -13288,7 +13835,7 @@ impl App {
             || !_ctx.input(|i| i.viewport().focused.unwrap_or(true));
         let enabled = self.settings.mac_notch_widget;
         let active = crate::notch::is_active();
-        let now_opt = self.now_playing();
+        let now_opt = self.now_playing_shown();
 
         let track_info = now_opt.map(|now| {
             let art_path = now
@@ -13333,12 +13880,17 @@ impl App {
 
     /// Keeps the current track in the window and taskbar title (#94),
     /// followed by the versions of Spotifast and of this fork.
-    fn sync_window_title(&mut self, ctx: &egui::Context) {
-        let title = window_title(
-            self.now_playing()
+    /// The window's title: what is playing, as the screen may show it.
+    pub fn window_title_text(&self) -> String {
+        window_title(
+            self.now_playing_shown()
                 .filter(|now| now.playing)
                 .map(|now| (now.subtitle, now.title)),
-        );
+        )
+    }
+
+    fn sync_window_title(&mut self, ctx: &egui::Context) {
+        let title = self.window_title_text();
         if title != self.window_title {
             ctx.send_viewport_cmd(egui::ViewportCommand::Title(title.clone()));
             self.window_title = title;
@@ -13355,6 +13907,8 @@ impl App {
         }
         let ctx = ui.ctx().clone();
         let ctx = &ctx;
+        // Before anything draws, so nothing real is drawn first.
+        self.sync_vacuum(ctx);
         self.pixels_per_point = ctx.pixels_per_point();
         self.refresh_frame_now();
         self.apply_theme(ctx);
@@ -13578,6 +14132,7 @@ impl App {
     /// Final teardown at real quit.
     pub fn shutdown(&mut self) {
         self.save_state();
+        self.save_vacuum_names();
         self.settle_listening();
         self.plays.save(&self.files, &self.dirs.history_file());
         // A clear or a batch of old plays still being written finishes
@@ -13775,7 +14330,10 @@ fn increase_playlist_total(playlist: &mut Playlist, added: u32) {
 
 /// This fork's own version, after Spotifast's: one more each round of
 /// changes it ships.
-pub const FORK_VERSION: &str = "mod 11";
+pub const FORK_VERSION: &str = "mod 12";
+
+/// What `vacuum_built` holds while Vacuum is off.
+const VACUUM_OFF: u64 = 0;
 
 /// The window's title: the playing song, if any, then Spotifast's version
 /// and this fork's.

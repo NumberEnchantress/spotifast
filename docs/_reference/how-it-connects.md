@@ -235,7 +235,17 @@ out, or a reconnection that gives up stops it.
 - Spotifast has no telemetry, analytics, or hosted service. When the lyrics
   panel is open and neither Spotify nor a local file has lyrics, it sends
   the track's artist, title, album, and length to
-  [lrclib.net](https://lrclib.net). It also checks
+  [lrclib.net](https://lrclib.net). With Vacuum on and its pictures from
+  museums, it asks The Metropolitan Museum of Art
+  (collectionapi.metmuseum.org, images.metmuseum.org), the Art Institute of
+  Chicago (api.artic.edu, www.artic.edu) and the Cleveland Museum of Art
+  (openaccess-api.clevelandart.org, openaccess-cdn.clevelandart.org) for
+  artworks by object number, which is all those requests reveal. They are
+  paced as the Unfamiliar Sounds extension paces them: The Met one request
+  at a time, 500 ms apart, Chicago 100 objects a request at most once a
+  second, Cleveland two at a time, with a pause and retry when a museum
+  refuses. With a list of picture addresses of your own, the pictures come
+  from wherever the list points, over https only. It also checks
   api.github.com once a day for updates. You can turn off automatic checks in
   Settings, or request one there at any time. On macOS, **Check for Updates**
   is also in the application menu. On a connection the system reports as

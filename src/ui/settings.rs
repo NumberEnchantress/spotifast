@@ -2,7 +2,6 @@
 
 use egui::{Align, CornerRadius, Frame, Layout, Margin, Stroke, Vec2};
 
-use crate::api::models::pick_image;
 use crate::app::App;
 use crate::i18n::{gettext, ngettext, pgettext};
 use crate::model::{Action, Dialog};
@@ -561,15 +560,16 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             if row_matches(&needle, &format!("{sign_out} {account}"), "") {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = 14.0;
-                    let avatar = app.user.as_ref().and_then(|user| {
-                        pick_image(&user.images, app.art_px(56.0)).map(str::to_string)
-                    });
+                    let avatar = app
+                        .user
+                        .as_ref()
+                        .and_then(|user| user.shown_image(app.art_px(56.0)));
                     widgets::cover(ui, &palette, avatar.as_deref(), 56.0, 28.0, Icon::User);
                     ui.vertical(|ui| {
                         let name = app
                             .user
                             .as_ref()
-                            .map(|user| user.name().to_string())
+                            .map(|user| user.shown_name().into_owned())
                             .unwrap_or_default();
                         theme::text(ui, name, theme::semibold(16.0), palette.text);
                         let product = app
@@ -2414,6 +2414,263 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     }
                 },
             );
+        });
+    }
+
+    // Vacuum: the Unfamiliar Sounds extension's choices.
+    let vacuum = gettext(locale, "Vacuum");
+    // Translators: Vacuum's main switch.
+    let vacuum_on = gettext(locale, "Listen in a vacuum");
+    let hide_artist = gettext(locale, "Hide artist descriptions");
+    let hide_playlist = gettext(locale, "Hide playlist descriptions");
+    let theme_titles = gettext(locale, "Show titles of Spotify's theme playlists");
+    let own_profile = gettext(locale, "Replace my own name and picture");
+    let own_playlists = gettext(locale, "Replace my own playlists");
+    let hide_pages = gettext(locale, "Hide pages about a person or popularity");
+    let pictures_title = gettext(locale, "Pictures");
+    let seed_title = gettext(locale, "Seed");
+    let vacuum_rows = [
+        RowText::new(
+            vacuum_on.clone(),
+            gettext(
+                locale,
+                "Every song, album, artist, playlist and person gets a stand-in name and picture, the same everywhere, and what centres on people and popularity is hidden. Alt+Shift+D switches it.",
+            ),
+        ),
+        RowText::new(
+            hide_artist.clone(),
+            gettext(
+                locale,
+                "Artist biographies show ???. Off, they show with the names Vacuum knows swapped.",
+            ),
+        ),
+        RowText::new(
+            hide_playlist.clone(),
+            gettext(
+                locale,
+                "Playlist and podcast descriptions show ???. Off, they show with the names Vacuum knows swapped.",
+            ),
+        ),
+        RowText::new(
+            theme_titles.clone(),
+            gettext(
+                locale,
+                "Spotify's own playlists about a mood, genre or activity keep their real titles.",
+            ),
+        ),
+        RowText::new(
+            own_profile.clone(),
+            gettext(locale, "Off, your own name and picture stay as they are."),
+        ),
+        RowText::new(
+            own_playlists.clone(),
+            gettext(
+                locale,
+                "Off, your own playlists keep their titles, descriptions and the covers you gave them.",
+            ),
+        ),
+        RowText::new(
+            hide_pages.clone(),
+            gettext(
+                locale,
+                "Playlists about one artist or a chart, your top songs and radio stations show a notice, with Show anyway.",
+            ),
+        ),
+        RowText::new(
+            pictures_title.clone(),
+            gettext(
+                locale,
+                "Public-domain artworks from The Met, the Art Institute of Chicago and the Cleveland Museum of Art, shapes drawn offline, or a list of picture addresses of your own.",
+            ),
+        ),
+        RowText::new(
+            seed_title.clone(),
+            gettext(
+                locale,
+                "Stand-ins come from a seed. Everyone shares one by default, so the same name has the same stand-in for everyone, here and in the Unfamiliar Sounds extension.",
+            ),
+        ),
+    ];
+    if section_matches(&needle, &vacuum, &vacuum_rows) {
+        any_visible = true;
+        section(ui, &palette, &vacuum, |ui| {
+            let switches = [
+                (0, vacuum_on.clone()),
+                (1, hide_artist.clone()),
+                (2, hide_playlist.clone()),
+                (3, theme_titles.clone()),
+                (4, own_profile.clone()),
+                (5, own_playlists.clone()),
+                (6, hide_pages.clone()),
+            ];
+            for (index, label) in switches {
+                filtered_row(ui, &palette, &needle, &vacuum, &vacuum_rows[index], |ui| {
+                    let settings = &mut app.settings.vacuum;
+                    let value = match index {
+                        0 => &mut settings.on,
+                        1 => &mut settings.hide_artist_descriptions,
+                        2 => &mut settings.hide_playlist_descriptions,
+                        3 => &mut settings.show_theme_titles,
+                        4 => &mut settings.replace_own_profile,
+                        5 => &mut settings.replace_own_playlists,
+                        _ => &mut settings.hide_pages,
+                    };
+                    if widgets::switch(ui, &palette, &label, value).changed() {
+                        changed = true;
+                    }
+                });
+            }
+            filtered_row(ui, &palette, &needle, &vacuum, &vacuum_rows[7], |ui| {
+                use crate::vacuum::gate::Pictures;
+                ui.horizontal_wrapped(|ui| {
+                    for (pictures, label) in [
+                        (Pictures::Museums, gettext(locale, "Museums")),
+                        // Translators: Vacuum's pictures: shapes and rings drawn from each name.
+                        (Pictures::Generated, gettext(locale, "Shapes")),
+                        (Pictures::Custom, gettext(locale, "My list")),
+                    ] {
+                        let chosen = app.settings.vacuum.pictures == pictures;
+                        if theme::soft_button(ui, &palette, None, &label, chosen).clicked()
+                            && !chosen
+                        {
+                            app.settings.vacuum.pictures = pictures;
+                            changed = true;
+                        }
+                    }
+                    if app.settings.vacuum.pictures == Pictures::Custom {
+                        let count = app.vacuum_picture_list().len();
+                        theme::text(
+                            ui,
+                            // Translators: {count} is how many picture addresses the list of your own holds.
+                            gettext(locale, "{count} pictures")
+                                .replace("{count}", &count.to_string()),
+                            theme::regular(12.5),
+                            palette.secondary,
+                        );
+                        if theme::soft_button(
+                            ui,
+                            &palette,
+                            None,
+                            &gettext(locale, "Load a list…"),
+                            false,
+                        )
+                        .clicked()
+                        {
+                            app.backend
+                                .choose_vacuum_pictures(app.vacuum_picture_file());
+                        }
+                    }
+                });
+            });
+            filtered_row(ui, &palette, &needle, &vacuum, &vacuum_rows[8], |ui| {
+                let entry_id = egui::Id::new("vacuum-seed-entry");
+                let shown_id = egui::Id::new("vacuum-seed-shown");
+                ui.vertical(|ui| {
+                    match app.settings.vacuum.seed.clone() {
+                        None => {
+                            theme::text(
+                                ui,
+                                gettext(locale, "Using the shared seed"),
+                                theme::regular(12.5),
+                                palette.secondary,
+                            );
+                        }
+                        Some(seed) => {
+                            let shown = ui
+                                .data(|data| data.get_temp::<bool>(shown_id))
+                                .unwrap_or(false);
+                            theme::text(
+                                ui,
+                                if shown {
+                                    seed.clone()
+                                } else {
+                                    gettext(locale, "Using your own seed").into_owned()
+                                },
+                                theme::regular(12.5),
+                                palette.secondary,
+                            );
+                            ui.horizontal_wrapped(|ui| {
+                                let label = if shown {
+                                    gettext(locale, "Hide")
+                                } else {
+                                    gettext(locale, "Show")
+                                };
+                                if theme::soft_button(ui, &palette, None, &label, false).clicked() {
+                                    ui.data_mut(|data| data.insert_temp(shown_id, !shown));
+                                }
+                                if theme::soft_button(
+                                    ui,
+                                    &palette,
+                                    None,
+                                    &gettext(locale, "Copy"),
+                                    false,
+                                )
+                                .clicked()
+                                {
+                                    ui.ctx().copy_text(seed.clone());
+                                }
+                                if theme::soft_button(
+                                    ui,
+                                    &palette,
+                                    None,
+                                    &gettext(locale, "Save…"),
+                                    false,
+                                )
+                                .clicked()
+                                {
+                                    app.backend.save_vacuum_seed(seed.clone());
+                                }
+                                if theme::soft_button(
+                                    ui,
+                                    &palette,
+                                    None,
+                                    &gettext(locale, "Use the shared seed"),
+                                    false,
+                                )
+                                .clicked()
+                                {
+                                    app.settings.vacuum.seed = None;
+                                    changed = true;
+                                }
+                            });
+                        }
+                    }
+                    let mut entry = ui
+                        .data(|data| data.get_temp::<String>(entry_id))
+                        .unwrap_or_default();
+                    ui.horizontal_wrapped(|ui| {
+                        let edit = ui.add(
+                            egui::TextEdit::singleline(&mut entry)
+                                .hint_text(gettext(
+                                    locale,
+                                    "A seed of your own, 8 to 500 characters",
+                                ))
+                                .desired_width(240.0),
+                        );
+                        if edit.changed() {
+                            ui.data_mut(|data| data.insert_temp(entry_id, entry.clone()));
+                        }
+                        let valid = crate::vacuum::Seed::custom(&entry).is_some();
+                        if ui
+                            .add_enabled_ui(valid, |ui| {
+                                theme::soft_button(
+                                    ui,
+                                    &palette,
+                                    None,
+                                    &gettext(locale, "Use this seed"),
+                                    false,
+                                )
+                            })
+                            .inner
+                            .clicked()
+                        {
+                            app.settings.vacuum.seed = Some(entry.clone());
+                            ui.data_mut(|data| data.remove::<String>(entry_id));
+                            changed = true;
+                        }
+                    });
+                });
+            });
         });
     }
 

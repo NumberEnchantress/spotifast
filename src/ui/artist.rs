@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use crate::api::models::{Artist, PlayableItem, pick_image};
+use crate::api::models::{Artist, PlayableItem};
 use crate::app::App;
 use crate::i18n::{gettext, ngettext, pgettext};
 use crate::model::{Action, DiscographyFilter, Loadable, Page, RowContext};
@@ -28,10 +28,17 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, id: &str) {
             artist_hero(app, ui, artist, preview.as_deref());
             artist_actions(app, ui, artist);
 
-            // Popular.
-            theme::section_title(ui, &palette, &gettext(locale, "Popular"));
-            ui.add_space(4.0);
-            match &page.top_tracks {
+            // Popular. Vacuum hides what ranks songs by how much they are
+            // played; the releases below stay, in their own order.
+            let not_shown = Loadable::NotLoaded;
+            let popular = if crate::vacuum::gate::on() {
+                &not_shown
+            } else {
+                theme::section_title(ui, &palette, &gettext(locale, "Popular"));
+                ui.add_space(4.0);
+                &page.top_tracks
+            };
+            match popular {
                 Loadable::Loaded(tracks) if !tracks.is_empty() => {
                     let uris: Arc<[String]> = tracks
                         .iter()
@@ -102,14 +109,18 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, id: &str) {
                     theme::subtle(ui, &palette, &gettext(locale, "No popular songs to show."));
                 }
                 Loadable::Loading | Loadable::NotLoaded => {
-                    widgets::skeleton_rows(ui, &palette, app.locale, 5)
+                    if !crate::vacuum::gate::on() {
+                        widgets::skeleton_rows(ui, &palette, app.locale, 5)
+                    }
                 }
                 Loadable::Failed(error) => {
                     let error = error.clone();
                     widgets::error_row(ui, app, &error, None);
                 }
             }
-            ui.add_space(20.0);
+            if !crate::vacuum::gate::on() {
+                ui.add_space(20.0);
+            }
 
             // Discography.
             theme::section_title(ui, &palette, &gettext(locale, "Discography"));
@@ -151,8 +162,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, id: &str) {
                             let card = widgets::card(
                                 ui,
                                 app,
-                                pick_image(&album.images, card_art),
-                                &album.name,
+                                album.shown_image(card_art).as_deref(),
+                                &album.shown_name(),
                                 subtitle.trim_start_matches(" • "),
                                 widgets::CardCover::square(playing_here),
                             );
@@ -218,6 +229,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, id: &str) {
             if let Loadable::Loaded(related) = &page.related
                 && !related.is_empty()
                 && !app.settings.only_what_i_ask_for
+                && !crate::vacuum::gate::on()
             {
                 let artist_label = gettext(locale, "Artist");
                 let title = gettext(locale, "Fans also like");
@@ -230,8 +242,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, id: &str) {
                         let card = widgets::card(
                             ui,
                             app,
-                            pick_image(&artist.images, card_art),
-                            &artist.name,
+                            artist.shown_image(card_art).as_deref(),
+                            &artist.shown_name(),
                             &artist_label,
                             widgets::CardCover::portrait(playing_here),
                         );
@@ -325,7 +337,11 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, id: &str) {
 fn artist_hero(app: &mut App, ui: &mut egui::Ui, artist: &Artist, preview: Option<&Artist>) {
     let locale = app.locale;
     let mut byline = Vec::new();
-    if let Some(followers) = &artist.followers {
+    if let Some(followers) = artist
+        .followers
+        .as_ref()
+        .filter(|_| !crate::vacuum::gate::hide_counts())
+    {
         byline.push((
             ngettext(
                 locale,
@@ -350,12 +366,23 @@ fn artist_hero(app: &mut App, ui: &mut egui::Ui, artist: &Artist, preview: Optio
             None,
         ));
     }
-    let images = hero_images(
+    let shown_art = super::collection::vacuum_art(
+        crate::vacuum::gate::ArtKind::Artist,
+        &artist.id,
+        &artist.name,
         &artist.images,
-        preview.map(|artist| artist.images.as_slice()),
-        false,
         HeroArt::of(app),
     );
+    let images = match &shown_art {
+        Some(url) => super::collection::HeroImages::single(url),
+        None => hero_images(
+            &artist.images,
+            preview.map(|artist| artist.images.as_slice()),
+            false,
+            HeroArt::of(app),
+        ),
+    };
+    let title = artist.shown_name();
     hero(
         app,
         ui,
@@ -363,7 +390,7 @@ fn artist_hero(app: &mut App, ui: &mut egui::Ui, artist: &Artist, preview: Optio
             images,
             liked: false,
             kind: gettext(locale, "Artist"),
-            title: &artist.name,
+            title: &title,
             description: None,
             byline,
             avatar: None,

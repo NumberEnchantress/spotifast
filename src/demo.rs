@@ -1144,6 +1144,11 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
                 app.library.playlists = Loadable::Loaded(playlists);
             }
             "sidebar-map" => app.settings.sidebar_map = true,
+            // Vacuum on, with pictures drawn offline.
+            "vacuum" => {
+                app.settings.vacuum.on = true;
+                app.settings.vacuum.pictures = crate::vacuum::gate::Pictures::Generated;
+            }
             // The map sized by listening, over a few weeks of plays.
             "map-listening" => {
                 app.settings.home.map_listening = true;
@@ -1969,6 +1974,352 @@ mod tests {
             .platform_output
             .accesskit_update
             .expect("screen-reader tree")
+    }
+
+    /// Every real name in the demo's data: songs, albums, artists,
+    /// playlists, podcasts, episodes and people, read from what the demo
+    /// loaded. Names kept real by design are left out: folders, devices,
+    /// "Spotify", and names too short to look for safely.
+    fn vacuum_real_names(app: &App) -> std::collections::BTreeSet<String> {
+        let mut dumps: Vec<String> = vec![
+            format!("{:?}", app.library.playlists.get()),
+            format!("{:?}", app.library.liked.items),
+            format!("{:?}", app.library.albums.items),
+            format!("{:?}", app.library.artists.items),
+            format!("{:?}", app.library.shows.items),
+            format!("{:?}", app.library.episodes.items),
+            format!("{:?}", app.home.recently_played.get()),
+            format!("{:?}", app.home.top_artists.get()),
+            format!("{:?}", app.home.top_tracks.get()),
+            format!("{:?}", app.home.top_songs.get()),
+            format!("{:?}", app.home.recommendations.get()),
+            format!("{:?}", app.home.made_for_you.get()),
+            format!("{:?}", app.home.top_mixes.get()),
+            format!("{:?}", app.home.new_releases.get()),
+            format!("{:?}", app.home.new_release_tracks.get()),
+            format!("{:?}", app.home.podcasts),
+            format!("{:?}", app.recents.items),
+            format!("{:?}", app.search.results.get()),
+            format!("{:?}", app.queue.get()),
+            format!("{:?}", app.friends.get()),
+            format!("{:?}", app.user_names),
+            format!("{:?}", app.user),
+            format!("{:?}", app.now_playing()),
+        ];
+        for page in app.playlist_pages.values() {
+            dumps.push(format!("{:?} {:?}", page.playlist.get(), page.items.items));
+        }
+        for page in app.album_pages.values() {
+            dumps.push(format!("{:?} {:?}", page.album.get(), page.tracks.items));
+        }
+        for page in app.artist_pages.values() {
+            dumps.push(format!(
+                "{:?} {:?} {:?}",
+                page.artist.get(),
+                page.top_tracks.get(),
+                page.related.get()
+            ));
+            for albums in page.albums.values() {
+                dumps.push(format!("{:?}", albums.items));
+            }
+        }
+        for page in app.show_pages.values() {
+            dumps.push(format!("{:?} {:?}", page.show.get(), page.episodes.items));
+        }
+        let field = regex::Regex::new(
+            r#"\b(?:name|title|display_name|publisher|album_name|user_name|subtitle): (?:Some\()?"((?:[^"\\]|\\.)*)""#,
+        )
+        .unwrap();
+        let kept: std::collections::HashSet<String> = app
+            .rootlist
+            .iter()
+            .filter_map(|entry| match entry {
+                crate::player::RootlistEntry::FolderStart { name, .. } => Some(name.clone()),
+                _ => None,
+            })
+            .chain(app.devices.iter().map(|device| device.name.clone()))
+            .chain(["Spotify".to_string()])
+            .collect();
+        let mut names = std::collections::BTreeSet::new();
+        for dump in dumps {
+            for captures in field.captures_iter(&dump) {
+                let name = captures[1].replace("\\\"", "\"").replace("\\\\", "\\");
+                let name = name.trim();
+                if name.chars().count() >= 4 && !kept.contains(name) {
+                    names.insert(name.to_string());
+                }
+            }
+        }
+        names
+    }
+
+    /// One frame, with every string drawn and every label the screen
+    /// reader is given.
+    fn vacuum_frame(ctx: &egui::Context, app: &mut App) -> Vec<String> {
+        vacuum_frame_sized(ctx, app, egui::vec2(1280.0, 800.0))
+    }
+
+    /// As [`vacuum_frame`], in a window of `size`.
+    fn vacuum_frame_sized(ctx: &egui::Context, app: &mut App, size: egui::Vec2) -> Vec<String> {
+        fn texts(shape: &egui::epaint::Shape, out: &mut Vec<String>) {
+            match shape {
+                egui::epaint::Shape::Text(text) => out.push(text.galley.job.text.clone()),
+                egui::epaint::Shape::Vec(shapes) => {
+                    shapes.iter().for_each(|shape| texts(shape, out))
+                }
+                _ => {}
+            }
+        }
+        let mut output = ctx.run_ui(
+            egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)),
+                ..Default::default()
+            },
+            |ui| app.frame_ui(ui),
+        );
+        output.textures_delta.clear();
+        let mut seen = Vec::new();
+        output
+            .shapes
+            .iter()
+            .for_each(|shape| texts(&shape.shape, &mut seen));
+        if let Some(tree) = output.platform_output.accesskit_update {
+            for (_, node) in tree.nodes {
+                seen.extend(node.label().map(str::to_owned));
+                seen.extend(node.value().map(str::to_owned));
+                seen.extend(node.description().map(str::to_owned));
+                seen.extend(node.placeholder().map(str::to_owned));
+            }
+        }
+        seen
+    }
+
+    /// Vacuum's promise: with it on, and your own things replaced too, no
+    /// real name of a song, album, artist, playlist, podcast or person is
+    /// drawn, given to the screen reader, put in the window's title or the
+    /// system's media controls, and no real picture is asked for, on any
+    /// page or panel.
+    #[test]
+    fn vacuum_shows_no_real_name_or_picture_anywhere() {
+        let (ctx, mut app) = accessible_app("vacuum-leaks");
+        apply_flags(&mut app, None, Some("folders"));
+        let real = vacuum_real_names(&app);
+        assert!(real.len() > 50, "the demo's names: {}", real.len());
+        // Asked for before Vacuum was on: those are allowed.
+        let before: std::collections::HashSet<String> =
+            app.backend.art().requested().into_iter().collect();
+        app.settings.vacuum = crate::settings::VacuumSettings {
+            on: true,
+            replace_own_profile: true,
+            replace_own_playlists: true,
+            hide_artist_descriptions: false,
+            hide_playlist_descriptions: false,
+            pictures: crate::vacuum::gate::Pictures::Generated,
+            ..Default::default()
+        };
+        let mut leaks: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> =
+            Default::default();
+        let mut check = |place: &str, seen: &[String]| {
+            // The app's own credit in About names its author, who shares a
+            // first name with the demo's account.
+            for text in seen.iter().filter(|text| !text.contains("Carmine Paolino")) {
+                for name in &real {
+                    if text.contains(name.as_str()) {
+                        leaks
+                            .entry(format!("{name:?}"))
+                            .or_default()
+                            .insert(format!("{place}: {text:?}"));
+                    }
+                }
+            }
+        };
+        let pages = [
+            Page::Home,
+            Page::Search,
+            Page::Playlist("pl1".into()),
+            Page::Playlist("pl0".into()),
+            Page::Album("alb0".into()),
+            Page::Artist("art0".into()),
+            Page::Show("sh0".into()),
+            Page::LikedSongs,
+            Page::Albums,
+            Page::Artists,
+            Page::Podcasts,
+            Page::Episodes,
+            Page::TopSongs,
+            Page::NewReleases,
+            Page::Queue,
+            Page::Settings,
+        ];
+        for (panel, page) in pages.iter().enumerate() {
+            app.show_queue_panel = panel % 3 == 0;
+            app.show_friends_panel = panel % 3 == 1;
+            app.show_lyrics_panel = panel % 3 == 2;
+            app.open(page.clone());
+            for _ in 0..3 {
+                let seen = vacuum_frame(&ctx, &mut app);
+                check(&format!("{page:?}"), &seen);
+            }
+        }
+        // The views the flags open: the map on Home and in the sidebar,
+        // cards, friends and lyrics.
+        for flags in [
+            "friends",
+            "lyrics",
+            "playlist-map,folders",
+            "library-grid",
+            "sidebar-map",
+            "map-circles",
+        ] {
+            apply_flags(&mut app, None, Some(flags));
+            app.open(Page::Home);
+            for _ in 0..3 {
+                let seen = vacuum_frame(&ctx, &mut app);
+                check(flags, &seen);
+            }
+        }
+        // A wide window, where a playlist shows who added each song.
+        app.settings.sidebar_map = false;
+        app.show_queue_panel = false;
+        app.show_lyrics_panel = false;
+        app.show_friends_panel = false;
+        app.open(Page::Playlist("pl1".into()));
+        for _ in 0..3 {
+            let seen = vacuum_frame_sized(&ctx, &mut app, egui::vec2(2200.0, 1000.0));
+            check("wide playlist", &seen);
+        }
+        // The playlists offered by Add to playlist.
+        let offered: Vec<String> = app
+            .editable_playlists()
+            .into_iter()
+            .map(|(_, name)| name)
+            .collect();
+        check("add to playlist", &offered);
+        // A search for a stand-in shows the stand-in and asks for the real
+        // thing.
+        let stand_in = crate::vacuum::gate::artist("Bonobo").into_owned();
+        app.apply(Action::Search(stand_in.clone()), &ctx);
+        assert_eq!(app.search.query, stand_in, "the field keeps the stand-in");
+        assert_eq!(
+            app.search.committed, "Bonobo",
+            "Spotify is asked for the real name"
+        );
+        for _ in 0..3 {
+            let seen = vacuum_frame(&ctx, &mut app);
+            check("search by stand-in", &seen);
+        }
+        check(
+            "media controls payload",
+            &[format!("{:?}", app.media_state(None))],
+        );
+        let now = app.now_playing_shown();
+        check(
+            "now playing",
+            &[now
+                .as_ref()
+                .map(|now| format!("{} {} {}", now.title, now.subtitle, now.album_name))
+                .unwrap_or_default()],
+        );
+        check("window title", &[app.window_title_text()]);
+        check("media controls", &[app.control_snapshot()]);
+        let pictures: Vec<String> = app
+            .backend
+            .art()
+            .requested()
+            .into_iter()
+            .filter(|uri| {
+                uri.starts_with("http")
+                    && !crate::vacuum::museums::is_museum_image(uri)
+                    && !before.contains(uri)
+            })
+            .collect();
+        app.backend.shutdown();
+        crate::vacuum::gate::set(None);
+        assert!(
+            pictures.is_empty() && leaks.is_empty(),
+            "real pictures asked for: {pictures:#?}\n{} real names shown: {leaks:#?}",
+            leaks.len()
+        );
+    }
+
+    /// Alt+Shift+D switches Vacuum on and off, as in the extension: on,
+    /// the next frame holds only stand-ins; off, everything real comes back
+    /// at once, without a restart. A page about popularity shows a notice
+    /// until Show anyway.
+    #[test]
+    fn vacuum_switches_at_once_and_hides_pages_until_asked() {
+        use egui::accesskit::{Action as Do, Role};
+        let (ctx, mut app) = accessible_app("vacuum-toggle");
+        let real = vacuum_real_names(&app);
+        let shortcut = || egui::Event::Key {
+            key: egui::Key::D,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::ALT | egui::Modifiers::SHIFT,
+        };
+        let leaks = |seen: &[String]| {
+            seen.iter()
+                .filter(|text| real.iter().any(|name| text.contains(name.as_str())))
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        let frame = |app: &mut App, events: Vec<egui::Event>| {
+            let mut output = ctx.run_ui(
+                egui::RawInput {
+                    screen_rect: Some(egui::Rect::from_min_size(
+                        egui::Pos2::ZERO,
+                        egui::vec2(1280.0, 800.0),
+                    )),
+                    events,
+                    ..Default::default()
+                },
+                |ui| app.frame_ui(ui),
+            );
+            output.textures_delta.clear();
+        };
+        let seen = vacuum_frame(&ctx, &mut app);
+        assert!(!leaks(&seen).is_empty(), "off, the real names show");
+
+        frame(&mut app, vec![shortcut()]);
+        app.apply_actions(&ctx);
+        assert!(app.settings.vacuum.on, "the shortcut switched it on");
+        app.settings.vacuum.pictures = crate::vacuum::gate::Pictures::Generated;
+        app.settings.vacuum.replace_own_playlists = true;
+        app.settings.vacuum.replace_own_profile = true;
+        let seen = vacuum_frame(&ctx, &mut app);
+        assert_eq!(
+            leaks(&seen),
+            Vec::<String>::new(),
+            "on, from the very next frame"
+        );
+
+        // Your top songs: a notice, then the page once asked.
+        app.open(Page::TopSongs);
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        let anyway = accessible_node(&tree, "Show anyway", Role::Button);
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![accessible_action(anyway, Do::Click, None)],
+        );
+        app.apply_actions(&ctx);
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        assert!(
+            tree.nodes
+                .iter()
+                .all(|(_, node)| node.label() != Some("Show anyway")),
+            "shown anyway"
+        );
+
+        frame(&mut app, vec![shortcut()]);
+        app.apply_actions(&ctx);
+        assert!(!app.settings.vacuum.on, "and off again");
+        app.open(Page::Home);
+        let seen = vacuum_frame(&ctx, &mut app);
+        assert!(!leaks(&seen).is_empty(), "everything real again at once");
+        assert!(!crate::vacuum::gate::on());
+        app.backend.shutdown();
     }
 
     fn accessible_node(

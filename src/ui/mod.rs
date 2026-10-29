@@ -316,6 +316,9 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                         })
                         .show(ui, |ui| {
                             ui.set_min_width(ui.available_width());
+                            if vacuum_notice(app, ui, &page) {
+                                return;
+                            }
                             match page {
                                 Page::Home => home::show(app, ui),
                                 Page::TopSongs => collection::top_songs(app, ui),
@@ -341,6 +344,58 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
                 .data_mut(|data| data.insert_temp(scrolled_id, scroll.state.offset.y));
             header_shadow(ui, scroll.inner_rect, scroll.state.offset.y, palette.dark);
         });
+}
+
+/// With Vacuum hiding pages about a person or popularity, draws the notice
+/// in such a page's place, with Show anyway, and answers whether it did:
+/// a playlist judged to be about a person or popularity, your top songs, and
+/// a radio station, which is built around its seed.
+fn vacuum_notice(app: &mut App, ui: &mut egui::Ui, page: &Page) -> bool {
+    let Some(gate) = crate::vacuum::gate::current() else {
+        return false;
+    };
+    if !gate.options.hide_pages || app.vacuum_shown_anyway.contains(&page.encode()) {
+        return false;
+    }
+    let hidden = match page {
+        Page::TopSongs | Page::Radio(_) => true,
+        Page::Playlist(id) => {
+            let owner = app
+                .known_playlist(id)
+                .and_then(|playlist| playlist.owner.id.clone());
+            !gate.playlist_shown(id, owner.as_deref())
+        }
+        _ => false,
+    };
+    if !hidden {
+        return false;
+    }
+    let palette = app.palette;
+    ui.add_space(60.0);
+    widgets::empty_state(
+        ui,
+        &palette,
+        Icon::EyeOff,
+        &crate::i18n::gettext(app.locale, "Hidden by Vacuum"),
+        &crate::i18n::gettext(
+            app.locale,
+            "This page is about a person, or about what is popular.",
+        ),
+    );
+    ui.add_space(12.0);
+    ui.vertical_centered(|ui| {
+        if theme::pill_button(
+            ui,
+            &palette,
+            &crate::i18n::gettext(app.locale, "Show anyway"),
+            false,
+        )
+        .clicked()
+        {
+            app.actions.push(Action::VacuumShowAnyway(page.encode()));
+        }
+    });
+    true
 }
 
 /// The gradient behind a page's header, top to bottom: the art's colour

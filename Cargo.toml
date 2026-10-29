@@ -184,6 +184,18 @@ jiff = "0.2"
 mdns-sd = "0.21"
 unicode-bidi = "0.3"
 hmac = "0.12"
+# Vacuum (src/vacuum): Unicode NFC, so a name is keyed exactly as the
+# Unfamiliar Sounds extension keys it, and the rules that judge playlists
+# (regex is already built for other crates).
+unicode-normalization = "0.1"
+regex = "1"
+# Vacuum swaps every name it knows inside a text in one pass; regex builds it
+# already.
+aho-corasick = "1"
+# Vacuum's generated pictures, drawn from the same SVG as the extension's.
+# egui_extras' SVG support builds it already; its text and embedded-image
+# support is left out, as the pictures have neither.
+resvg = { version = "0.45", default-features = false }
 pbkdf2 = "0.12"
 aes = "0.8"
 ctr = "0.9"

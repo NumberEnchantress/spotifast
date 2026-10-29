@@ -3936,3 +3936,189 @@ msgstr "Spotifast가 보관한 모든 재생 기록이 지도의 크기에 쓰�
 #: src/demo.rs:2997
 msgid "Show as"
 msgstr "보기 방식"
+
+#: src/ui/settings.rs:2421
+msgid "Vacuum"
+msgstr "Vacuum"
+
+#. Translators: Vacuum's main switch.
+#: src/ui/settings.rs:2423
+msgid "Listen in a vacuum"
+msgstr "진공 속에서 듣기"
+
+#: src/ui/settings.rs:2424
+msgid "Hide artist descriptions"
+msgstr "아티스트 설명 숨기기"
+
+#: src/ui/settings.rs:2425
+msgid "Hide playlist descriptions"
+msgstr "플레이리스트 설명 숨기기"
+
+#: src/ui/settings.rs:2426
+msgid "Show titles of Spotify's theme playlists"
+msgstr "Spotify 테마 플레이리스트 제목 표시"
+
+#: src/ui/settings.rs:2427
+msgid "Replace my own name and picture"
+msgstr "내 이름과 사진도 바꾸기"
+
+#: src/ui/settings.rs:2428
+msgid "Replace my own playlists"
+msgstr "내 플레이리스트도 바꾸기"
+
+#: src/ui/settings.rs:2429
+msgid "Hide pages about a person or popularity"
+msgstr "사람이나 인기에 관한 페이지 숨기기"
+
+#: src/ui/settings.rs:2430
+msgid "Pictures"
+msgstr "그림"
+
+#: src/session_reads.rs:3005
+msgid "Seed"
+msgstr "시드"
+
+#: src/ui/settings.rs:2437
+msgid "Every song, album, artist, playlist and person gets a stand-in name and picture, the same everywhere, and what centres on people and popularity is hidden. Alt+Shift+D switches it."
+msgstr "모든 곡, 앨범, 아티스트, 플레이리스트, 사람이 어디서나 같은 대체 이름과 그림을 갖고, 사람과 인기에 관한 것은 숨겨집니다. Alt+Shift+D로 켜고 끕니다."
+
+#: src/ui/settings.rs:2444
+msgid "Artist biographies show ???. Off, they show with the names Vacuum knows swapped."
+msgstr "아티스트 소개는 ???로 표시됩니다. 끄면 Vacuum이 아는 이름을 바꿔서 표시합니다."
+
+#: src/ui/settings.rs:2451
+msgid "Playlist and podcast descriptions show ???. Off, they show with the names Vacuum knows swapped."
+msgstr "플레이리스트와 팟캐스트 설명은 ???로 표시됩니다. 끄면 Vacuum이 아는 이름을 바꿔서 표시합니다."
+
+#: src/ui/settings.rs:2458
+msgid "Spotify's own playlists about a mood, genre or activity keep their real titles."
+msgstr "기분, 장르, 활동에 관한 Spotify 자체 플레이리스트는 실제 제목을 유지합니다."
+
+#: src/ui/settings.rs:2463
+msgid "Off, your own name and picture stay as they are."
+msgstr "끄면 내 이름과 사진은 그대로입니다."
+
+#: src/ui/settings.rs:2469
+msgid "Off, your own playlists keep their titles, descriptions and the covers you gave them."
+msgstr "끄면 내 플레이리스트는 제목, 설명, 직접 정한 커버를 유지합니다."
+
+#: src/ui/settings.rs:2476
+msgid "Playlists about one artist or a chart, your top songs and radio stations show a notice, with Show anyway."
+msgstr "한 아티스트나 차트에 관한 플레이리스트, 내 인기 곡, 라디오는 '그래도 보기'가 있는 안내를 표시합니다."
+
+#: src/ui/settings.rs:2483
+msgid "Public-domain artworks from The Met, the Art Institute of Chicago and the Cleveland Museum of Art, shapes drawn offline, or a list of picture addresses of your own."
+msgstr "메트로폴리탄 미술관, 시카고 미술관, 클리블랜드 미술관의 퍼블릭 도메인 작품, 오프라인으로 그린 도형, 또는 직접 만든 그림 주소 목록."
+
+#: src/ui/settings.rs:2490
+msgid "Stand-ins come from a seed. Everyone shares one by default, so the same name has the same stand-in for everyone, here and in the Unfamiliar Sounds extension."
+msgstr "대체 이름은 시드에서 만들어집니다. 기본적으로 모두가 하나를 공유하므로, 같은 이름은 여기서도 Unfamiliar Sounds 확장 프로그램에서도 모두에게 같은 대체 이름이 됩니다."
+
+#: src/ui/settings.rs:2527
+msgid "Museums"
+msgstr "미술관"
+
+#. Translators: Vacuum's pictures: shapes and rings drawn from each name.
+#: src/ui/settings.rs:2529
+msgid "Shapes"
+msgstr "도형"
+
+#: src/ui/settings.rs:2530
+msgid "My list"
+msgstr "내 목록"
+
+#. Translators: {count} is how many picture addresses the list of your own holds.
+#: src/ui/settings.rs:2545
+#, rust-format
+msgid "{count} pictures"
+msgstr "그림 {count}개"
+
+#. Translators: {count} is how many picture addresses a list held.
+#: src/app.rs:2590
+#, rust-format
+msgid "{count} pictures loaded"
+msgstr "그림 {count}개를 불러왔습니다"
+
+#: src/ui/settings.rs:2554
+msgid "Load a list…"
+msgstr "목록 불러오기…"
+
+#: src/app.rs:2596
+msgid "Could not read that list of pictures"
+msgstr "그 그림 목록을 읽을 수 없습니다"
+
+#: src/ui/settings.rs:2573
+msgid "Using the shared seed"
+msgstr "공유 시드 사용 중"
+
+#: src/ui/settings.rs:2587
+msgid "Using your own seed"
+msgstr "내 시드 사용 중"
+
+#: src/ui/settings.rs:2594
+msgid "Hide"
+msgstr "숨기기"
+
+#: src/ui/settings.rs:2596
+msgid "Show"
+msgstr "보기"
+
+#: src/ui/settings.rs:2616
+msgid "Save…"
+msgstr "저장…"
+
+#: src/ui/settings.rs:2627
+msgid "Use the shared seed"
+msgstr "공유 시드 사용"
+
+#: src/ui/settings.rs:2646
+msgid "A seed of your own, 8 to 500 characters"
+msgstr "내 시드, 8~500자"
+
+#: src/ui/settings.rs:2660
+msgid "Use this seed"
+msgstr "이 시드 사용"
+
+#: src/app.rs:2598
+msgid "Seed saved"
+msgstr "시드를 저장했습니다"
+
+#: src/app.rs:2601
+msgid "Could not save the seed"
+msgstr "시드를 저장할 수 없습니다"
+
+#: src/app.rs:12258
+msgid "Vacuum is on"
+msgstr "Vacuum 켜짐"
+
+#: src/app.rs:12260
+msgid "Vacuum is off"
+msgstr "Vacuum 꺼짐"
+
+#: src/ui/topbar.rs:600
+msgid "Vacuum is on (Alt+Shift+D)"
+msgstr "Vacuum 켜짐 (Alt+Shift+D)"
+
+#: src/ui/topbar.rs:602
+msgid "Vacuum is off (Alt+Shift+D)"
+msgstr "Vacuum 꺼짐 (Alt+Shift+D)"
+
+#: src/ui/keys.rs:263
+msgid "Vacuum on or off"
+msgstr "Vacuum 켜기/끄기"
+
+#: src/ui/friends.rs:99
+msgid "Hidden by Vacuum"
+msgstr "Vacuum에서 숨김"
+
+#: src/ui/friends.rs:102
+msgid "What your friends play stays out of sight while Vacuum is on."
+msgstr "Vacuum이 켜져 있는 동안 친구가 듣는 곡은 보이지 않습니다."
+
+#: src/ui/mod.rs:382
+msgid "This page is about a person, or about what is popular."
+msgstr "이 페이지는 한 사람이나 인기 있는 것에 관한 것입니다."
+
+#: src/demo.rs:2264
+msgid "Show anyway"
+msgstr "그래도 보기"

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use egui::{CornerRadius, Rect, Sense, Vec2, pos2, vec2};
 
-use crate::api::models::{Album, Episode, PlayableItem, Playlist, Show, pick_image};
+use crate::api::models::{Album, Episode, PlayableItem, Playlist, Show};
 use crate::app::App;
 use crate::i18n::gettext;
 use crate::model::{Action, Loadable, Page, RowContext};
@@ -62,8 +62,11 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     }
     recently_played(app, ui);
     podcasts(app, ui);
-    top_artists(app, ui);
-    top_tracks(app, ui);
+    // Vacuum hides what ranks people and songs by how much they are played.
+    if !crate::vacuum::gate::on() {
+        top_artists(app, ui);
+        top_tracks(app, ui);
+    }
     if suggestions && app.settings.home.recommendations.visible {
         recommendations(app, ui);
     }
@@ -107,8 +110,8 @@ fn quick_access_tiles(app: &App) -> Vec<Tile> {
         song: None,
     };
     let playlist_tile = |playlist: &Playlist| Tile {
-        image: pick_image(&playlist.images, tile_art).map(str::to_string),
-        name: playlist.name.clone(),
+        image: playlist.shown_image(tile_art),
+        name: playlist.shown_name().into_owned(),
         page: Page::Playlist(playlist.id.clone()),
         uri: Some(playlist.uri.clone()),
         liked: false,
@@ -128,15 +131,16 @@ fn quick_access_tiles(app: &App) -> Vec<Tile> {
         let context = play.context.as_ref().map(|context| context.uri.as_str());
         let tile = match context.map(|uri| (uri, uri.rsplit(':').next().unwrap_or(""))) {
             Some((uri, _)) if uri.ends_with(":collection") => Some(liked_tile()),
-            Some((uri, id)) if uri.starts_with("spotify:playlist:") => {
-                app.known_playlist(id).map(playlist_tile)
-            }
+            Some((uri, id)) if uri.starts_with("spotify:playlist:") => app
+                .known_playlist(id)
+                .filter(|playlist| playlist.listed())
+                .map(playlist_tile),
             Some((uri, id)) if uri.starts_with("spotify:album:") => app
                 .known_album(id)
                 .or(track.album.as_ref().filter(|album| album.id == id))
                 .map(|album| Tile {
-                    image: pick_image(&album.images, tile_art).map(str::to_string),
-                    name: album.name.clone(),
+                    image: album.shown_image(tile_art),
+                    name: album.shown_name().into_owned(),
                     page: Page::Album(album.id.clone()),
                     uri: Some(uri.to_string()),
                     liked: false,
@@ -145,8 +149,8 @@ fn quick_access_tiles(app: &App) -> Vec<Tile> {
                 }),
             Some((uri, id)) if uri.starts_with("spotify:artist:") => {
                 app.known_artist(id).map(|artist| Tile {
-                    image: pick_image(&artist.images, tile_art).map(str::to_string),
-                    name: artist.name.clone(),
+                    image: artist.shown_image(tile_art),
+                    name: artist.shown_name().into_owned(),
                     page: Page::Artist(artist.id.clone()),
                     uri: Some(uri.to_string()),
                     liked: false,
@@ -156,8 +160,8 @@ fn quick_access_tiles(app: &App) -> Vec<Tile> {
             }
             Some((uri, id)) if uri.starts_with("spotify:show:") => {
                 app.known_show(id).map(|show| Tile {
-                    image: pick_image(&show.images, tile_art).map(str::to_string),
-                    name: show.name.clone(),
+                    image: show.shown_image(tile_art),
+                    name: show.shown_name().into_owned(),
                     page: Page::Show(show.id.clone()),
                     uri: Some(uri.to_string()),
                     liked: false,
@@ -171,8 +175,8 @@ fn quick_access_tiles(app: &App) -> Vec<Tile> {
                 .as_ref()
                 .filter(|album| !album.id.is_empty())
                 .map(|album| Tile {
-                    image: track.image(tile_art).map(str::to_string),
-                    name: track.name.clone(),
+                    image: track.shown_image(tile_art),
+                    name: track.shown_name().into_owned(),
                     page: Page::Album(album.id.clone()),
                     uri: Some(track.uri.clone()),
                     liked: false,
@@ -187,6 +191,7 @@ fn quick_access_tiles(app: &App) -> Vec<Tile> {
         }
     }
     let library = app.library.playlists.get().into_iter().flatten();
+    let library = library.filter(|playlist| playlist.listed());
     for tile in std::iter::once(liked_tile()).chain(library.map(playlist_tile)) {
         if tiles.len() == TILES {
             break;
@@ -337,7 +342,15 @@ fn quick_access(app: &mut App, ui: &mut egui::Ui) {
 fn made_for_you(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     let (playlists, loading, failure) = match &app.home.made_for_you {
-        Loadable::Loaded(playlists) => (playlists.clone(), false, None),
+        Loadable::Loaded(playlists) => (
+            playlists
+                .iter()
+                .filter(|playlist| playlist.listed())
+                .cloned()
+                .collect(),
+            false,
+            None,
+        ),
         Loadable::Loading | Loadable::NotLoaded => (Vec::new(), true, None),
         Loadable::Failed(error) => (Vec::new(), false, Some(error.clone())),
     };
@@ -368,8 +381,14 @@ fn top_mixes(app: &mut App, ui: &mut egui::Ui) {
         .home
         .top_mixes
         .get()
+        .map(|playlists| {
+            playlists
+                .iter()
+                .filter(|playlist| playlist.listed())
+                .cloned()
+                .collect::<Vec<_>>()
+        })
         .filter(|playlists| !playlists.is_empty())
-        .cloned()
     else {
         return;
     };
@@ -419,8 +438,7 @@ fn new_releases(app: &mut App, ui: &mut egui::Ui) {
 
 fn release_card(app: &mut App, ui: &mut egui::Ui, album: &Album) {
     let palette = app.palette;
-    let artists =
-        crate::api::models::join_names(album.artists.iter().map(|artist| artist.name.as_str()));
+    let artists = album.shown_artist_names();
     let subtitle = if artists.is_empty() {
         album.kind_label(app.locale).into_owned()
     } else {
@@ -432,8 +450,8 @@ fn release_card(app: &mut App, ui: &mut egui::Ui, album: &Album) {
     let card = widgets::card(
         ui,
         app,
-        pick_image(&album.images, card_art),
-        &album.name,
+        album.shown_image(card_art).as_deref(),
+        &album.shown_name(),
         &subtitle,
         widgets::CardCover::square(playing_here),
     );
@@ -463,14 +481,16 @@ fn release_card(app: &mut App, ui: &mut egui::Ui, album: &Album) {
 fn playlist_cards(app: &mut App, ui: &mut egui::Ui, menu: &str, playlists: &[Playlist]) {
     let palette = app.palette;
     for playlist in playlists {
+        // Vacuum leaves out playlists about a person or popularity.
+        if !playlist.listed() {
+            continue;
+        }
         let subtitle = playlist
-            .description
-            .as_deref()
-            .map(crate::util::strip_html)
+            .shown_description()
             .filter(|d| !d.is_empty())
             .unwrap_or_else(|| {
                 // Translators: {owner} is the name of the playlist's owner.
-                gettext(app.locale, "By {owner}").replace("{owner}", playlist.owner_name())
+                gettext(app.locale, "By {owner}").replace("{owner}", &playlist.shown_owner_name())
             });
         let context_here = app.playing_context_uri().as_deref() == Some(playlist.uri.as_str());
         let playing_here = context_here && app.believed_playing();
@@ -478,8 +498,8 @@ fn playlist_cards(app: &mut App, ui: &mut egui::Ui, menu: &str, playlists: &[Pla
         let card = widgets::card(
             ui,
             app,
-            pick_image(&playlist.images, card_art),
-            &playlist.name,
+            playlist.shown_image(card_art).as_deref(),
+            &playlist.shown_name(),
             &subtitle,
             widgets::CardCover::square(playing_here),
         );
@@ -568,9 +588,9 @@ fn recently_played(app: &mut App, ui: &mut egui::Ui) {
                 let card = widgets::card(
                     ui,
                     app,
-                    track.image(card_art),
-                    &track.name,
-                    &track.artist_names(),
+                    track.shown_image(card_art).as_deref(),
+                    &track.shown_name(),
+                    &track.shown_artist_names(),
                     widgets::CardCover::square(false),
                 );
                 if card.play {
@@ -708,20 +728,22 @@ fn podcasts(app: &mut App, ui: &mut egui::Ui) {
                                 "{time}",
                                 &crate::util::format_episode_ms(app.locale, *left_ms),
                             )
-                            .replace("{show}", &show.name)
+                            .replace("{show}", &show.shown_name())
                     }
                     EpisodeReason::New => {
                         // Translators: {show} is the podcast's name.
-                        gettext(app.locale, "New • {show}").replace("{show}", &show.name)
+                        gettext(app.locale, "New • {show}").replace("{show}", &show.shown_name())
                     }
                 };
                 let card_art = app.art_px(widgets::CARD_ART);
                 let card = widgets::card(
                     ui,
                     app,
-                    pick_image(&episode.images, card_art)
-                        .or_else(|| pick_image(&show.images, card_art)),
-                    &episode.name,
+                    episode
+                        .shown_image(card_art)
+                        .or_else(|| show.shown_image(card_art))
+                        .as_deref(),
+                    &episode.shown_name(),
                     &subtitle,
                     widgets::CardCover::square(false),
                 );
@@ -795,8 +817,8 @@ fn top_artists(app: &mut App, ui: &mut egui::Ui) {
                 let card = widgets::card(
                     ui,
                     app,
-                    pick_image(&artist.images, card_art),
-                    &artist.name,
+                    artist.shown_image(card_art).as_deref(),
+                    &artist.shown_name(),
                     &gettext(app.locale, "Artist"),
                     widgets::CardCover::portrait(playing_here),
                 );

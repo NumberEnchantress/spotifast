@@ -131,7 +131,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                         // Translators: {name} is a playlist name.
                         gettext(locale, "“{name}” will no longer appear in Your Library.")
                     }
-                    .replace("{name}", &name);
+                    .replace("{name}", &crate::vacuum::gate::playlist(&id, None, &name));
                     ui.add(
                         egui::Label::new(
                             egui::RichText::new(body)
@@ -303,11 +303,12 @@ fn duplicate_message(
     duplicate_uris: &[String],
 ) -> String {
     let mut seen = std::collections::HashSet::new();
-    let names: Vec<&str> = items
+    // As the rows show them: Vacuum's stand-ins while it is on.
+    let names: Vec<String> = items
         .iter()
         .filter(|item| duplicate_uris.iter().any(|uri| uri == item.uri()))
-        .map(crate::api::models::PlayableItem::name)
-        .filter(|name| seen.insert(*name))
+        .filter(|item| seen.insert(item.name()))
+        .map(|item| item.shown_name().into_owned())
         .collect();
     let one_item = items.len() == 1;
     let message = match names.as_slice() {
@@ -362,6 +363,7 @@ fn duplicate_message(
         .replace("{count}", &rest.len().to_string())
         .into(),
     };
+    // The playlist's name comes as the picker showed it.
     message.replace("{playlist}", playlist_name)
 }
 

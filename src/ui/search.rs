@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use egui::{Align, CornerRadius, Layout, Rect, Sense, Vec2, pos2, vec2};
 
-use crate::api::models::{Artist, ArtistRef, PlayableItem, SearchResults, pick_image};
+use crate::api::models::{Artist, ArtistRef, PlayableItem, SearchResults};
 use crate::app::App;
 use crate::i18n::gettext;
 use crate::model::{Action, Loadable, Page, RowContext, SearchFilter};
@@ -64,7 +64,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             Icon::Search,
             // Translators: {query} is the text the user searched for.
             &gettext(app.locale, "No results for “{query}”")
-                .replace("{query}", &app.search.committed),
+                .replace("{query}", &crate::vacuum::gate::name(&app.search.typed)),
             &gettext(app.locale, "Check the spelling, or try fewer words."),
         );
         return;
@@ -115,7 +115,8 @@ fn recent(app: &mut App, ui: &mut egui::Ui) {
     ui.horizontal_wrapped(|ui| {
         ui.spacing_mut().item_spacing = vec2(8.0, 8.0);
         for query in &history {
-            let (response, forget) = theme::soft_button_dismiss(ui, &palette, Icon::Clock, query);
+            let shown = crate::vacuum::gate::name(query);
+            let (response, forget) = theme::soft_button_dismiss(ui, &palette, Icon::Clock, &shown);
             if forget {
                 app.actions.push(Action::ForgetSearch(query.clone()));
             } else if response.clicked() {
@@ -154,8 +155,8 @@ fn all(app: &mut App, ui: &mut egui::Ui, results: &SearchResults) {
                 top_result(
                     app,
                     ui,
-                    pick_image(&artist.images, top_art),
-                    &artist.name,
+                    artist.shown_image(top_art).as_deref(),
+                    &artist.shown_name(),
                     TopResultSubtitle::Text(&gettext(locale, "Artist")),
                     true,
                     Some(artist.uri.clone()),
@@ -174,8 +175,8 @@ fn all(app: &mut App, ui: &mut egui::Ui, results: &SearchResults) {
                 top_result(
                     app,
                     ui,
-                    track.image(top_art),
-                    &track.name,
+                    track.shown_image(top_art).as_deref(),
+                    &track.shown_name(),
                     TopResultSubtitle::SongArtists(&track.artists),
                     false,
                     Some(track.uri.clone()),
@@ -195,16 +196,12 @@ fn all(app: &mut App, ui: &mut egui::Ui, results: &SearchResults) {
                 top_result(
                     app,
                     ui,
-                    pick_image(&album.images, top_art),
-                    &album.name,
+                    album.shown_image(top_art).as_deref(),
+                    &album.shown_name(),
                     TopResultSubtitle::Text(
                         // Translators: {artists} is the album's artist names.
-                        &gettext(locale, "Album • {artists}").replace(
-                            "{artists}",
-                            &crate::api::models::join_names(
-                                album.artists.iter().map(|a| a.name.as_str()),
-                            ),
-                        ),
+                        &gettext(locale, "Album • {artists}")
+                            .replace("{artists}", &album.shown_artist_names()),
                     ),
                     false,
                     Some(album.uri.clone()),
@@ -216,17 +213,17 @@ fn all(app: &mut App, ui: &mut egui::Ui, results: &SearchResults) {
             } else if let Some(playlist) = results
                 .playlists
                 .as_ref()
-                .and_then(|page| page.items.first())
+                .and_then(|page| page.items.iter().find(|playlist| playlist.listed()))
             {
                 top_result(
                     app,
                     ui,
-                    pick_image(&playlist.images, top_art),
-                    &playlist.name,
+                    playlist.shown_image(top_art).as_deref(),
+                    &playlist.shown_name(),
                     TopResultSubtitle::Text(
                         // Translators: {owner} is the name of the playlist's owner.
                         &gettext(locale, "Playlist • {owner}")
-                            .replace("{owner}", playlist.owner_name()),
+                            .replace("{owner}", &playlist.shown_owner_name()),
                     ),
                     false,
                     Some(playlist.uri.clone()),
@@ -246,12 +243,12 @@ fn all(app: &mut App, ui: &mut egui::Ui, results: &SearchResults) {
                 top_result(
                     app,
                     ui,
-                    pick_image(&show.images, top_art),
-                    &show.name,
+                    show.shown_image(top_art).as_deref(),
+                    &show.shown_name(),
                     TopResultSubtitle::Text(
                         // Translators: {publisher} is the podcast's publisher.
                         &gettext(locale, "Podcast • {publisher}")
-                            .replace("{publisher}", &show.publisher),
+                            .replace("{publisher}", &show.shown_publisher()),
                     ),
                     false,
                     Some(show.uri.clone()),
@@ -486,8 +483,8 @@ fn artist_card(app: &mut App, ui: &mut egui::Ui, artist: &Artist) {
     let card = widgets::card(
         ui,
         app,
-        pick_image(&artist.images, card_art),
-        &artist.name,
+        artist.shown_image(card_art).as_deref(),
+        &artist.shown_name(),
         &gettext(app.locale, "Artist"),
         widgets::CardCover::portrait(playing_here),
     );
@@ -546,7 +543,7 @@ fn album_card(app: &mut App, ui: &mut egui::Ui, album: &crate::api::models::Albu
     let subtitle = format!(
         "{} • {}",
         album.year().unwrap_or(""),
-        crate::api::models::join_names(album.artists.iter().map(|a| a.name.as_str()))
+        album.shown_artist_names()
     );
     let context_here = app.playing_context_uri().as_deref() == Some(album.uri.as_str());
     let playing_here = context_here && app.believed_playing();
@@ -554,8 +551,8 @@ fn album_card(app: &mut App, ui: &mut egui::Ui, album: &crate::api::models::Albu
     let card = widgets::card(
         ui,
         app,
-        pick_image(&album.images, card_art),
-        &album.name,
+        album.shown_image(card_art).as_deref(),
+        &album.shown_name(),
         subtitle.trim_start_matches(" • "),
         widgets::CardCover::square(playing_here),
     );
@@ -611,16 +608,20 @@ fn albums_grid(app: &mut App, ui: &mut egui::Ui, results: &SearchResults) {
 }
 
 fn playlist_card(app: &mut App, ui: &mut egui::Ui, playlist: &crate::api::models::Playlist) {
+    // Vacuum leaves out playlists about a person or popularity.
+    if !playlist.listed() {
+        return;
+    }
     let context_here = app.playing_context_uri().as_deref() == Some(playlist.uri.as_str());
     let playing_here = context_here && app.believed_playing();
     let card_art = app.art_px(widgets::CARD_ART);
     let card = widgets::card(
         ui,
         app,
-        pick_image(&playlist.images, card_art),
-        &playlist.name,
+        playlist.shown_image(card_art).as_deref(),
+        &playlist.shown_name(),
         // Translators: {owner} is the name of the playlist's owner.
-        &gettext(app.locale, "By {owner}").replace("{owner}", playlist.owner_name()),
+        &gettext(app.locale, "By {owner}").replace("{owner}", &playlist.shown_owner_name()),
         widgets::CardCover::square(playing_here),
     );
     if card.play {
@@ -658,7 +659,7 @@ fn shelf_playlists(app: &mut App, ui: &mut egui::Ui, results: &SearchResults) {
     let Some(page) = &results.playlists else {
         return;
     };
-    if page.items.is_empty() {
+    if !page.items.iter().any(|playlist| playlist.listed()) {
         return;
     }
     widgets::shelf(
@@ -678,6 +679,12 @@ fn playlists_grid(app: &mut App, ui: &mut egui::Ui, results: &SearchResults) {
     let Some(page) = &results.playlists else {
         return;
     };
+    if !page.items.iter().any(|playlist| playlist.listed()) {
+        let none = gettext(app.locale, "No results for “{query}”")
+            .replace("{query}", &crate::vacuum::gate::name(&app.search.typed));
+        theme::subtle(ui, &app.palette, &none);
+        return;
+    }
     widgets::grid(ui, |ui| {
         for playlist in &page.items {
             playlist_card(app, ui, playlist);
@@ -690,9 +697,9 @@ fn show_card(app: &mut App, ui: &mut egui::Ui, show: &crate::api::models::Show) 
     let card = widgets::card(
         ui,
         app,
-        pick_image(&show.images, card_art),
-        &show.name,
-        &show.publisher,
+        show.shown_image(card_art).as_deref(),
+        &show.shown_name(),
+        &show.shown_publisher(),
         widgets::CardCover::default(),
     );
     if card.clicked {

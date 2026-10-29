@@ -6,7 +6,6 @@ use std::time::Duration;
 use egui::{Color32, Frame, Margin, Sense, Stroke, Vec2, vec2};
 
 use super::widgets;
-use crate::api::models::pick_image;
 use crate::app::App;
 use crate::i18n::gettext;
 use crate::model::{Action, Page, RowContext};
@@ -60,7 +59,7 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui, data: &Prerelease) {
         widgets::paint_cover(
             ui,
             &palette,
-            pick_image(&data.album.images, 640),
+            data.album.shown_image(640).as_deref(),
             rect,
             4.0,
             Icon::Music,
@@ -79,14 +78,18 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui, data: &Prerelease) {
             if ui.available_width() >= 900.0 {
                 let measured = ui
                     .painter()
-                    .layout_no_wrap(data.album.name.clone(), theme::bold(title_size), hero_text)
+                    .layout_no_wrap(
+                        data.album.shown_name().into_owned(),
+                        theme::bold(title_size),
+                        hero_text,
+                    )
                     .size()
                     .x;
                 title_size *= (ui.available_width() / measured.max(1.0)).min(1.0);
             }
             let title = crate::bidi::layout(
                 ui.painter(),
-                &data.album.name,
+                &data.album.shown_name(),
                 theme::bold(title_size),
                 hero_text,
                 ui.available_width(),
@@ -96,7 +99,16 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui, data: &Prerelease) {
             ui.add(egui::Label::new(title));
             ui.add_space(8.0);
             ui.horizontal_wrapped(|ui| {
-                if let Some(url) = &data.artist_image {
+                let artist_image = match data.album.artists.first() {
+                    Some(artist) if crate::vacuum::gate::on() => crate::vacuum::gate::art(
+                        crate::vacuum::gate::ArtKind::Artist,
+                        artist.id.as_deref(),
+                        &artist.name,
+                        data.artist_image.as_deref(),
+                    ),
+                    _ => data.artist_image.clone(),
+                };
+                if let Some(url) = &artist_image {
                     let (rect, _) = ui.allocate_exact_size(Vec2::splat(24.0), Sense::hover());
                     widgets::paint_cover(
                         ui,
@@ -109,7 +121,8 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui, data: &Prerelease) {
                     );
                 }
                 for artist in &data.album.artists {
-                    if theme::link(ui, &artist.name, theme::semibold(13.0), hero_text).clicked()
+                    if theme::link(ui, artist.shown_name(), theme::semibold(13.0), hero_text)
+                        .clicked()
                         && let Some(id) = &artist.id
                     {
                         app.actions.push(Action::Open(Page::Artist(id.clone())));
@@ -320,7 +333,7 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui, data: &Prerelease) {
         }
         let mut name = track
             .as_ref()
-            .map(|track| track.name.clone())
+            .map(|track| track.shown_name().into_owned())
             .filter(|name| !name.is_empty())
             .unwrap_or_else(|| {
                 gettext(locale, "Track {number}").replace("{number}", &(index + 1).to_string())
@@ -334,13 +347,13 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui, data: &Prerelease) {
         }
         let artist = track
             .as_ref()
-            .map(|track| track.artist_names())
+            .map(|track| track.shown_artist_names())
             .filter(|name| !name.is_empty())
             .unwrap_or_else(|| {
                 data.album
                     .artists
                     .iter()
-                    .map(|artist| artist.name.as_str())
+                    .map(|artist| artist.shown_name().into_owned())
                     .collect::<Vec<_>>()
                     .join(", ")
             });
@@ -379,11 +392,13 @@ pub(super) fn show(app: &mut App, ui: &mut egui::Ui, data: &Prerelease) {
                         palette.dim
                     };
                     if let Some(id) = &artist.id {
-                        if theme::link(ui, &artist.name, theme::regular(13.0), color).clicked() {
+                        if theme::link(ui, artist.shown_name(), theme::regular(13.0), color)
+                            .clicked()
+                        {
                             app.actions.push(Action::Open(Page::Artist(id.clone())));
                         }
                     } else {
-                        theme::text(ui, &artist.name, theme::regular(13.0), color);
+                        theme::text(ui, artist.shown_name(), theme::regular(13.0), color);
                     }
                 }
             });

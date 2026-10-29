@@ -3988,3 +3988,189 @@ msgstr "Spotifast が保存したすべての再生が、マップのサイズ�
 #: src/demo.rs:2997
 msgid "Show as"
 msgstr "表示形式"
+
+#: src/ui/settings.rs:2421
+msgid "Vacuum"
+msgstr "Vacuum"
+
+#. Translators: Vacuum's main switch.
+#: src/ui/settings.rs:2423
+msgid "Listen in a vacuum"
+msgstr "真空で聴く"
+
+#: src/ui/settings.rs:2424
+msgid "Hide artist descriptions"
+msgstr "アーティストの説明を隠す"
+
+#: src/ui/settings.rs:2425
+msgid "Hide playlist descriptions"
+msgstr "プレイリストの説明を隠す"
+
+#: src/ui/settings.rs:2426
+msgid "Show titles of Spotify's theme playlists"
+msgstr "Spotify のテーマプレイリストの名前を表示"
+
+#: src/ui/settings.rs:2427
+msgid "Replace my own name and picture"
+msgstr "自分の名前と写真も置き換える"
+
+#: src/ui/settings.rs:2428
+msgid "Replace my own playlists"
+msgstr "自分のプレイリストも置き換える"
+
+#: src/ui/settings.rs:2429
+msgid "Hide pages about a person or popularity"
+msgstr "人物や人気についてのページを隠す"
+
+#: src/ui/settings.rs:2430
+msgid "Pictures"
+msgstr "画像"
+
+#: src/session_reads.rs:3005
+msgid "Seed"
+msgstr "シード"
+
+#: src/ui/settings.rs:2437
+msgid "Every song, album, artist, playlist and person gets a stand-in name and picture, the same everywhere, and what centres on people and popularity is hidden. Alt+Shift+D switches it."
+msgstr "すべての曲、アルバム、アーティスト、プレイリスト、人物が、どこでも同じ代わりの名前と画像になり、人物や人気を中心にしたものは隠れます。Alt+Shift+D で切り替えます。"
+
+#: src/ui/settings.rs:2444
+msgid "Artist biographies show ???. Off, they show with the names Vacuum knows swapped."
+msgstr "アーティストの経歴は ??? と表示されます。オフにすると、Vacuum が知っている名前を置き換えて表示します。"
+
+#: src/ui/settings.rs:2451
+msgid "Playlist and podcast descriptions show ???. Off, they show with the names Vacuum knows swapped."
+msgstr "プレイリストとポッドキャストの説明は ??? と表示されます。オフにすると、Vacuum が知っている名前を置き換えて表示します。"
+
+#: src/ui/settings.rs:2458
+msgid "Spotify's own playlists about a mood, genre or activity keep their real titles."
+msgstr "気分・ジャンル・活動についての Spotify 自身のプレイリストは本当の名前のままです。"
+
+#: src/ui/settings.rs:2463
+msgid "Off, your own name and picture stay as they are."
+msgstr "オフでは、自分の名前と写真はそのままです。"
+
+#: src/ui/settings.rs:2469
+msgid "Off, your own playlists keep their titles, descriptions and the covers you gave them."
+msgstr "オフでは、自分のプレイリストは名前、説明、自分で付けたカバーのままです。"
+
+#: src/ui/settings.rs:2476
+msgid "Playlists about one artist or a chart, your top songs and radio stations show a notice, with Show anyway."
+msgstr "1 人のアーティストやチャートについてのプレイリスト、トップソング、ラジオには、「それでも表示」付きの通知が出ます。"
+
+#: src/ui/settings.rs:2483
+msgid "Public-domain artworks from The Met, the Art Institute of Chicago and the Cleveland Museum of Art, shapes drawn offline, or a list of picture addresses of your own."
+msgstr "メトロポリタン美術館、シカゴ美術館、クリーブランド美術館のパブリックドメイン作品、オフラインで描く図形、または自分の画像アドレスのリスト。"
+
+#: src/ui/settings.rs:2490
+msgid "Stand-ins come from a seed. Everyone shares one by default, so the same name has the same stand-in for everyone, here and in the Unfamiliar Sounds extension."
+msgstr "代わりの名前はシードから作られます。既定では全員が同じシードを使うので、同じ名前はここでも Unfamiliar Sounds 拡張機能でも誰にとっても同じ代わりになります。"
+
+#: src/ui/settings.rs:2527
+msgid "Museums"
+msgstr "美術館"
+
+#. Translators: Vacuum's pictures: shapes and rings drawn from each name.
+#: src/ui/settings.rs:2529
+msgid "Shapes"
+msgstr "図形"
+
+#: src/ui/settings.rs:2530
+msgid "My list"
+msgstr "自分のリスト"
+
+#. Translators: {count} is how many picture addresses the list of your own holds.
+#: src/ui/settings.rs:2545
+#, rust-format
+msgid "{count} pictures"
+msgstr "{count} 枚"
+
+#. Translators: {count} is how many picture addresses a list held.
+#: src/app.rs:2590
+#, rust-format
+msgid "{count} pictures loaded"
+msgstr "{count} 枚の画像を読み込みました"
+
+#: src/ui/settings.rs:2554
+msgid "Load a list…"
+msgstr "リストを読み込む…"
+
+#: src/app.rs:2596
+msgid "Could not read that list of pictures"
+msgstr "その画像リストを読み込めませんでした"
+
+#: src/ui/settings.rs:2573
+msgid "Using the shared seed"
+msgstr "共有シードを使用中"
+
+#: src/ui/settings.rs:2587
+msgid "Using your own seed"
+msgstr "自分のシードを使用中"
+
+#: src/ui/settings.rs:2594
+msgid "Hide"
+msgstr "隠す"
+
+#: src/ui/settings.rs:2596
+msgid "Show"
+msgstr "表示"
+
+#: src/ui/settings.rs:2616
+msgid "Save…"
+msgstr "保存…"
+
+#: src/ui/settings.rs:2627
+msgid "Use the shared seed"
+msgstr "共有シードを使う"
+
+#: src/ui/settings.rs:2646
+msgid "A seed of your own, 8 to 500 characters"
+msgstr "自分のシード（8〜500 文字）"
+
+#: src/ui/settings.rs:2660
+msgid "Use this seed"
+msgstr "このシードを使う"
+
+#: src/app.rs:2598
+msgid "Seed saved"
+msgstr "シードを保存しました"
+
+#: src/app.rs:2601
+msgid "Could not save the seed"
+msgstr "シードを保存できませんでした"
+
+#: src/app.rs:12258
+msgid "Vacuum is on"
+msgstr "Vacuum オン"
+
+#: src/app.rs:12260
+msgid "Vacuum is off"
+msgstr "Vacuum オフ"
+
+#: src/ui/topbar.rs:600
+msgid "Vacuum is on (Alt+Shift+D)"
+msgstr "Vacuum オン (Alt+Shift+D)"
+
+#: src/ui/topbar.rs:602
+msgid "Vacuum is off (Alt+Shift+D)"
+msgstr "Vacuum オフ (Alt+Shift+D)"
+
+#: src/ui/keys.rs:263
+msgid "Vacuum on or off"
+msgstr "Vacuum のオン／オフ"
+
+#: src/ui/friends.rs:99
+msgid "Hidden by Vacuum"
+msgstr "Vacuum で非表示"
+
+#: src/ui/friends.rs:102
+msgid "What your friends play stays out of sight while Vacuum is on."
+msgstr "Vacuum がオンの間、友達が聴いているものは表示されません。"
+
+#: src/ui/mod.rs:382
+msgid "This page is about a person, or about what is popular."
+msgstr "このページは人物、または人気のあるものについてのページです。"
+
+#: src/demo.rs:2264
+msgid "Show anyway"
+msgstr "それでも表示"

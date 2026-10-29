@@ -365,7 +365,7 @@ fn contents(app: &mut App, ui: &mut egui::Ui, compact: bool) {
             return;
         }
     };
-    let now = app.now_playing();
+    let now = app.now_playing_shown();
     // Prefer the player's current track because the Web API can lag after a
     // skip.
     let current: Option<PlayableItem> = match &now {

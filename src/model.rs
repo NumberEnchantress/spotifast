@@ -734,6 +734,9 @@ impl SearchFilter {
 pub struct SearchState {
     pub query: String,
     pub committed: String,
+    /// The search as typed, before Vacuum turned stand-ins into what they
+    /// stand for; the same as `committed` when it is off.
+    pub typed: String,
     pub serial: u64,
     pub results: Loadable<SearchResults>,
     pub results_serial: u64,
@@ -1306,6 +1309,10 @@ pub enum Action {
     },
     /// Size the Home map's nodes by the time listened to them.
     SetMapListening(bool),
+    /// Show a page Vacuum hides, by its encoded page, until restart.
+    VacuumShowAnyway(String),
+    /// Switch Vacuum on or off.
+    SetVacuum(bool),
     SetLibrarySort {
         shelf: crate::settings::LibraryShelf,
         sort: crate::settings::LibrarySort,

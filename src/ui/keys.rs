@@ -96,6 +96,12 @@ pub fn handle(app: &mut App, ctx: &egui::Context) {
         // In a text field these keys move the caret: Ctrl or Alt by a word,
         // Cmd to the end of the line, Up and Down to the end of the text.
         // Taking them here skipped songs while a search was being typed.
+        // Vacuum on or off, wherever the focus is.
+        key(
+            Modifiers::ALT | Modifiers::SHIFT,
+            Key::D,
+            Action::SetVacuum(!app.settings.vacuum.on),
+        );
         if !editing_text {
             // Space always controls the current song, even when a song row
             // or button has focus. Enter still activates the focused control.
@@ -255,6 +261,7 @@ pub fn shortcuts(locale: Locale) -> Vec<(Cow<'static, str>, Cow<'static, str>)> 
             gettext(locale, "Show or hide the sidebar"),
         ),
         (keys("Alt+←  /  Alt+→"), gettext(locale, "Back or forward")),
+        (keys("Alt+Shift+D"), gettext(locale, "Vacuum on or off")),
         (
             keys(platform_shortcut("Ctrl+H", "Cmd+Shift+H")),
             gettext(locale, "Home"),

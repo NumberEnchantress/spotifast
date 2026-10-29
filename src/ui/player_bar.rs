@@ -57,7 +57,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         )
         .show(ui, |ui| {
             let rect = ui.max_rect();
-            let now = app.now_playing();
+            let now = app.now_playing_shown();
             // The whole bar, margins included, behind everything else.
             let behind = rect.expand2(vec2(16.0, 0.0));
             if visualizer(app, ui, behind, now.as_ref()) {
@@ -572,7 +572,7 @@ fn now_playing_block(app: &mut App, ui: &mut egui::Ui, region: Rect, now: Option
         egui::DragAndDrop::set_payload(
             ui.ctx(),
             DragTrack {
-                title: item.name().to_string(),
+                title: item.shown_name().into_owned(),
                 image: app.item_image(item, 64),
                 items: vec![item.clone()],
                 from: None,

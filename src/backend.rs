@@ -798,6 +798,18 @@ pub enum Command {
         selected:
             std::pin::Pin<Box<dyn std::future::Future<Output = Option<rfd::FileHandle>> + Send>>,
     },
+    /// Read a list of picture addresses for Vacuum and keep it at `into`.
+    ChooseVacuumPictures {
+        selected:
+            std::pin::Pin<Box<dyn std::future::Future<Output = Option<rfd::FileHandle>> + Send>>,
+        into: std::path::PathBuf,
+    },
+    /// Save a seed of your own to the file picked.
+    SaveVacuumSeed {
+        selected:
+            std::pin::Pin<Box<dyn std::future::Future<Output = Option<rfd::FileHandle>> + Send>>,
+        seed: String,
+    },
     /// Find the songs in the local files folders, off the UI thread, as
     /// the player does when it starts.
     ScanLocalFiles {
@@ -1084,6 +1096,10 @@ pub struct LyricsRequest {
 pub enum Event {
     /// The folder picked in the local files dialog; `None` when cancelled.
     LocalFilesFolderChosen(Option<std::path::PathBuf>),
+    /// How many picture addresses a list for Vacuum held, once kept.
+    VacuumPicturesChosen(Result<usize, String>),
+    /// Whether a seed of your own was saved.
+    VacuumSeedSaved(Result<(), String>),
     /// Whether the theme made in the colour editor was written.
     ThemeSaved {
         filename: String,
@@ -1542,6 +1558,31 @@ impl Backend {
         self.send(Command::ChooseLocalFiles {
             selected: Box::pin(selected),
             into,
+        });
+    }
+
+    /// Construct the dialog for a list of Vacuum's pictures on the UI
+    /// thread, like the cover's; the list is read and kept at `into`.
+    pub fn choose_vacuum_pictures(&self, into: std::path::PathBuf) {
+        let selected = rfd::AsyncFileDialog::new()
+            .set_title("Choose a list of pictures")
+            .add_filter("List of picture addresses", &["csv", "tsv", "txt"])
+            .pick_file();
+        self.send(Command::ChooseVacuumPictures {
+            selected: Box::pin(selected),
+            into,
+        });
+    }
+
+    /// Construct the dialog that saves a seed of your own.
+    pub fn save_vacuum_seed(&self, seed: String) {
+        let selected = rfd::AsyncFileDialog::new()
+            .set_title("Save your seed")
+            .set_file_name("vacuum-seed.txt")
+            .save_file();
+        self.send(Command::SaveVacuumSeed {
+            selected: Box::pin(selected),
+            seed,
         });
     }
 
@@ -2418,6 +2459,48 @@ impl Worker {
                             images,
                             result,
                         });
+                        waker.wake();
+                    });
+                }
+                Command::ChooseVacuumPictures { selected, into } => {
+                    let events = self.events.clone();
+                    let waker = self.waker.clone();
+                    tokio::spawn(async move {
+                        let Some(file) = selected.await else {
+                            return;
+                        };
+                        let path = file.path().to_path_buf();
+                        let result = tokio::task::spawn_blocking(move || {
+                            let text = std::fs::read_to_string(&path)
+                                .map_err(|error| error.to_string())?;
+                            let list = crate::vacuum::art::parse_picture_list(&text);
+                            fastframe_file::write(&into, list.join("\n"))
+                                .map_err(|error| error.to_string())?;
+                            Ok(list.len())
+                        })
+                        .await
+                        .map_err(|error| error.to_string())
+                        .and_then(|result| result);
+                        let _ = events.send(Event::VacuumPicturesChosen(result));
+                        waker.wake();
+                    });
+                }
+                Command::SaveVacuumSeed { selected, seed } => {
+                    let events = self.events.clone();
+                    let waker = self.waker.clone();
+                    tokio::spawn(async move {
+                        let Some(file) = selected.await else {
+                            return;
+                        };
+                        let path = file.path().to_path_buf();
+                        let result = tokio::task::spawn_blocking(move || {
+                            fastframe_file::write_private(&path, seed)
+                                .map_err(|error| error.to_string())
+                        })
+                        .await
+                        .map_err(|error| error.to_string())
+                        .and_then(|result| result);
+                        let _ = events.send(Event::VacuumSeedSaved(result));
                         waker.wake();
                     });
                 }

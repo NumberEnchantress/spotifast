@@ -3905,3 +3905,189 @@ msgstr "Spotifast 保留的所有播放都將被刪除，地圖用於縮放的�
 #: src/demo.rs:2997
 msgid "Show as"
 msgstr "顯示方式"
+
+#: src/ui/settings.rs:2421
+msgid "Vacuum"
+msgstr "Vacuum"
+
+#. Translators: Vacuum's main switch.
+#: src/ui/settings.rs:2423
+msgid "Listen in a vacuum"
+msgstr "在真空中聆聽"
+
+#: src/ui/settings.rs:2424
+msgid "Hide artist descriptions"
+msgstr "隱藏藝人簡介"
+
+#: src/ui/settings.rs:2425
+msgid "Hide playlist descriptions"
+msgstr "隱藏播放清單簡介"
+
+#: src/ui/settings.rs:2426
+msgid "Show titles of Spotify's theme playlists"
+msgstr "顯示 Spotify 主題播放清單的名稱"
+
+#: src/ui/settings.rs:2427
+msgid "Replace my own name and picture"
+msgstr "替換我自己的名稱和頭像"
+
+#: src/ui/settings.rs:2428
+msgid "Replace my own playlists"
+msgstr "替換我自己的播放清單"
+
+#: src/ui/settings.rs:2429
+msgid "Hide pages about a person or popularity"
+msgstr "隱藏關於某人或熱門程度的頁面"
+
+#: src/ui/settings.rs:2430
+msgid "Pictures"
+msgstr "圖片"
+
+#: src/session_reads.rs:3005
+msgid "Seed"
+msgstr "種子"
+
+#: src/ui/settings.rs:2437
+msgid "Every song, album, artist, playlist and person gets a stand-in name and picture, the same everywhere, and what centres on people and popularity is hidden. Alt+Shift+D switches it."
+msgstr "每首歌、專輯、藝人、播放清單和人物都換成到處一致的替代名稱和圖片，以人物和熱門程度為中心的內容會被隱藏。Alt+Shift+D 切換。"
+
+#: src/ui/settings.rs:2444
+msgid "Artist biographies show ???. Off, they show with the names Vacuum knows swapped."
+msgstr "藝人簡介顯示為 ???。關閉後顯示，但 Vacuum 認識的名字會被替換。"
+
+#: src/ui/settings.rs:2451
+msgid "Playlist and podcast descriptions show ???. Off, they show with the names Vacuum knows swapped."
+msgstr "播放清單和 Podcast 簡介顯示為 ???。關閉後顯示，但 Vacuum 認識的名字會被替換。"
+
+#: src/ui/settings.rs:2458
+msgid "Spotify's own playlists about a mood, genre or activity keep their real titles."
+msgstr "Spotify 自己關於心情、曲風或活動的播放清單保留真實名稱。"
+
+#: src/ui/settings.rs:2463
+msgid "Off, your own name and picture stay as they are."
+msgstr "關閉時，你自己的名稱和頭像保持原樣。"
+
+#: src/ui/settings.rs:2469
+msgid "Off, your own playlists keep their titles, descriptions and the covers you gave them."
+msgstr "關閉時，你自己的播放清單保留名稱、簡介和你設定的封面。"
+
+#: src/ui/settings.rs:2476
+msgid "Playlists about one artist or a chart, your top songs and radio stations show a notice, with Show anyway."
+msgstr "關於單一藝人或排行榜的播放清單、你的熱門歌曲和電台會顯示提示，並有「仍然顯示」。"
+
+#: src/ui/settings.rs:2483
+msgid "Public-domain artworks from The Met, the Art Institute of Chicago and the Cleveland Museum of Art, shapes drawn offline, or a list of picture addresses of your own."
+msgstr "來自大都會藝術博物館、芝加哥藝術博物館和克里夫蘭藝術博物館的公有領域作品、離線繪製的圖形，或你自己的圖片網址清單。"
+
+#: src/ui/settings.rs:2490
+msgid "Stand-ins come from a seed. Everyone shares one by default, so the same name has the same stand-in for everyone, here and in the Unfamiliar Sounds extension."
+msgstr "替代名稱由種子產生。預設所有人共用一個，所以同一個名字在這裡和 Unfamiliar Sounds 擴充功能中對所有人都是同一個替代名稱。"
+
+#: src/ui/settings.rs:2527
+msgid "Museums"
+msgstr "博物館"
+
+#. Translators: Vacuum's pictures: shapes and rings drawn from each name.
+#: src/ui/settings.rs:2529
+msgid "Shapes"
+msgstr "圖形"
+
+#: src/ui/settings.rs:2530
+msgid "My list"
+msgstr "我的清單"
+
+#. Translators: {count} is how many picture addresses the list of your own holds.
+#: src/ui/settings.rs:2545
+#, rust-format
+msgid "{count} pictures"
+msgstr "{count} 張圖片"
+
+#. Translators: {count} is how many picture addresses a list held.
+#: src/app.rs:2590
+#, rust-format
+msgid "{count} pictures loaded"
+msgstr "已載入 {count} 張圖片"
+
+#: src/ui/settings.rs:2554
+msgid "Load a list…"
+msgstr "載入清單…"
+
+#: src/app.rs:2596
+msgid "Could not read that list of pictures"
+msgstr "無法讀取該圖片清單"
+
+#: src/ui/settings.rs:2573
+msgid "Using the shared seed"
+msgstr "正在使用共用種子"
+
+#: src/ui/settings.rs:2587
+msgid "Using your own seed"
+msgstr "正在使用你自己的種子"
+
+#: src/ui/settings.rs:2594
+msgid "Hide"
+msgstr "隱藏"
+
+#: src/ui/settings.rs:2596
+msgid "Show"
+msgstr "顯示"
+
+#: src/ui/settings.rs:2616
+msgid "Save…"
+msgstr "儲存…"
+
+#: src/ui/settings.rs:2627
+msgid "Use the shared seed"
+msgstr "使用共用種子"
+
+#: src/ui/settings.rs:2646
+msgid "A seed of your own, 8 to 500 characters"
+msgstr "你自己的種子，8 到 500 個字元"
+
+#: src/ui/settings.rs:2660
+msgid "Use this seed"
+msgstr "使用此種子"
+
+#: src/app.rs:2598
+msgid "Seed saved"
+msgstr "種子已儲存"
+
+#: src/app.rs:2601
+msgid "Could not save the seed"
+msgstr "無法儲存種子"
+
+#: src/app.rs:12258
+msgid "Vacuum is on"
+msgstr "Vacuum 已開啟"
+
+#: src/app.rs:12260
+msgid "Vacuum is off"
+msgstr "Vacuum 已關閉"
+
+#: src/ui/topbar.rs:600
+msgid "Vacuum is on (Alt+Shift+D)"
+msgstr "Vacuum 已開啟 (Alt+Shift+D)"
+
+#: src/ui/topbar.rs:602
+msgid "Vacuum is off (Alt+Shift+D)"
+msgstr "Vacuum 已關閉 (Alt+Shift+D)"
+
+#: src/ui/keys.rs:263
+msgid "Vacuum on or off"
+msgstr "Vacuum 開或關"
+
+#: src/ui/friends.rs:99
+msgid "Hidden by Vacuum"
+msgstr "已被 Vacuum 隱藏"
+
+#: src/ui/friends.rs:102
+msgid "What your friends play stays out of sight while Vacuum is on."
+msgstr "Vacuum 開啟時，朋友正在聽的內容不會顯示。"
+
+#: src/ui/mod.rs:382
+msgid "This page is about a person, or about what is popular."
+msgstr "此頁面關於某個人，或關於熱門內容。"
+
+#: src/demo.rs:2264
+msgid "Show anyway"
+msgstr "仍然顯示"

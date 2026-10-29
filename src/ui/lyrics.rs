@@ -123,7 +123,7 @@ pub fn side_panel(app: &mut App, ui: &mut egui::Ui) {
 
 fn contents(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
-    let Some(now) = app.now_playing() else {
+    let Some(now) = app.now_playing_shown() else {
         widgets::empty_state(
             ui,
             &palette,
@@ -240,10 +240,12 @@ fn contents(app: &mut App, ui: &mut egui::Ui) {
                     theme::regular(LINE_SIZE)
                 };
                 // A timed line with no words is the band playing on.
+                // Vacuum: names in the words are swapped for their stand-ins.
+                let shown = crate::vacuum::gate::text(&line.text);
                 let text = if line.text.is_empty() && lyrics.synced {
                     "\u{266a}"
                 } else {
-                    line.text.as_str()
+                    shown.as_ref()
                 };
                 let sense = if lyrics.synced {
                     Sense::click()
@@ -318,7 +320,7 @@ pub fn fullscreen(app: &mut App, ui: &mut egui::Ui) {
             let rect = ui.max_rect();
             background(app, ui, rect);
             let top = theme::titlebar_inset(ui.ctx()) + 24.0;
-            if app.now_playing().is_some() && rect.width() >= COVER_BESIDE_MIN_WIDTH {
+            if app.now_playing_shown().is_some() && rect.width() >= COVER_BESIDE_MIN_WIDTH {
                 with_cover(app, ui, rect, top);
                 return;
             }
@@ -498,7 +500,7 @@ fn with_cover(app: &mut App, ui: &mut egui::Ui, rect: Rect, top: f32) {
 /// The playing song's cover filling the top of `column`, with its title and
 /// artists beneath, aligned to its left edge or centred.
 fn big_cover(app: &App, ui: &mut egui::Ui, column: Rect, align: Align) {
-    let Some(now) = app.now_playing() else {
+    let Some(now) = app.now_playing_shown() else {
         return;
     };
     let side = column.width();
@@ -559,7 +561,7 @@ fn preferred_backdrop_art(small: Option<String>, large: Option<String>) -> Optio
 fn background(app: &mut App, ui: &mut egui::Ui, rect: Rect) {
     theme::apply_local(ui, &theme::Palette::dark());
     let art = app
-        .now_playing()
+        .now_playing_shown()
         .and_then(|now| preferred_backdrop_art(now.art_small, now.art_url));
     let painter = ui.painter().with_clip_rect(rect);
     if let Some(texture) = app
@@ -632,7 +634,7 @@ fn fullscreen_header(app: &mut App, ui: &mut egui::Ui) {
 }
 
 fn track_heading(app: &App, ui: &mut egui::Ui) {
-    if let Some(now) = app.now_playing() {
+    if let Some(now) = app.now_playing_shown() {
         ui.horizontal(|ui| {
             let size = 52.0;
             let (rect, _) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
@@ -669,7 +671,7 @@ fn track_heading(app: &App, ui: &mut egui::Ui) {
 
 fn fullscreen_contents(app: &mut App, ui: &mut egui::Ui) {
     let palette = theme::Palette::dark();
-    let Some(now) = app.now_playing() else {
+    let Some(now) = app.now_playing_shown() else {
         widgets::empty_state(
             ui,
             &palette,
@@ -787,10 +789,12 @@ fn fullscreen_contents(app: &mut App, ui: &mut egui::Ui) {
                 };
                 let font = theme::bold(size);
                 // A timed line with no words is the band playing on.
+                // Vacuum: names in the words are swapped for their stand-ins.
+                let shown = crate::vacuum::gate::text(&line.text);
                 let text = if line.text.is_empty() && lyrics.synced {
                     "\u{266a}"
                 } else {
-                    line.text.as_str()
+                    shown.as_ref()
                 };
                 let sense = if lyrics.synced {
                     Sense::click()

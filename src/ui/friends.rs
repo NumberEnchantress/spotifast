@@ -90,6 +90,20 @@ pub fn side_panel(app: &mut App, ui: &mut egui::Ui) {
 fn contents(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     let locale = app.locale;
+    // Vacuum hides people and what they play.
+    if crate::vacuum::gate::on() {
+        widgets::empty_state(
+            ui,
+            &palette,
+            Icon::Users,
+            &gettext(locale, "Hidden by Vacuum"),
+            &gettext(
+                locale,
+                "What your friends play stays out of sight while Vacuum is on.",
+            ),
+        );
+        return;
+    }
     match &app.friends {
         Loadable::NotLoaded | Loadable::Loading => widgets::loading_row(ui, &palette, locale),
         Loadable::Failed(error) => {

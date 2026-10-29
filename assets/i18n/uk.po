@@ -4042,3 +4042,189 @@ msgstr "Усі прослуховування, збережені Spotifast, б�
 #: src/demo.rs:2997
 msgid "Show as"
 msgstr "Показати як"
+
+#: src/ui/settings.rs:2421
+msgid "Vacuum"
+msgstr "Vacuum"
+
+#. Translators: Vacuum's main switch.
+#: src/ui/settings.rs:2423
+msgid "Listen in a vacuum"
+msgstr "Слухати у вакуумі"
+
+#: src/ui/settings.rs:2424
+msgid "Hide artist descriptions"
+msgstr "Приховувати описи виконавців"
+
+#: src/ui/settings.rs:2425
+msgid "Hide playlist descriptions"
+msgstr "Приховувати описи плейлистів"
+
+#: src/ui/settings.rs:2426
+msgid "Show titles of Spotify's theme playlists"
+msgstr "Показувати назви тематичних плейлистів Spotify"
+
+#: src/ui/settings.rs:2427
+msgid "Replace my own name and picture"
+msgstr "Замінювати моє ім'я та фото"
+
+#: src/ui/settings.rs:2428
+msgid "Replace my own playlists"
+msgstr "Замінювати мої плейлисти"
+
+#: src/ui/settings.rs:2429
+msgid "Hide pages about a person or popularity"
+msgstr "Приховувати сторінки про людину чи популярність"
+
+#: src/ui/settings.rs:2430
+msgid "Pictures"
+msgstr "Зображення"
+
+#: src/session_reads.rs:3005
+msgid "Seed"
+msgstr "Сід"
+
+#: src/ui/settings.rs:2437
+msgid "Every song, album, artist, playlist and person gets a stand-in name and picture, the same everywhere, and what centres on people and popularity is hidden. Alt+Shift+D switches it."
+msgstr "Кожна пісня, альбом, виконавець, плейлист і людина отримують замінну назву та зображення, однакові скрізь, а все, що стосується людей і популярності, приховано. Alt+Shift+D перемикає."
+
+#: src/ui/settings.rs:2444
+msgid "Artist biographies show ???. Off, they show with the names Vacuum knows swapped."
+msgstr "Біографії виконавців показують ???. Вимкнено: вони видимі із заміненими іменами, які знає Vacuum."
+
+#: src/ui/settings.rs:2451
+msgid "Playlist and podcast descriptions show ???. Off, they show with the names Vacuum knows swapped."
+msgstr "Описи плейлистів і подкастів показують ???. Вимкнено: вони видимі із заміненими іменами, які знає Vacuum."
+
+#: src/ui/settings.rs:2458
+msgid "Spotify's own playlists about a mood, genre or activity keep their real titles."
+msgstr "Власні плейлисти Spotify про настрій, жанр чи заняття зберігають справжні назви."
+
+#: src/ui/settings.rs:2463
+msgid "Off, your own name and picture stay as they are."
+msgstr "Вимкнено: ваше ім'я та фото лишаються як є."
+
+#: src/ui/settings.rs:2469
+msgid "Off, your own playlists keep their titles, descriptions and the covers you gave them."
+msgstr "Вимкнено: ваші плейлисти зберігають назви, описи й обкладинки, які ви їм дали."
+
+#: src/ui/settings.rs:2476
+msgid "Playlists about one artist or a chart, your top songs and radio stations show a notice, with Show anyway."
+msgstr "Плейлисти про одного виконавця чи чарт, ваші найкращі пісні й радіостанції показують повідомлення з кнопкою «Усе одно показати»."
+
+#: src/ui/settings.rs:2483
+msgid "Public-domain artworks from The Met, the Art Institute of Chicago and the Cleveland Museum of Art, shapes drawn offline, or a list of picture addresses of your own."
+msgstr "Твори суспільного надбання з Метрополітен-музею, Чиказького інституту мистецтв і Клівлендського музею мистецтв, фігури, намальовані офлайн, або власний список адрес зображень."
+
+#: src/ui/settings.rs:2490
+msgid "Stand-ins come from a seed. Everyone shares one by default, so the same name has the same stand-in for everyone, here and in the Unfamiliar Sounds extension."
+msgstr "Заміни створюються із сіда. Типово він спільний для всіх, тож одне ім'я має однакову заміну для всіх, тут і в розширенні Unfamiliar Sounds."
+
+#: src/ui/settings.rs:2527
+msgid "Museums"
+msgstr "Музеї"
+
+#. Translators: Vacuum's pictures: shapes and rings drawn from each name.
+#: src/ui/settings.rs:2529
+msgid "Shapes"
+msgstr "Фігури"
+
+#: src/ui/settings.rs:2530
+msgid "My list"
+msgstr "Мій список"
+
+#. Translators: {count} is how many picture addresses the list of your own holds.
+#: src/ui/settings.rs:2545
+#, rust-format
+msgid "{count} pictures"
+msgstr "Зображень: {count}"
+
+#. Translators: {count} is how many picture addresses a list held.
+#: src/app.rs:2590
+#, rust-format
+msgid "{count} pictures loaded"
+msgstr "Завантажено зображень: {count}"
+
+#: src/ui/settings.rs:2554
+msgid "Load a list…"
+msgstr "Завантажити список…"
+
+#: src/app.rs:2596
+msgid "Could not read that list of pictures"
+msgstr "Не вдалося прочитати цей список зображень"
+
+#: src/ui/settings.rs:2573
+msgid "Using the shared seed"
+msgstr "Використовується спільний сід"
+
+#: src/ui/settings.rs:2587
+msgid "Using your own seed"
+msgstr "Використовується ваш сід"
+
+#: src/ui/settings.rs:2594
+msgid "Hide"
+msgstr "Сховати"
+
+#: src/ui/settings.rs:2596
+msgid "Show"
+msgstr "Показати"
+
+#: src/ui/settings.rs:2616
+msgid "Save…"
+msgstr "Зберегти…"
+
+#: src/ui/settings.rs:2627
+msgid "Use the shared seed"
+msgstr "Використати спільний сід"
+
+#: src/ui/settings.rs:2646
+msgid "A seed of your own, 8 to 500 characters"
+msgstr "Власний сід, від 8 до 500 символів"
+
+#: src/ui/settings.rs:2660
+msgid "Use this seed"
+msgstr "Використати цей сід"
+
+#: src/app.rs:2598
+msgid "Seed saved"
+msgstr "Сід збережено"
+
+#: src/app.rs:2601
+msgid "Could not save the seed"
+msgstr "Не вдалося зберегти сід"
+
+#: src/app.rs:12258
+msgid "Vacuum is on"
+msgstr "Vacuum увімкнено"
+
+#: src/app.rs:12260
+msgid "Vacuum is off"
+msgstr "Vacuum вимкнено"
+
+#: src/ui/topbar.rs:600
+msgid "Vacuum is on (Alt+Shift+D)"
+msgstr "Vacuum увімкнено (Alt+Shift+D)"
+
+#: src/ui/topbar.rs:602
+msgid "Vacuum is off (Alt+Shift+D)"
+msgstr "Vacuum вимкнено (Alt+Shift+D)"
+
+#: src/ui/keys.rs:263
+msgid "Vacuum on or off"
+msgstr "Vacuum увімк. чи вимк."
+
+#: src/ui/friends.rs:99
+msgid "Hidden by Vacuum"
+msgstr "Приховано Vacuum"
+
+#: src/ui/friends.rs:102
+msgid "What your friends play stays out of sight while Vacuum is on."
+msgstr "Що слухають друзі, приховано, поки Vacuum увімкнено."
+
+#: src/ui/mod.rs:382
+msgid "This page is about a person, or about what is popular."
+msgstr "Ця сторінка про людину або про те, що популярне."
+
+#: src/demo.rs:2264
+msgid "Show anyway"
+msgstr "Усе одно показати"

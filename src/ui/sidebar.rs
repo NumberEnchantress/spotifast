@@ -2,7 +2,6 @@
 
 use egui::{Align, CornerRadius, Frame, Layout, Margin, Rect, Sense, Vec2, pos2, vec2};
 
-use crate::api::models::pick_image;
 use crate::app::App;
 use crate::folders::{FolderEdit, Place, Row};
 use crate::i18n::{Locale, gettext};
@@ -863,21 +862,19 @@ fn shelf_rows(
             for saved in &app.library.albums.items {
                 let album = &saved.album;
                 if !needle.is_empty()
-                    && !album.name.to_lowercase().contains(needle)
+                    && !album.shown_name().to_lowercase().contains(needle)
                     && !album
                         .artists
                         .iter()
-                        .any(|a| a.name.to_lowercase().contains(needle))
+                        .any(|a| a.shown_name().to_lowercase().contains(needle))
                 {
                     continue;
                 }
-                let artists = crate::api::models::join_names(
-                    album.artists.iter().map(|artist| artist.name.as_str()),
-                );
+                let artists = album.shown_artist_names();
                 entries.push(Entry {
-                    image: pick_image(&album.images, art.row).map(str::to_string),
-                    grid_image: pick_image(&album.images, art.grid).map(str::to_string),
-                    name: album.name.clone(),
+                    image: album.shown_image(art.row),
+                    grid_image: album.shown_image(art.grid),
+                    name: album.shown_name().into_owned(),
                     subtitle: format!("{} • {artists}", app.album_kind_label(album)),
                     grid_subtitle: artists,
                     page: Page::Album(album.id.clone()),
@@ -901,13 +898,13 @@ fn shelf_rows(
         }
         Filter::Artists => {
             for artist in &app.library.artists.items {
-                if !needle.is_empty() && !artist.name.to_lowercase().contains(needle) {
+                if !needle.is_empty() && !artist.shown_name().to_lowercase().contains(needle) {
                     continue;
                 }
                 entries.push(Entry {
-                    image: pick_image(&artist.images, art.row).map(str::to_string),
-                    grid_image: pick_image(&artist.images, art.grid).map(str::to_string),
-                    name: artist.name.clone(),
+                    image: artist.shown_image(art.row),
+                    grid_image: artist.shown_image(art.grid),
+                    name: artist.shown_name().into_owned(),
                     subtitle: gettext(locale, "Artist").into_owned(),
                     grid_subtitle: String::new(),
                     page: Page::Artist(artist.id.clone()),
@@ -936,17 +933,17 @@ fn shelf_rows(
                 if app.audiobook_shows.contains(&show.uri) {
                     continue;
                 }
-                if !needle.is_empty() && !show.name.to_lowercase().contains(needle) {
+                if !needle.is_empty() && !show.shown_name().to_lowercase().contains(needle) {
                     continue;
                 }
                 entries.push(Entry {
-                    image: pick_image(&show.images, art.row).map(str::to_string),
-                    grid_image: pick_image(&show.images, art.grid).map(str::to_string),
-                    name: show.name.clone(),
+                    image: show.shown_image(art.row),
+                    grid_image: show.shown_image(art.grid),
+                    name: show.shown_name().into_owned(),
                     // Translators: {publisher} is the podcast's publisher.
                     subtitle: gettext(locale, "Podcast • {publisher}")
-                        .replace("{publisher}", &show.publisher),
-                    grid_subtitle: show.publisher.clone(),
+                        .replace("{publisher}", &show.shown_publisher()),
+                    grid_subtitle: show.shown_publisher().into_owned(),
                     page: Page::Show(show.id.clone()),
                     uri: show.uri.clone(),
                     round: false,
@@ -1412,7 +1409,7 @@ fn paint_grid_art_mask(app: &App, ui: &egui::Ui, rect: Rect) {
 fn has_expanded_art(app: &App) -> bool {
     app.settings.art_expanded
         && app
-            .now_playing()
+            .now_playing_shown()
             .is_some_and(|now| now.art_url.is_some() || now.art_small.is_some())
 }
 
@@ -1424,7 +1421,7 @@ fn expanded_art_side(ui: &egui::Ui) -> f32 {
 }
 
 fn paint_expanded_art(app: &mut App, ui: &mut egui::Ui, rect: Rect) {
-    let Some(now) = app.now_playing() else {
+    let Some(now) = app.now_playing_shown() else {
         return;
     };
     let Some(url) = now.art_url.clone().or_else(|| now.art_small.clone()) else {
@@ -1556,7 +1553,7 @@ fn playlist_rows_with(
             {
                 continue;
             }
-            if !needle.is_empty() && !playlist.name.to_lowercase().contains(needle) {
+            if !needle.is_empty() && !playlist.shown_name().to_lowercase().contains(needle) {
                 continue;
             }
             entries.push(playlist_entry(
@@ -1889,12 +1886,13 @@ fn playlist_entry(
     art: EntryArt,
 ) -> Entry {
     Entry {
-        image: pick_image(&playlist.images, art.row).map(str::to_string),
-        grid_image: pick_image(&playlist.images, art.grid).map(str::to_string),
-        name: playlist.name.clone(),
+        image: playlist.shown_image(art.row),
+        grid_image: playlist.shown_image(art.grid),
+        name: playlist.shown_name().into_owned(),
         // Translators: {owner} is the name of the playlist's owner.
-        subtitle: gettext(locale, "Playlist • {owner}").replace("{owner}", playlist.owner_name()),
-        grid_subtitle: playlist.owner_name().to_string(),
+        subtitle: gettext(locale, "Playlist • {owner}")
+            .replace("{owner}", &playlist.shown_owner_name()),
+        grid_subtitle: playlist.shown_owner_name().into_owned(),
         page: Page::Playlist(playlist.id.clone()),
         uri: playlist.uri.clone(),
         round: false,
@@ -3970,7 +3968,7 @@ mod ordering_tests {
         let entry = playlist_entry(Locale::English, &playlist, 0, "", false, 0, TEST_ART);
         assert_eq!(entry.image.as_deref(), Some("64"));
         assert_eq!(entry.grid_image.as_deref(), Some("300"));
-        assert_eq!(pick_image(&images, 640), Some("640"));
+        assert_eq!(crate::api::models::pick_image(&images, 640), Some("640"));
     }
 
     #[test]

@@ -4,3 +4,6 @@
 # So must the Cast root certificates and the Cast test chain.
 assets/cast/** binary
 src/testdata/cast/** binary
+# Vacuum refuses to run on a word list whose bytes differ from the pinned
+# checksum, so line endings must never change.
+assets/vacuum/** binary

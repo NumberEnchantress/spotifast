@@ -792,9 +792,9 @@ use a personal Spotify app, reconnect it in Settings as well.
 ## This fork's version
 
 The window title, and the taskbar's, end with Spotifast's version and this
-fork's, such as `Spotifast 0.14.1 · mod 11`, after the playing song. With
+fork's, such as `Spotifast 0.14.1 · mod 12`, after the playing song. With
 **Custom title bar** on the window has no title, so **Show version**, in
-Settings → Appearance, puts `0.14.1 · mod 11` in the top bar instead, beside
+Settings → Appearance, puts `0.14.1 · mod 12` in the top bar instead, beside
 the update button; in a narrow window it gives way before anything else
 there.
 
@@ -815,6 +815,52 @@ another device was playing. **Look for new songs** reads the folders again
 after you add or remove files; like adding a folder, it restarts local
 playback. Spotifast plays MP3, FLAC, MP4 and M4P files. The local files your
 playlists list play from the same folders.
+
+## Vacuum
+
+Vacuum is for listening without knowing who you are listening to. It is the
+Unfamiliar Sounds browser extension, brought into the app. Switch it on in
+Settings → Vacuum, from the account menu, or with **Alt+Shift+D**, which
+also switches it off. Either way the whole app changes at once, without a
+restart.
+
+While it is on:
+
+- Every song, album, artist, playlist, podcast and person is shown by a
+  stand-in of two or three words from a fixed word list, such as
+  `Mailbox Manatee Yack`. The same name always gets the same stand-in,
+  everywhere: lists, menus, search, the player bar, the window title, the
+  system's media controls, the Winamp window and MilkDrop.
+- Covers and artist pictures become public-domain artworks from The
+  Metropolitan Museum of Art, the Art Institute of Chicago and the Cleveland
+  Museum of Art, or, with Pictures set to Shapes, squares of shapes and rings
+  drawn from the stand-in. Until a museum's picture arrives, the shapes show.
+  A list of picture addresses of your own works too.
+- Counts that measure people and popularity are hidden: followers, saves
+  and play counts. So are an artist's Popular songs, Fans also like, your
+  top artists and top songs on Home, and what your friends play.
+- A playlist about one artist or a chart, your Top Songs and radio stations
+  show a notice instead of the page, with **Show anyway**. Playlists are
+  judged by the same rules as the extension's, from their titles,
+  descriptions and the artists on their songs.
+- Search with a stand-in finds the real thing it stands for. The box and
+  your search history keep the stand-in.
+
+Your own folders, Liked Songs, Local Files and Spotify itself keep their
+names. Your own name, picture and playlists do too, unless you choose
+otherwise in Settings. Artist biographies and playlist and podcast
+descriptions show `???` unless you choose to see them, with the names
+Vacuum knows swapped; names it has never seen stay as written.
+
+Stand-ins come from a seed. Everyone shares one by default, so a name has
+the same stand-in for everyone, here and in the extension. Under Seed you
+can use one of your own, show, copy or save it, and go back to the shared
+one.
+
+What Vacuum cannot hide: Spotify Connect speakers and phones show what they
+play themselves, links copied or opened in Spotify carry real IDs, and the
+lyrics lookup still sends the real title and artist to LRCLIB. Lyrics are
+shown with the names Vacuum knows swapped.
 
 ## Lyrics
 

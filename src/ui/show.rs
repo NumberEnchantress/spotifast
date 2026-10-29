@@ -41,7 +41,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, id: &str) {
             if !show.description.is_empty() {
                 theme::section_title(ui, &palette, &gettext(locale, "About"));
                 ui.add_space(4.0);
-                let description = util::strip_html(&show.description);
+                let description =
+                    crate::vacuum::gate::show_description(&util::strip_html(&show.description))
+                        .into_owned();
                 let galley = crate::bidi::layout(
                     ui.painter(),
                     &description,
@@ -57,7 +59,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, id: &str) {
             theme::section_title(ui, &palette, &gettext(locale, "All episodes"));
             ui.add_space(6.0);
             let episodes = page.episodes.items.clone();
-            let show_image = pick_image(&show.images, app.art_px(EPISODE_ART)).map(str::to_string);
+            let show_image = show.shown_image(app.art_px(EPISODE_ART));
             if episodes.is_empty() && !app.network_reachable {
                 widgets::empty_state(
                     ui,
@@ -160,7 +162,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, id: &str) {
 
 fn show_hero(app: &mut App, ui: &mut egui::Ui, show: &Show, preview: Option<&Show>) {
     let locale = app.locale;
-    let mut byline = vec![(show.publisher.clone(), None)];
+    let mut byline = vec![(show.shown_publisher().into_owned(), None)];
     if let Some(total) = show.total_episodes {
         byline.push((
             ngettext(
@@ -174,12 +176,23 @@ fn show_hero(app: &mut App, ui: &mut egui::Ui, show: &Show, preview: Option<&Sho
             None,
         ));
     }
-    let images = hero_images(
+    let shown_art = super::collection::vacuum_art(
+        crate::vacuum::gate::ArtKind::Show,
+        &show.id,
+        &show.name,
         &show.images,
-        preview.map(|show| show.images.as_slice()),
-        false,
         HeroArt::of(app),
     );
+    let images = match &shown_art {
+        Some(url) => super::collection::HeroImages::single(url),
+        None => hero_images(
+            &show.images,
+            preview.map(|show| show.images.as_slice()),
+            false,
+            HeroArt::of(app),
+        ),
+    };
+    let title = show.shown_name();
     hero(
         app,
         ui,
@@ -187,7 +200,7 @@ fn show_hero(app: &mut App, ui: &mut egui::Ui, show: &Show, preview: Option<&Sho
             images,
             liked: false,
             kind: gettext(locale, "Podcast"),
-            title: &show.name,
+            title: &title,
             description: None,
             byline,
             avatar: None,
@@ -299,11 +312,17 @@ pub fn episode_row(
     }
     let inner = rect.shrink2(vec2(12.0, 12.0));
     let cover_rect = Rect::from_min_size(inner.min, Vec2::splat(EPISODE_ART));
-    let image = pick_image(&episode.images, app.art_px(EPISODE_ART)).or(fallback_image);
+    let image = if crate::vacuum::gate::on() {
+        episode.shown_image(app.art_px(EPISODE_ART))
+    } else {
+        pick_image(&episode.images, app.art_px(EPISODE_ART))
+            .or(fallback_image)
+            .map(str::to_owned)
+    };
     widgets::paint_cover(
         ui,
         &palette,
-        image,
+        image.as_deref(),
         cover_rect,
         6.0,
         Icon::Mic,
@@ -329,11 +348,12 @@ pub fn episode_row(
         text_left,
         text_rect.right(),
         text_rect.top() + 10.0,
-        &episode.name,
+        &episode.shown_name(),
         theme::semibold(15.0),
         title_color,
     );
-    let description = util::strip_html(&episode.description);
+    let description =
+        crate::vacuum::gate::show_description(&util::strip_html(&episode.description)).into_owned();
     let description_galley = crate::bidi::layout(
         ui.painter(),
         &description,

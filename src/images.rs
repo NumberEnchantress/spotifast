@@ -103,6 +103,7 @@ fn is_art(uri: &str) -> bool {
     uri.starts_with("https://")
         || uri.starts_with("http://")
         || uri.starts_with(crate::local_tags::ART_SCHEME)
+        || crate::vacuum::gate::is_vacuum_art(uri)
 }
 
 enum Entry {
@@ -175,6 +176,18 @@ impl ArtLoader {
             .lock()
             .unwrap_or_else(|p| p.into_inner())
             .contains(url)
+    }
+
+    /// Every address asked for so far, for tests that check what was.
+    #[cfg(test)]
+    pub fn requested(&self) -> Vec<String> {
+        self.inner
+            .entries
+            .lock()
+            .unwrap_or_else(|p| p.into_inner())
+            .keys()
+            .cloned()
+            .collect()
     }
 
     /// Whether artwork has finished loading from disk or the network.
@@ -459,6 +472,10 @@ impl Inner {
         if let Some(file) = crate::local_tags::art_path(url) {
             return self.read_local(url, file, path).await;
         }
+        if crate::vacuum::gate::is_vacuum_art(url) {
+            // Boxed: a museum artwork is itself fetched through here.
+            return Box::pin(self.vacuum(url, path)).await;
+        }
         let cached = tokio::task::spawn_blocking({
             let path = path.clone();
             move || std::fs::read(path).ok()
@@ -469,13 +486,13 @@ impl Inner {
         let bytes: Arc<[u8]> = match cached {
             Some(bytes) if !bytes.is_empty() => Arc::from(bytes),
             _ => {
-                let mut response = self
-                    .http
-                    .client()?
-                    .get(url)
-                    .send()
-                    .await
-                    .map_err(|error| error.to_string())?;
+                let mut request = self.http.client()?.get(url);
+                // The Art Institute of Chicago asks to be told who asks.
+                if url.starts_with("https://www.artic.edu/") {
+                    request =
+                        request.header("AIC-User-Agent", crate::vacuum::museums::AIC_USER_AGENT);
+                }
+                let mut response = request.send().await.map_err(|error| error.to_string())?;
                 if !response.status().is_success() {
                     return Err(format!("artwork request failed: {}", response.status()));
                 }
@@ -507,6 +524,56 @@ impl Inner {
                 bytes
             }
         };
+        Ok(bytes)
+    }
+
+    /// A Vacuum picture: generated, blank, or a museum's or your own
+    /// artwork cropped and framed, kept in the disk cache under its own
+    /// address so it comes back at once and the media controls have a file.
+    /// A museum or network failure is an error, so the generated picture
+    /// shows and the artwork is asked for again later.
+    async fn vacuum(self: &Arc<Self>, uri: &str, cache: PathBuf) -> Result<Arc<[u8]>, String> {
+        let cached = tokio::task::spawn_blocking({
+            let cache = cache.clone();
+            move || std::fs::read(cache).ok()
+        })
+        .await
+        .ok()
+        .flatten()
+        .filter(|bytes| !bytes.is_empty());
+        if let Some(bytes) = cached {
+            return Ok(Arc::from(bytes));
+        }
+        let bytes = match crate::vacuum::art::request(self.http.client().ok(), uri).await? {
+            crate::vacuum::art::Request::Ready(bytes) => bytes,
+            crate::vacuum::art::Request::Image {
+                url,
+                round,
+                frame,
+                fallback,
+                ..
+            } => {
+                let image = {
+                    let _turn = crate::vacuum::art::image_turn().await;
+                    self.fetch(&url).await?
+                };
+                let rendered = tokio::task::spawn_blocking(move || {
+                    crate::vacuum::art::render(&image, round, frame)
+                })
+                .await
+                .map_err(|error| error.to_string())?;
+                // An image that will not decode will not later either.
+                rendered.unwrap_or(fallback)
+            }
+        };
+        let bytes: Arc<[u8]> = Arc::from(bytes);
+        let payload = Arc::clone(&bytes);
+        self.runtime.spawn_blocking(move || {
+            let temporary = cache.with_extension("part");
+            if std::fs::write(&temporary, &payload).is_ok() {
+                let _ = std::fs::rename(&temporary, &cache);
+            }
+        });
         Ok(bytes)
     }
 
@@ -555,12 +622,23 @@ impl Inner {
                 },
                 Err(error) => Entry::Failed(error),
             };
+            let retry =
+                matches!(entry, Entry::Failed(_)) && url.starts_with(crate::vacuum::gate::ART);
             loader
                 .entries
                 .lock()
                 .unwrap_or_else(|p| p.into_inner())
-                .insert(url, entry);
+                .insert(url.clone(), entry);
             ctx.request_repaint();
+            // A museum picture that could not be had shows the generated one
+            // meanwhile, and is asked for again a minute later.
+            if retry {
+                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+                let mut entries = loader.entries.lock().unwrap_or_else(|p| p.into_inner());
+                if matches!(entries.get(&url), Some(Entry::Failed(_))) {
+                    entries.remove(&url);
+                }
+            }
         });
     }
 

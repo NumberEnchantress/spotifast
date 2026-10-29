@@ -25,6 +25,8 @@ Spotifast follows each platform's conventions. On Linux:
 | Last session | `~/.local/state/spotifast/session.json` | Yes |
 | Play history | `~/.local/state/spotifast/history.json` | Yes |
 | Older plays, with Keep every play | `~/.local/state/spotifast/plays/` | Yes, those plays and their listening time are gone |
+| Vacuum's museum picks and learnt stand-ins, by seed id | `~/.local/state/spotifast/vacuum/` | Yes, pictures are looked up again; searching an old stand-in no longer finds its real name |
+| Vacuum's list of picture addresses of your own | `~/.config/spotifast/vacuum-pictures.txt` | Yes, load the list again |
 | Songs added to local files one at a time | `~/.local/state/spotifast/local-files/` | Yes, they leave Local Files; the songs you picked stay where they were |
 | Audio cache | `~/.cache/spotifast/audio/` | Always |
 | Artwork cache | `~/.cache/spotifast/art/` | Always |
@@ -368,6 +370,7 @@ main fields are:
 | `sidebar_map` | `false` | The playlist map in the sidebar in place of the Library's rows or cards |
 | `sidebar_map_width` | `520` | The sidebar's width while it shows the map |
 | `keep_every_play` | `false` | Keep every play rather than the newest 500, moving older plays to the `plays` folder |
+| `vacuum` | see below | Vacuum's choices: `on`, `hide_artist_descriptions`, `hide_playlist_descriptions`, `show_theme_titles`, `replace_own_profile`, `replace_own_playlists`, `hide_pages`, `pictures` and `seed` |
 | `tracklist_compact` | `false` | One-line track rows without covers |
 | `middle_click_autoscroll` | `false` | Linux only: middle-click a list to autoscroll it. Windows always autoscrolls and macOS never does |
 | `winamp_window` | `false` | The window is the Winamp mini player |
@@ -560,6 +563,25 @@ comes from the plays Spotifast keeps (see Play history), so it counts what
 was played here, or on a device Spotifast was following, since the play
 started being kept; Spotify does not share how long you listened. It is
 kept as `"home": {"map_listening": true}`.
+
+### Vacuum
+
+`"vacuum"` holds Vacuum's choices (see Vacuum in the guide), with these
+defaults: `"on": false`, `"hide_artist_descriptions": true`,
+`"hide_playlist_descriptions": true`, `"show_theme_titles": false`,
+`"replace_own_profile": false`, `"replace_own_playlists": false`,
+`"hide_pages": true`, `"pictures": "museums"` (or `"generated"` for
+shapes, `"custom"` for your own list) and `"seed": null`, the shared seed.
+A seed of your own is kept here as you typed it; the shared one never is.
+
+Stand-ins are derived exactly as the extension derives them, so the same
+seed gives the same stand-ins and pictures in both. Each museum picture
+chosen is kept for good in `vacuum/pictures-<seed id>.json`, so a museum
+changing its collection never moves one. Stand-ins shown are kept with the
+real names they stand for in `vacuum/names-<seed id>.json`, at most 20,000,
+so a stand-in searched for later still finds its real thing. The seed id is
+a short hash of the seed, never the seed itself. Rendered pictures join the
+artwork cache.
 
 ### Play history
 

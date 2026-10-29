@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use egui::{Align, CornerRadius, Galley, Layout, Sense, Vec2, pos2, vec2};
 
-use crate::api::models::pick_image;
 use crate::app::App;
 use crate::i18n::gettext;
 use crate::model::{Action, BackgroundActivity, Page};
@@ -458,8 +457,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     .as_ref()
                     .map(|user| {
                         (
-                            user.name().to_string(),
-                            pick_image(&user.images, app.art_px(28.0)).map(str::to_string),
+                            user.shown_name().into_owned(),
+                            user.shown_image(app.art_px(28.0)),
                         )
                     })
                     .unwrap_or_default();
@@ -534,6 +533,20 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                             &gettext(locale, "Settings"),
                         ) {
                             app.actions.push(Action::Open(Page::Settings));
+                        }
+                        // Vacuum, one click away, saying whether it is on.
+                        let vacuum = app.settings.vacuum.on;
+                        if super::widgets::menu_item(
+                            ui,
+                            &palette,
+                            Some(if vacuum { Icon::EyeOff } else { Icon::Eye }),
+                            &if vacuum {
+                                gettext(locale, "Vacuum is on (Alt+Shift+D)")
+                            } else {
+                                gettext(locale, "Vacuum is off (Alt+Shift+D)")
+                            },
+                        ) {
+                            app.actions.push(Action::SetVacuum(!vacuum));
                         }
                         if super::widgets::menu_item(
                             ui,

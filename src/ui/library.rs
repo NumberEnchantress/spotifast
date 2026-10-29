@@ -1,6 +1,5 @@
 //! Full-page library grids: albums, artists, podcasts, episodes.
 
-use crate::api::models::{join_names, pick_image};
 use crate::app::App;
 use crate::i18n::gettext;
 use crate::model::{Action, Page};
@@ -44,15 +43,15 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, page: Page) {
                 let album = app.library.albums.items[index].album.clone();
                 let id = album.id.clone();
                 let uri = album.uri.clone();
-                let subtitle = join_names(album.artists.iter().map(|artist| artist.name.as_str()));
+                let subtitle = album.shown_artist_names();
                 let context_here = app.playing_context_uri().as_deref() == Some(uri.as_str());
                 let playing_here = context_here && app.believed_playing();
                 let card_art = app.art_px(widgets::CARD_ART);
                 let card = widgets::card(
                     ui,
                     app,
-                    pick_image(&album.images, card_art),
-                    &album.name,
+                    album.shown_image(card_art).as_deref(),
+                    &album.shown_name(),
                     &subtitle,
                     widgets::CardCover::square(playing_here),
                 );
@@ -109,8 +108,8 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, page: Page) {
                 let card = widgets::card(
                     ui,
                     app,
-                    pick_image(&artist.images, card_art),
-                    &artist.name,
+                    artist.shown_image(card_art).as_deref(),
+                    &artist.shown_name(),
                     &artist_label,
                     widgets::CardCover::portrait(playing_here),
                 );
@@ -165,9 +164,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui, page: Page) {
                 let card = widgets::card(
                     ui,
                     app,
-                    pick_image(&show.images, card_art),
-                    &show.name,
-                    &show.publisher,
+                    show.shown_image(card_art).as_deref(),
+                    &show.shown_name(),
+                    &show.shown_publisher(),
                     widgets::CardCover::default(),
                 );
                 if card.clicked {

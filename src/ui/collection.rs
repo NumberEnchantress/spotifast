@@ -67,6 +67,31 @@ impl HeroArt {
     }
 }
 
+impl<'a> HeroImages<'a> {
+    /// One picture for every size, as Vacuum's are.
+    pub fn single(url: &'a str) -> Self {
+        Self {
+            image: Some(url),
+            enlarged: Some(url),
+            ..Default::default()
+        }
+    }
+}
+
+/// With Vacuum on, the picture a page header shows in place of the real
+/// one; off, `None`, and the header shows Spotify's.
+pub(super) fn vacuum_art(
+    kind: crate::vacuum::gate::ArtKind,
+    id: &str,
+    name: &str,
+    images: &[Image],
+    art: HeroArt,
+) -> Option<String> {
+    crate::vacuum::gate::on()
+        .then(|| crate::vacuum::gate::art(kind, Some(id), name, pick_image(images, art.hero)))
+        .flatten()
+}
+
 pub(super) fn hero_images<'a>(
     images: &'a [Image],
     preview: Option<&'a [Image]>,
@@ -513,6 +538,9 @@ pub struct TableCache {
     pub visible: Arc<[usize]>,
     pub view_uris: Option<Arc<[String]>>,
     pub plays_shown_rows: bool,
+    /// Vacuum's seed when the order was worked out, as sorts follow the
+    /// names shown.
+    pub vacuum: Option<String>,
     /// Playback positions for visible rows; unavailable rows have no position.
     pub view_positions: Arc<[Option<usize>]>,
 }
@@ -634,6 +662,7 @@ pub fn prepare_table_view(
             && c.items_revision == items_revision
             && c.user_names_revision == app.user_names_revision
             && c.local_files == local_files_scan(app)
+            && c.vacuum == crate::vacuum::gate::current().map(|gate| gate.seed_id.clone())
     });
 
     if let Some(entry) = cached.filter(|_| is_valid) {
@@ -662,6 +691,7 @@ pub fn prepare_table_view(
             visible: visible.into(),
             view_uris,
             plays_shown_rows,
+            vacuum: crate::vacuum::gate::current().map(|gate| gate.seed_id.clone()),
             view_positions: view_positions.into(),
         });
         ui.data_mut(|d| d.insert_temp(cache_id, Arc::clone(&entry)));
@@ -1323,7 +1353,7 @@ fn sort_by_album(visible: &mut [usize], ascending: bool, items: &[TableItem]) {
                             } else {
                                 album.id.as_str()
                             };
-                            (album.name.to_lowercase(), id)
+                            (album.shown_name().to_lowercase(), id)
                         })
                         .unwrap_or_default();
                     (
@@ -1371,15 +1401,11 @@ fn view_indices(items: &[TableItem], needle: &str, sort: Option<TableSort>) -> V
             let haystack = match item {
                 PlayableItem::Track(track) => format!(
                     "{} {} {}",
-                    track.name,
-                    track.artist_names(),
-                    track
-                        .album
-                        .as_ref()
-                        .map(|album| album.name.as_str())
-                        .unwrap_or("")
+                    track.shown_name(),
+                    track.shown_artist_names(),
+                    track.shown_album_name()
                 ),
-                PlayableItem::Episode(episode) => episode.name.clone(),
+                PlayableItem::Episode(episode) => episode.shown_name().into_owned(),
             };
             haystack.to_lowercase().contains(needle)
         })
@@ -1388,11 +1414,12 @@ fn view_indices(items: &[TableItem], needle: &str, sort: Option<TableSort>) -> V
     if let Some(sort) = sort {
         match sort.column {
             SortColumn::Title => sort_by_text_key(&mut visible, sort.ascending, |index| {
-                items[index].0.name().to_lowercase()
+                items[index].0.shown_name().to_lowercase()
             }),
             SortColumn::Album => sort_by_album(&mut visible, sort.ascending, items),
             SortColumn::AddedBy => sort_by_text_key(&mut visible, sort.ascending, |index| {
-                items[index].2.as_deref().unwrap_or_default().to_lowercase()
+                crate::vacuum::gate::user(None, items[index].2.as_deref().unwrap_or_default())
+                    .to_lowercase()
             }),
             SortColumn::Added | SortColumn::Index | SortColumn::Duration => {
                 visible.sort_by(|a, b| {
@@ -2031,13 +2058,18 @@ pub fn playlist(app: &mut App, ui: &mut egui::Ui, id: &str) {
             let others = other_adders(owner_id, &page.contributors, &user_id);
             let made_together = playlist.collaborative || !others.is_empty();
             let mut byline = vec![(owner_name(app, playlist).to_string(), None)];
-            if let Some(saves) = playlist.followers.as_ref().map(|followers| followers.total) {
+            if let Some(saves) = playlist.followers.as_ref().map(|followers| followers.total)
+                && !crate::vacuum::gate::hide_counts()
+            {
                 byline.push((saves_text(app.locale, saves), None));
             }
             if !others.is_empty() {
                 let named: Vec<String> = others
                     .iter()
-                    .filter_map(|id| app.user_names.get(*id)?.clone())
+                    .filter_map(|id| {
+                        let name = app.user_names.get(*id)?.as_deref()?;
+                        Some(crate::vacuum::gate::user(Some(id), name).into_owned())
+                    })
                     .collect();
                 byline.push((contributors_text(app.locale, &named, others.len()), None));
             }
@@ -2247,7 +2279,7 @@ pub fn album(app: &mut App, ui: &mut egui::Ui, id: &str) {
                 return;
             }
             app.request_play_counts(&album.uri);
-            let show_plays = app.has_play_counts(&album.uri);
+            let show_plays = app.has_play_counts(&album.uri) && !crate::vacuum::gate::hide_counts();
             album_hero(app, ui, album, &page.tracks, preview.as_deref());
             let saved = app.is_saved(&album.uri).unwrap_or(false);
             let sort = app.table_sorts.get(&Page::Album(id.to_string())).copied();
@@ -2414,18 +2446,38 @@ fn playlist_hero<'a>(
 ) {
     // The slot always shows: the official app draws the placeholder circle
     // as soon as the page opens, before (and instead of) a picture.
-    let avatar = Some(
-        match playlist
-            .owner
-            .id
-            .as_deref()
-            .and_then(|id| app.user_images.get(id))
-            .and_then(|image| image.as_deref())
-        {
+    let owner_image = playlist
+        .owner
+        .id
+        .as_deref()
+        .and_then(|id| app.user_images.get(id))
+        .and_then(|image| image.as_deref());
+    let avatar = Some(if crate::vacuum::gate::on() {
+        crate::vacuum::gate::art(
+            crate::vacuum::gate::ArtKind::User,
+            playlist.owner.id.as_deref(),
+            playlist.owner_name(),
+            owner_image,
+        )
+        .map_or(Avatar::Placeholder, Avatar::Url)
+    } else {
+        match owner_image {
             Some(url) => Avatar::Url(url.to_string()),
             None => Avatar::Placeholder,
-        },
+        }
+    });
+    let shown_art = vacuum_art(
+        crate::vacuum::gate::ArtKind::Playlist,
+        &playlist.id,
+        &playlist.name,
+        &playlist.images,
+        HeroArt::of(app),
     );
+    let images = match &shown_art {
+        Some(url) => HeroImages::single(url),
+        None => images,
+    };
+    let title = playlist.shown_name();
     hero(
         app,
         ui,
@@ -2439,8 +2491,8 @@ fn playlist_hero<'a>(
             } else {
                 gettext(app.locale, "Playlist")
             },
-            title: &playlist.name,
-            description: playlist.description.as_deref().map(util::strip_html),
+            title: &title,
+            description: playlist.shown_description(),
             byline,
             avatar,
             round: false,
@@ -2538,7 +2590,12 @@ fn album_hero(
     let mut byline: Vec<(String, Option<Page>)> = album
         .artists
         .iter()
-        .map(|artist| (artist.name.clone(), artist.id.clone().map(Page::Artist)))
+        .map(|artist| {
+            (
+                artist.shown_name().into_owned(),
+                artist.id.clone().map(Page::Artist),
+            )
+        })
         .collect();
     if let Some(year) = album.year() {
         byline.push((year.to_string(), None));
@@ -2555,12 +2612,23 @@ fn album_hero(
         song_count(app.locale, count)
     };
     byline.push((count_text, None));
-    let images = hero_images(
+    let shown_art = vacuum_art(
+        crate::vacuum::gate::ArtKind::Album,
+        &album.id,
+        &album.name,
         &album.images,
-        preview.map(|album| album.images.as_slice()),
-        true,
         HeroArt::of(app),
     );
+    let images = match &shown_art {
+        Some(url) => HeroImages::single(url),
+        None => hero_images(
+            &album.images,
+            preview.map(|album| album.images.as_slice()),
+            true,
+            HeroArt::of(app),
+        ),
+    };
+    let title = album.shown_name();
     hero(
         app,
         ui,
@@ -2568,7 +2636,7 @@ fn album_hero(
             images,
             liked: false,
             kind: app.album_kind_label(album),
-            title: &album.name,
+            title: &title,
             description: None,
             byline,
             avatar: None,
@@ -2639,7 +2707,7 @@ pub fn liked(app: &mut App, ui: &mut egui::Ui) {
     let user = app
         .user
         .as_ref()
-        .map(|user| user.name().to_string())
+        .map(|user| user.shown_name().into_owned())
         .unwrap_or_default();
     let locale = app.locale;
     let count_text = if app.library.liked.is_complete() {
@@ -2792,8 +2860,8 @@ fn spotify_owned(owner_id: Option<&str>) -> bool {
 /// The owner's name for a playlist's byline. A header read over the
 /// streaming session carries only the owner's id, so the name the profile
 /// lookup found stands in before the id does.
-fn owner_name<'a>(app: &'a App, playlist: &'a Playlist) -> &'a str {
-    playlist
+fn owner_name<'a>(app: &'a App, playlist: &'a Playlist) -> Cow<'a, str> {
+    let name = playlist
         .owner
         .display_name
         .as_deref()
@@ -2801,7 +2869,8 @@ fn owner_name<'a>(app: &'a App, playlist: &'a Playlist) -> &'a str {
             let id = playlist.owner.id.as_deref()?;
             app.user_names.get(id)?.as_deref()
         })
-        .unwrap_or_else(|| playlist.owner_name())
+        .unwrap_or_else(|| playlist.owner_name());
+    crate::vacuum::gate::user(playlist.owner.id.as_deref(), name)
 }
 
 /// Who besides the owner added songs to a playlist, from the adders seen
@@ -3602,6 +3671,7 @@ mod tests {
             visible: Arc::new([2]),
             view_uris: Some(Arc::new(["spotify:track:t_2".to_string()])),
             plays_shown_rows: false,
+            vacuum: None,
             view_positions: Arc::new([Some(0)]),
         };
 

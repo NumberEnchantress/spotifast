@@ -1144,7 +1144,7 @@ fn item_menu_at(
                 menu_submenu(ui, &palette, Some(Icon::User), &label, |ui| {
                     ui.set_min_width(200.0);
                     for artist in &artists {
-                        if menu_item(ui, &palette, Some(Icon::User), &artist.name) {
+                        if menu_item(ui, &palette, Some(Icon::User), &artist.shown_name()) {
                             app.actions.push(Action::Open(Page::Artist(
                                 artist.id.clone().unwrap_or_default(),
                             )));
@@ -1375,12 +1375,12 @@ pub(crate) fn artist_links(
             ui.spacing_mut().item_spacing = spacing;
         }
         if let Some(id) = &artist.id {
-            if theme::link(ui, &artist.name, font.clone(), color).clicked() {
+            if theme::link(ui, artist.shown_name(), font.clone(), color).clicked() {
                 app.actions.push(Action::Open(Page::Artist(id.clone())));
                 clicked = true;
             }
         } else {
-            theme::text(ui, &artist.name, font.clone(), color);
+            theme::text(ui, artist.shown_name(), font.clone(), color);
         }
     }
     ui.spacing_mut().item_spacing = spacing;
@@ -1506,8 +1506,8 @@ fn track_row_contents(
                 // Translators: {title} is a song or episode name, {subtitle} its artists or podcast.
                 "Play {title}, {subtitle}",
             )
-            .replace("{title}", row.item.name())
-            .replace("{subtitle}", &row.item.subtitle()),
+            .replace("{title}", &row.item.shown_name())
+            .replace("{subtitle}", &row.item.shown_subtitle()),
         )
     });
     if response.gained_focus() {
@@ -1549,7 +1549,7 @@ fn track_row_contents(
         egui::DragAndDrop::set_payload(
             ui.ctx(),
             DragTrack {
-                title: preview.name().to_string(),
+                title: preview.shown_name().into_owned(),
                 image: app.item_image(preview, 64),
                 items,
                 from,
@@ -1716,7 +1716,7 @@ fn track_row_contents(
         child.spacing_mut().item_spacing = vec2(6.0, 0.0);
         theme::text(
             &mut child,
-            row.item.name(),
+            row.item.shown_name(),
             theme::medium(14.0),
             title_color,
         );
@@ -1760,7 +1760,7 @@ fn track_row_contents(
                 let subtitle = episode
                     .show
                     .as_ref()
-                    .map(|show| show.name.clone())
+                    .map(|show| show.shown_name().into_owned())
                     .unwrap_or_default();
                 if !subtitle.is_empty() {
                     theme::text(
@@ -1810,7 +1810,7 @@ fn track_row_contents(
         child.add_space(vertical_pad);
         child.horizontal(|ui| {
             ui.set_max_width(title_rect.width());
-            theme::text(ui, row.item.name(), theme::medium(14.5), title_color);
+            theme::text(ui, row.item.shown_name(), theme::medium(14.5), title_color);
         });
         child.horizontal(|ui| {
             ui.set_max_width(title_rect.width());
@@ -1848,7 +1848,7 @@ fn track_row_contents(
                     let subtitle = episode
                         .show
                         .as_ref()
-                        .map(|show| show.name.clone())
+                        .map(|show| show.shown_name().into_owned())
                         .unwrap_or_default();
                     let show_id = episode.show.as_ref().map(|show| show.id.clone());
                     let response = theme::link(ui, subtitle, theme::regular(12.5), subtitle_color);
@@ -1897,7 +1897,7 @@ fn track_row_contents(
             child.set_clip_rect(album_rect.intersect(ui.clip_rect()));
             let response = theme::link(
                 &mut child,
-                album.name.clone(),
+                album.shown_name().into_owned(),
                 theme::regular(13.0),
                 subtitle_color,
             );
@@ -1921,7 +1921,7 @@ fn track_row_contents(
                 cell.left(),
                 cell.right(),
                 cell.center().y,
-                adder,
+                &crate::vacuum::gate::user(None, adder),
                 theme::regular(13.0),
                 palette.secondary,
             );
@@ -2187,7 +2187,7 @@ fn dragged_items(
 fn drag_label(locale: Locale, track: &DragTrack) -> String {
     match track.items.as_slice() {
         [] => track.title.clone(),
-        [item] => item.name().to_string(),
+        [item] => item.shown_name().into_owned(),
         [first, rest @ ..] => ngettext(
             locale,
             // Translators: The label beside the pointer while songs are dragged. {name} is the first song's name and {count} how many more songs are dragged with it.
@@ -2195,7 +2195,7 @@ fn drag_label(locale: Locale, track: &DragTrack) -> String {
             "{name} + {count} more",
             rest.len() as u32,
         )
-        .replace("{name}", first.name())
+        .replace("{name}", &first.shown_name())
         .replace("{count}", &rest.len().to_string()),
     }
 }

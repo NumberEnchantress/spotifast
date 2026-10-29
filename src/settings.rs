@@ -89,6 +89,61 @@ pub struct HomeSettings {
     pub map_listening: bool,
 }
 
+/// Vacuum's choices, as the Unfamiliar Sounds extension's settings.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct VacuumSettings {
+    /// Vacuum is switched on.
+    pub on: bool,
+    /// Artist biographies show "???"; off, they show with known names
+    /// swapped.
+    pub hide_artist_descriptions: bool,
+    /// Playlist descriptions likewise.
+    pub hide_playlist_descriptions: bool,
+    /// Spotify's own theme playlists keep their real titles.
+    pub show_theme_titles: bool,
+    /// Your own name and picture are replaced too.
+    pub replace_own_profile: bool,
+    /// Your own playlists' titles, descriptions and covers are replaced too.
+    pub replace_own_playlists: bool,
+    /// Pages about a person or popularity show a notice instead.
+    pub hide_pages: bool,
+    /// Where pictures come from.
+    pub pictures: crate::vacuum::gate::Pictures,
+    /// A seed of your own; none uses the seed everyone shares.
+    pub seed: Option<String>,
+}
+
+impl Default for VacuumSettings {
+    fn default() -> Self {
+        Self {
+            on: false,
+            hide_artist_descriptions: true,
+            hide_playlist_descriptions: true,
+            show_theme_titles: false,
+            replace_own_profile: false,
+            replace_own_playlists: false,
+            hide_pages: true,
+            pictures: crate::vacuum::gate::Pictures::Museums,
+            seed: None,
+        }
+    }
+}
+
+impl VacuumSettings {
+    pub fn options(&self) -> crate::vacuum::gate::Options {
+        crate::vacuum::gate::Options {
+            hide_artist_descriptions: self.hide_artist_descriptions,
+            hide_playlist_descriptions: self.hide_playlist_descriptions,
+            show_theme_titles: self.show_theme_titles,
+            replace_own_profile: self.replace_own_profile,
+            replace_own_playlists: self.replace_own_playlists,
+            hide_pages: self.hide_pages,
+            pictures: self.pictures,
+        }
+    }
+}
+
 /// How the Home map draws the Library's folders.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -360,6 +415,9 @@ pub struct Settings {
     /// Keep every play rather than the newest 500, moving older ones to
     /// files of their own.
     pub keep_every_play: bool,
+    /// Vacuum: names and pictures replaced by stand-ins, and what centres
+    /// on people and popularity hidden. See [`crate::vacuum`].
+    pub vacuum: VacuumSettings,
     pub lyrics_width: f32,
     pub queue_width: f32,
     /// Use compact single-line rows without cover art in track lists.
@@ -571,6 +629,7 @@ impl Default for Settings {
             sidebar_width: 250.0,
             sidebar_map_width: 520.0,
             keep_every_play: false,
+            vacuum: VacuumSettings::default(),
             lyrics_width: 360.0,
             queue_width: 360.0,
             tracklist_compact: false,

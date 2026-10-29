@@ -68,11 +68,25 @@ pub fn radio(app: &mut App, ui: &mut egui::Ui, seed: &str) {
         ));
         description.clone_from(artists);
     }
+    // Vacuum: a station is named for its seed, so it gets a stand-in of
+    // its own, as a playlist does.
+    let seed_id = seed.rsplit(':').next().unwrap_or(seed);
+    let shown_art = super::collection::vacuum_art(
+        crate::vacuum::gate::ArtKind::Playlist,
+        seed_id,
+        &name,
+        &images,
+        HeroArt::of(app),
+    );
+    let name = crate::vacuum::gate::playlist(seed_id, None, &name).into_owned();
     hero(
         app,
         ui,
         Hero {
-            images: hero_images(&images, None, false, HeroArt::of(app)),
+            images: match &shown_art {
+                Some(url) => super::collection::HeroImages::single(url),
+                None => hero_images(&images, None, false, HeroArt::of(app)),
+            },
             liked: false,
             kind: gettext(locale, "Radio"),
             title: &name,
@@ -225,26 +239,28 @@ fn featuring(locale: Locale, songs: &[Track]) -> Option<String> {
     match names.as_slice() {
         [] => None,
         // Translators: {first} is an artist name.
-        [first] => Some(gettext(locale, "With {first}").replace("{first}", first)),
+        [first] => Some(
+            gettext(locale, "With {first}").replace("{first}", &crate::vacuum::gate::artist(first)),
+        ),
         [first, second] => Some(
             // Translators: {first} and {second} are artist names.
             gettext(locale, "With {first} and {second}")
-                .replace("{first}", first)
-                .replace("{second}", second),
+                .replace("{first}", &crate::vacuum::gate::artist(first))
+                .replace("{second}", &crate::vacuum::gate::artist(second)),
         ),
         [first, second, third] => Some(
             // Translators: {first}, {second} and {third} are artist names.
             gettext(locale, "With {first}, {second} and {third}")
-                .replace("{first}", first)
-                .replace("{second}", second)
-                .replace("{third}", third),
+                .replace("{first}", &crate::vacuum::gate::artist(first))
+                .replace("{second}", &crate::vacuum::gate::artist(second))
+                .replace("{third}", &crate::vacuum::gate::artist(third)),
         ),
         [first, second, third, ..] => Some(
             // Translators: {first}, {second} and {third} are artist names; more follow.
             gettext(locale, "With {first}, {second}, {third} and more")
-                .replace("{first}", first)
-                .replace("{second}", second)
-                .replace("{third}", third),
+                .replace("{first}", &crate::vacuum::gate::artist(first))
+                .replace("{second}", &crate::vacuum::gate::artist(second))
+                .replace("{third}", &crate::vacuum::gate::artist(third)),
         ),
     }
 }
