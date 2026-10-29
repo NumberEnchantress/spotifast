@@ -90,6 +90,28 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                         }
                     });
                 }
+                Dialog::ConfirmClearHistory => {
+                    theme::text(ui, gettext(locale, "Clear play history?"), theme::bold(20.0), palette.text);
+                    ui.add_space(8.0);
+                    let body = gettext(locale, "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone.");
+                    ui.add(
+                        egui::Label::new(
+                            egui::RichText::new(body)
+                                .font(theme::regular(14.0))
+                                .color(palette.secondary),
+                        )
+                        .wrap(),
+                    );
+                    ui.add_space(20.0);
+                    buttons(ui, |ui| {
+                        if theme::pill_button(ui, &palette, &gettext(locale, "Clear history"), true).clicked() {
+                            app.actions.push(Action::ClearPlayHistory);
+                        }
+                        if theme::pill_button(ui, &palette, &gettext(locale, "Cancel"), false).clicked() {
+                            app.actions.push(Action::CloseDialog);
+                        }
+                    });
+                }
                 Dialog::ConfirmDeletePlaylist { id, name, owned } => {
                     theme::text(
                         ui,

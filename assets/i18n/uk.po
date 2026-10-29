@@ -4008,3 +4008,37 @@ msgstr "Показати мапою"
 #: src/ui/playlist_map.rs:1138
 msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
 msgstr "Прокручування змінює масштаб, перетягування тла зсуває, подвійне клацання показує все. Клацання відкриває, правий клік дає більше, плейлисти, теки й треки перетягуйте туди, де їм місце."
+
+#. Translators: Home map toggle: make each playlist, album or folder as large as the time listened to it.
+#: src/demo.rs:7173
+msgid "Size by listening"
+msgstr "Розмір за прослуховуванням"
+
+#. Translators: How long the songs played from a playlist, album, artist, podcast or folder were listened to. {time} is a length of time, such as 2 hr 13 min.
+#: src/ui/playlist_map.rs:1532
+#, rust-format
+msgid "{time} listened"
+msgstr "{time} прослухано"
+
+#: src/ui/settings.rs:2446
+msgid "Keep every play"
+msgstr "Зберігати всі прослуховування"
+
+#. Translators: {folder} is the path of the folder older plays are kept in.
+#: src/ui/settings.rs:2450
+#, rust-format
+msgid "Off, the newest 500 plays are kept. On, older plays move to {folder} instead of being deleted, each with how long you listened and where it was played from."
+msgstr "Вимкнено: зберігаються 500 найновіших прослуховувань. Увімкнено: старші переносяться до {folder}, а не видаляються, кожне з часом прослуховування й джерелом."
+
+#: src/ui/dialogs.rs:94
+msgid "Clear play history?"
+msgstr "Очистити історію прослуховування?"
+
+#: src/ui/dialogs.rs:96
+msgid "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
+msgstr "Усі прослуховування, збережені Spotifast, буде видалено разом із часом прослуховування, за яким мапа визначає розміри. Це не можна скасувати."
+
+#. Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
+#: src/demo.rs:2997
+msgid "Show as"
+msgstr "Показати як"

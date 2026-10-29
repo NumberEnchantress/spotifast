@@ -3994,3 +3994,37 @@ msgstr "Mostrar como mapa"
 #: src/ui/playlist_map.rs:1138
 msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
 msgstr "Desplázate para hacer zoom, arrastra el fondo para moverte, doble clic para verlo todo. Clic para abrir, clic derecho para más, arrastra playlists, carpetas o canciones a donde van."
+
+#. Translators: Home map toggle: make each playlist, album or folder as large as the time listened to it.
+#: src/demo.rs:7173
+msgid "Size by listening"
+msgstr "Tamaño según escucha"
+
+#. Translators: How long the songs played from a playlist, album, artist, podcast or folder were listened to. {time} is a length of time, such as 2 hr 13 min.
+#: src/ui/playlist_map.rs:1532
+#, rust-format
+msgid "{time} listened"
+msgstr "{time} escuchado"
+
+#: src/ui/settings.rs:2446
+msgid "Keep every play"
+msgstr "Conservar todas las reproducciones"
+
+#. Translators: {folder} is the path of the folder older plays are kept in.
+#: src/ui/settings.rs:2450
+#, rust-format
+msgid "Off, the newest 500 plays are kept. On, older plays move to {folder} instead of being deleted, each with how long you listened and where it was played from."
+msgstr "Desactivado, se conservan las 500 reproducciones más recientes. Activado, las más antiguas se mueven a {folder} en lugar de borrarse, cada una con cuánto la escuchaste y desde dónde se reprodujo."
+
+#: src/ui/dialogs.rs:94
+msgid "Clear play history?"
+msgstr "¿Borrar el historial de reproducción?"
+
+#: src/ui/dialogs.rs:96
+msgid "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
+msgstr "Se borrarán todas las reproducciones que Spotifast ha conservado, junto con el tiempo de escucha que usa el mapa para los tamaños. No se puede deshacer."
+
+#. Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
+#: src/demo.rs:2997
+msgid "Show as"
+msgstr "Mostrar como"

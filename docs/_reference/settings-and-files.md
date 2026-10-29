@@ -24,6 +24,7 @@ Spotifast follows each platform's conventions. On Linux:
 | Legacy proxy password | `~/.local/state/spotifast/proxy_password` | Removed after protected migration |
 | Last session | `~/.local/state/spotifast/session.json` | Yes |
 | Play history | `~/.local/state/spotifast/history.json` | Yes |
+| Older plays, with Keep every play | `~/.local/state/spotifast/plays/` | Yes, those plays and their listening time are gone |
 | Songs added to local files one at a time | `~/.local/state/spotifast/local-files/` | Yes, they leave Local Files; the songs you picked stay where they were |
 | Audio cache | `~/.cache/spotifast/audio/` | Always |
 | Artwork cache | `~/.cache/spotifast/art/` | Always |
@@ -366,6 +367,7 @@ main fields are:
 | `sidebar_grid` | `false` | Library entries as responsive cover cards instead of rows |
 | `sidebar_map` | `false` | The playlist map in the sidebar in place of the Library's rows or cards |
 | `sidebar_map_width` | `520` | The sidebar's width while it shows the map |
+| `keep_every_play` | `false` | Keep every play rather than the newest 500, moving older plays to the `plays` folder |
 | `tracklist_compact` | `false` | One-line track rows without covers |
 | `middle_click_autoscroll` | `false` | Linux only: middle-click a list to autoscroll it. Windows always autoscrolls and macOS never does |
 | `winamp_window` | `false` | The window is the Winamp mini player |
@@ -539,14 +541,37 @@ note says where it is and where it would land, such as `Curated\People →
 Archive\People`; Escape, or letting go where it cannot go or inside the
 folder it is in already, or outside the map, leaves it where it was.
 
-The **Show as map** button beside the Library's heading puts the map in the
-sidebar in place of the Library's rows or cards, with the same choices
-above it. The sidebar is wider for it and keeps that width of its own
-(`"sidebar_map_width"`). Clicking a playlist, album, artist or podcast opens
-it beside the map, as a row would; the button, now **Show as list** (or
-**Show as grid**), brings the rows back. It is kept as `"sidebar_map"`. The
+The **Show as** button beside the Library's heading shows how the Library
+is shown, and opens a menu with the other ways: **Show as list**, **Show as
+grid** (`"sidebar_grid"`) and **Show as map**. Shown as the map, the
+sidebar holds the map in place of the Library's rows or cards, with the same
+choices above it. The sidebar is wider for it and keeps that width of its
+own (`"sidebar_map_width"`). Clicking a playlist, album, artist or podcast
+opens it beside the map, as a row would. It is kept as `"sidebar_map"`. The
 choices are kept as `"home": {"map_layout": "tree"}` (or `"circles"`),
 `"map_folder"` and `"map_filters"`, each `"zoom"` or `"only"`.
+
+**Size by listening**, beside the layouts, makes each node's area grow with
+the time you listened to what it plays: the songs played from that
+playlist, album, artist or podcast, or from Liked Songs. A folder holds the
+time of everything in it. Something you never played from stays small, and
+pointing at a node says how long, such as `2 hr 13 min listened`. The time
+comes from the plays Spotifast keeps (see Play history), so it counts what
+was played here, or on a device Spotifast was following, since the play
+started being kept; Spotify does not share how long you listened. It is
+kept as `"home": {"map_listening": true}`.
+
+### Play history
+
+Each play is kept once it counts (see Play history in the guide), with the
+song, when it started, how long you listened, paused time left out, and
+where it was played from. `history.json` keeps the newest 500. With **Keep
+every play**, in Settings → Storage, older plays move to the `plays` folder
+beside it instead of being deleted: once 1,000 are kept, the oldest 500 go
+there as a file of their own, and they leave `history.json` only once that
+file is written. Turning it off moves any plays kept past the newest 500
+there too, and from then on the oldest are let go again. **Clear history**
+asks first, then deletes both. Neither is ever uploaded.
 
 **Only what I ask for**, in Settings → Suggestions, hides everything
 Spotify suggests rather than what you looked for, clicked or opened: Home's

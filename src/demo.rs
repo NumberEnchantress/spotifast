@@ -586,6 +586,7 @@ pub fn populate(app: &mut App) {
                         uri,
                     }
                 }),
+                listened_ms: None,
             })
             .collect(),
     );
@@ -600,6 +601,7 @@ pub fn populate(app: &mut App) {
             track: track.clone(),
             played_at: Some(demo_added_at(index, recents_now)),
             context: None,
+            listened_ms: None,
         })
         .collect();
     app.recents.loaded_once = true;
@@ -1142,6 +1144,28 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
                 app.library.playlists = Loadable::Loaded(playlists);
             }
             "sidebar-map" => app.settings.sidebar_map = true,
+            // The map sized by listening, over a few weeks of plays.
+            "map-listening" => {
+                app.settings.home.map_listening = true;
+                let hours = [
+                    ("pl1", 14.0),
+                    ("pl2", 3.5),
+                    ("pl3", 1.0),
+                    ("pl4", 8.0),
+                    ("pl5", 0.4),
+                ];
+                for (index, (id, hours)) in hours.into_iter().enumerate() {
+                    app.plays.record(
+                        crate::api::models::Track {
+                            uri: format!("spotify:track:demo-heard-{index}"),
+                            ..Default::default()
+                        },
+                        jiff::Timestamp::now(),
+                        Some(&format!("spotify:playlist:{id}")),
+                        std::time::Duration::from_secs_f64(hours * 3600.0),
+                    );
+                }
+            }
             "show-version" => {
                 app.demo_windows_controls = true;
                 app.settings.custom_titlebar = true;
@@ -2989,26 +3013,43 @@ mod tests {
     fn library_grid_toggle_is_accessible_and_persistent() {
         use egui::accesskit::{Action as AccessibleAction, Role};
         let (ctx, mut app) = accessible_app("library-grid-toggle");
-        let tree = accessible_frame(&ctx, &mut app, vec![]);
-        let grid = accessible_node(&tree, "Show as grid", Role::Button);
-        accessible_frame(
-            &ctx,
-            &mut app,
-            vec![accessible_action(grid, AccessibleAction::Click, None)],
-        );
+        // One button shows how the Library is shown; its menu offers the
+        // other ways.
+        let choose = |app: &mut App, choice: &str| {
+            let tree = accessible_frame(&ctx, app, vec![]);
+            let view = accessible_node(&tree, "Show as", Role::Button);
+            accessible_frame(
+                &ctx,
+                app,
+                vec![accessible_action(view, AccessibleAction::Click, None)],
+            );
+            let tree = accessible_frame(&ctx, app, vec![]);
+            let item = accessible_node(&tree, choice, Role::Button);
+            accessible_frame(
+                &ctx,
+                app,
+                vec![accessible_action(item, AccessibleAction::Click, None)],
+            );
+            accessible_frame(&ctx, app, vec![])
+        };
+        choose(&mut app, "Show as grid");
         assert!(app.settings.sidebar_grid);
 
-        let tree = accessible_frame(&ctx, &mut app, vec![]);
-        let list = accessible_node(&tree, "Show as list", Role::Button);
+        let tree = choose(&mut app, "Show as map");
+        assert!(app.settings.sidebar_map, "the map stands in for the cards");
+        assert!(
+            tree.nodes
+                .iter()
+                .all(|(_, node)| node.label() != Some("Show as map")),
+            "the menu closed"
+        );
+
+        let tree = choose(&mut app, "Show as list");
+        assert!(!app.settings.sidebar_grid);
+        assert!(!app.settings.sidebar_map);
         assert!(tree.nodes.iter().any(|(_, node)| {
             node.role() == Role::Button && node.label() == Some("Discover Weekly")
         }));
-        accessible_frame(
-            &ctx,
-            &mut app,
-            vec![accessible_action(list, AccessibleAction::Click, None)],
-        );
-        assert!(!app.settings.sidebar_grid);
         app.backend.shutdown();
     }
 
@@ -7130,6 +7171,74 @@ mod tests {
             }
             app.backend.shutdown();
         }
+    }
+
+    /// Size by listening, above the map, makes each node as large as the
+    /// time listened to what it plays, a folder as large as what it holds,
+    /// says the time when pointed at, and is kept with the settings.
+    #[test]
+    fn the_map_sizes_its_nodes_by_listening_when_asked() {
+        use egui::accesskit::{Action as Do, Role};
+        let (ctx, mut app) = accessible_app("map-listening");
+        apply_flags(&mut app, None, Some("playlist-map,folders"));
+        let name_of = |app: &App, id: &str| {
+            app.library
+                .playlists
+                .get()
+                .and_then(|list| list.iter().find(|playlist| playlist.id == id))
+                .map(|playlist| playlist.name.clone())
+                .expect("a playlist")
+        };
+        let (heard, quiet) = (name_of(&app, "pl4"), name_of(&app, "pl1"));
+        app.plays.record(
+            crate::api::models::Track {
+                uri: "spotify:track:heard".into(),
+                ..Default::default()
+            },
+            jiff::Timestamp::now(),
+            Some("spotify:playlist:pl4"),
+            std::time::Duration::from_secs(3 * 3600),
+        );
+        let width = |tree: &egui::accesskit::TreeUpdate, name: &str| {
+            map_node(tree, name).expect("in view").width()
+        };
+        let tree = settled_map(&ctx, &mut app, vec![]);
+        let even = width(&tree, &heard) / width(&tree, &quiet);
+        assert!(!app.settings.home.map_listening);
+
+        let toggle = accessible_node(&tree, "Size by listening", Role::CheckBox);
+        let tree = settled_map(
+            &ctx,
+            &mut app,
+            vec![accessible_action(toggle, Do::Click, None)],
+        );
+        assert!(app.settings.home.map_listening);
+        let sized = width(&tree, &heard) / width(&tree, &quiet);
+        assert!(
+            sized > even * 3.0,
+            "the playlist listened to is far larger: {sized} against {even}"
+        );
+        assert!(
+            map_nodes(&tree)
+                .iter()
+                .any(|(label, _)| label.starts_with(&heard)
+                    && label.ends_with("3 hr 0 min listened")),
+            "it says how long"
+        );
+
+        let toggle = accessible_node(&tree, "Size by listening", Role::CheckBox);
+        let tree = settled_map(
+            &ctx,
+            &mut app,
+            vec![accessible_action(toggle, Do::Click, None)],
+        );
+        assert!(!app.settings.home.map_listening);
+        let back = width(&tree, &heard) / width(&tree, &quiet);
+        assert!(
+            (back - even).abs() < 0.01,
+            "off, as before: {back} against {even}"
+        );
+        app.backend.shutdown();
     }
 
     /// The map works the Library as the sidebar does: a playlist dragged

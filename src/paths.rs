@@ -129,6 +129,12 @@ impl AppDirs {
         self.state.join("history.json")
     }
 
+    /// Older plays, kept with Keep every play, in files of their own. See
+    /// [`crate::history`].
+    pub fn plays_dir(&self) -> PathBuf {
+        self.state.join("plays")
+    }
+
     pub fn shared_web_token_file(&self) -> PathBuf {
         self.state.join("shared_web_api_token.json")
     }

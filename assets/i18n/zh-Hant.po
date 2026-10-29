@@ -3871,3 +3871,37 @@ msgstr "以地圖顯示"
 #: src/ui/playlist_map.rs:1138
 msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
 msgstr "捲動縮放，拖曳背景平移，按兩下查看全部。按一下開啟，按右鍵查看更多，把播放清單、資料夾或歌曲拖到要去的地方。"
+
+#. Translators: Home map toggle: make each playlist, album or folder as large as the time listened to it.
+#: src/demo.rs:7173
+msgid "Size by listening"
+msgstr "依收聽時長縮放"
+
+#. Translators: How long the songs played from a playlist, album, artist, podcast or folder were listened to. {time} is a length of time, such as 2 hr 13 min.
+#: src/ui/playlist_map.rs:1532
+#, rust-format
+msgid "{time} listened"
+msgstr "已收聽 {time}"
+
+#: src/ui/settings.rs:2446
+msgid "Keep every play"
+msgstr "保留每次播放"
+
+#. Translators: {folder} is the path of the folder older plays are kept in.
+#: src/ui/settings.rs:2450
+#, rust-format
+msgid "Off, the newest 500 plays are kept. On, older plays move to {folder} instead of being deleted, each with how long you listened and where it was played from."
+msgstr "關閉時保留最近 500 次播放。開啟後，較早的播放會移到 {folder} 而不是被刪除，每次都記錄收聽時長和播放來源。"
+
+#: src/ui/dialogs.rs:94
+msgid "Clear play history?"
+msgstr "清除播放記錄？"
+
+#: src/ui/dialogs.rs:96
+msgid "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
+msgstr "Spotifast 保留的所有播放都將被刪除，地圖用於縮放的收聽時長也會一併刪除。此操作無法復原。"
+
+#. Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
+#: src/demo.rs:2997
+msgid "Show as"
+msgstr "顯示方式"

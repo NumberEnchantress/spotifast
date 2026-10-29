@@ -2008,31 +2008,61 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
             {
                 app.actions.push(Action::ToggleSidebar);
             }
+            // How the Library is shown: its rows, its cards, or the map in
+            // their place. One button, so the heading keeps its room in the
+            // default width; its menu offers the other two.
             let grid = app.settings.sidebar_grid;
             let map = app.settings.sidebar_map;
-            if !map {
-                let (icon, label) = if grid {
-                    (Icon::LayoutList, gettext(locale, "Show as list"))
-                } else {
-                    (Icon::LayoutGrid, gettext(locale, "Show as grid"))
-                };
-                if theme::icon_button(ui, icon, 16.0, palette.secondary, palette.text, &label)
-                    .clicked()
-                {
-                    app.actions.push(Action::SetLibraryGrid(!grid));
-                }
-            }
-            // The map stands in for the rows or cards, and gives way to them.
-            let (icon, label) = match (map, grid) {
-                // Translators: Library sidebar button: show the Library as the playlist map in place of its rows.
-                (false, _) => (Icon::Network, gettext(locale, "Show as map")),
-                (true, false) => (Icon::LayoutList, gettext(locale, "Show as list")),
-                (true, true) => (Icon::LayoutGrid, gettext(locale, "Show as grid")),
+            let shown_as = if map {
+                Icon::Network
+            } else if grid {
+                Icon::LayoutGrid
+            } else {
+                Icon::LayoutList
             };
-            if theme::icon_button(ui, icon, 16.0, palette.secondary, palette.text, &label).clicked()
-            {
-                app.actions.push(Action::SetLibraryMap(!map));
-            }
+            // Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
+            let view = gettext(locale, "Show as");
+            let response =
+                theme::icon_button(ui, shown_as, 16.0, palette.secondary, palette.text, &view);
+            egui::Popup::menu(&response)
+                .frame(super::widgets::menu_frame(&palette))
+                .show(|ui| {
+                    ui.set_min_width(160.0);
+                    ui.set_max_width(260.0);
+                    if (map || grid)
+                        && super::widgets::menu_item(
+                            ui,
+                            &palette,
+                            Some(Icon::LayoutList),
+                            &gettext(locale, "Show as list"),
+                        )
+                    {
+                        app.actions.push(Action::SetLibraryMap(false));
+                        app.actions.push(Action::SetLibraryGrid(false));
+                    }
+                    if (map || !grid)
+                        && super::widgets::menu_item(
+                            ui,
+                            &palette,
+                            Some(Icon::LayoutGrid),
+                            &gettext(locale, "Show as grid"),
+                        )
+                    {
+                        app.actions.push(Action::SetLibraryMap(false));
+                        app.actions.push(Action::SetLibraryGrid(true));
+                    }
+                    if !map
+                        && super::widgets::menu_item(
+                            ui,
+                            &palette,
+                            Some(Icon::Network),
+                            // Translators: Library sidebar button: show the Library as the playlist map in place of its rows.
+                            &gettext(locale, "Show as map"),
+                        )
+                    {
+                        app.actions.push(Action::SetLibraryMap(true));
+                    }
+                });
             // One item never deserved a menu: the plus creates directly.
             // Where folders can be made there are two, as in Spotify's apps.
             if app.folders_editable() {

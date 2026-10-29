@@ -1013,6 +1013,8 @@ pub enum Dialog {
         id: String,
         name: String,
     },
+    /// Ask before letting go of every play kept.
+    ConfirmClearHistory,
     ConfirmPlaylistDuplicates {
         playlist_id: String,
         playlist_name: String,
@@ -1302,6 +1304,8 @@ pub enum Action {
         folder: bool,
         focus: crate::settings::MapFocus,
     },
+    /// Size the Home map's nodes by the time listened to them.
+    SetMapListening(bool),
     SetLibrarySort {
         shelf: crate::settings::LibraryShelf,
         sort: crate::settings::LibrarySort,

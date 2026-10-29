@@ -4011,3 +4011,37 @@ msgstr "Als Karte anzeigen"
 #: src/ui/playlist_map.rs:1138
 msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
 msgstr "Scrollen zum Zoomen, Hintergrund ziehen zum Verschieben, Doppelklick zeigt alles. Klicken zum Öffnen, Rechtsklick für mehr, Playlists, Ordner oder Songs dorthin ziehen, wo sie hingehören."
+
+#. Translators: Home map toggle: make each playlist, album or folder as large as the time listened to it.
+#: src/demo.rs:7173
+msgid "Size by listening"
+msgstr "Nach Hördauer"
+
+#. Translators: How long the songs played from a playlist, album, artist, podcast or folder were listened to. {time} is a length of time, such as 2 hr 13 min.
+#: src/ui/playlist_map.rs:1532
+#, rust-format
+msgid "{time} listened"
+msgstr "{time} gehört"
+
+#: src/ui/settings.rs:2446
+msgid "Keep every play"
+msgstr "Jede Wiedergabe behalten"
+
+#. Translators: {folder} is the path of the folder older plays are kept in.
+#: src/ui/settings.rs:2450
+#, rust-format
+msgid "Off, the newest 500 plays are kept. On, older plays move to {folder} instead of being deleted, each with how long you listened and where it was played from."
+msgstr "Aus: Die neuesten 500 Wiedergaben werden behalten. An: Ältere Wiedergaben werden nach {folder} verschoben statt gelöscht, jeweils mit Hördauer und Herkunft."
+
+#: src/ui/dialogs.rs:94
+msgid "Clear play history?"
+msgstr "Wiedergabeverlauf löschen?"
+
+#: src/ui/dialogs.rs:96
+msgid "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
+msgstr "Alle von Spotifast behaltenen Wiedergaben werden gelöscht, samt der Hördauer, nach der die Karte ihre Größen bemisst. Das kann nicht rückgängig gemacht werden."
+
+#. Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
+#: src/demo.rs:2997
+msgid "Show as"
+msgstr "Anzeigen als"

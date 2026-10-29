@@ -2443,6 +2443,15 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             .replace("{file}", &app.dirs.history_file().display().to_string()),
         ),
         RowText::new(
+            gettext(locale, "Keep every play"),
+            gettext(
+                locale,
+                // Translators: {folder} is the path of the folder older plays are kept in.
+                "Off, the newest 500 plays are kept. On, older plays move to {folder} instead of being deleted, each with how long you listened and where it was played from.",
+            )
+            .replace("{folder}", &app.dirs.plays_dir().display().to_string()),
+        ),
+        RowText::new(
             gettext(locale, "Sign-in"),
             gettext(
                 locale,
@@ -2477,10 +2486,19 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 )
                 .clicked()
                 {
-                    app.actions.push(Action::ClearPlayHistory);
+                    app.actions.push(Action::ShowDialog(
+                        crate::model::Dialog::ConfirmClearHistory,
+                    ));
                 }
             });
-            filtered_row(ui, &palette, &needle, &storage, &storage_rows[3], |_| {});
+            filtered_row(ui, &palette, &needle, &storage, &storage_rows[3], |ui| {
+                let keep = storage_rows[3].title.clone();
+                if widgets::switch(ui, &palette, &keep, &mut app.settings.keep_every_play).changed()
+                {
+                    changed = true;
+                }
+            });
+            filtered_row(ui, &palette, &needle, &storage, &storage_rows[4], |_| {});
         });
     }
 

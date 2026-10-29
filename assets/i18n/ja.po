@@ -3954,3 +3954,37 @@ msgstr "マップで表示"
 #: src/ui/playlist_map.rs:1138
 msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
 msgstr "スクロールでズーム、背景をドラッグで移動、ダブルクリックで全体表示。クリックで開く、右クリックでその他、プレイリスト・フォルダ・曲は行き先へドラッグ。"
+
+#. Translators: Home map toggle: make each playlist, album or folder as large as the time listened to it.
+#: src/demo.rs:7173
+msgid "Size by listening"
+msgstr "再生時間でサイズ"
+
+#. Translators: How long the songs played from a playlist, album, artist, podcast or folder were listened to. {time} is a length of time, such as 2 hr 13 min.
+#: src/ui/playlist_map.rs:1532
+#, rust-format
+msgid "{time} listened"
+msgstr "{time}再生"
+
+#: src/ui/settings.rs:2446
+msgid "Keep every play"
+msgstr "すべての再生を保存"
+
+#. Translators: {folder} is the path of the folder older plays are kept in.
+#: src/ui/settings.rs:2450
+#, rust-format
+msgid "Off, the newest 500 plays are kept. On, older plays move to {folder} instead of being deleted, each with how long you listened and where it was played from."
+msgstr "オフでは最新の500件の再生を保存します。オンでは古い再生を削除せず{folder}に移し、それぞれ聴いた時間と再生元も記録します。"
+
+#: src/ui/dialogs.rs:94
+msgid "Clear play history?"
+msgstr "再生履歴を消去しますか？"
+
+#: src/ui/dialogs.rs:96
+msgid "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
+msgstr "Spotifast が保存したすべての再生が、マップのサイズに使う再生時間とともに削除されます。元に戻せません。"
+
+#. Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
+#: src/demo.rs:2997
+msgid "Show as"
+msgstr "表示形式"

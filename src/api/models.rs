@@ -724,6 +724,10 @@ pub struct PlayHistory {
     pub played_at: Option<String>,
     #[serde(default)]
     pub context: Option<Context>,
+    /// How long it was listened to, for a play made or heard here. Spotify
+    /// does not report it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub listened_ms: Option<u64>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]

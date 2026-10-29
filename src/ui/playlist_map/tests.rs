@@ -24,6 +24,7 @@ fn big_library() -> Vec<Node> {
             focus: true,
             away: false,
             entry: None,
+            listened: None,
             radius: if holds {
                 12.0
             } else {
@@ -176,4 +177,43 @@ fn large_libraries_lay_out_without_overlaps() {
             );
         }
     }
+}
+
+/// Sized by listening, with a folder open: the Library on the way back out
+/// holds everything but sets no one's size, a folder is weighed against
+/// folders and a playlist against playlists, so the playlist heard most is
+/// as large as the folder heard most, and one never heard is the smallest.
+#[test]
+fn listening_sizes_weigh_like_against_like() {
+    let mut nodes = big_library();
+    let leaves: Vec<usize> = (1..nodes.len())
+        .filter(|index| !nodes[*index].holds())
+        .take(3)
+        .collect();
+    for node in &mut nodes {
+        node.listened = Some(0);
+    }
+    nodes[leaves[0]].listened = Some(3_600_000);
+    nodes[leaves[1]].listened = Some(900_000);
+    let folder = nodes[leaves[0]].parent.unwrap();
+    nodes[folder].listened = Some(4_500_000);
+    // The way back out, holding everything.
+    let away = nodes.len();
+    nodes.push(Node {
+        key: "library".into(),
+        kind: Kind::Library,
+        away: true,
+        listened: Some(100 * 3_600_000),
+        ..nodes[folder].clone()
+    });
+    size_by_listening(&mut nodes);
+    assert_eq!(nodes[leaves[0]].radius, LOUDEST, "the playlist heard most");
+    assert_eq!(nodes[folder].radius, LOUDEST, "the folder heard most");
+    let half = (QUIET * QUIET + (LOUDEST * LOUDEST - QUIET * QUIET) * 0.25).sqrt();
+    assert!(
+        (nodes[leaves[1]].radius - half).abs() < 1e-3,
+        "area follows time"
+    );
+    assert_eq!(nodes[leaves[2]].radius, QUIET, "never heard");
+    assert_eq!(nodes[away].radius, 12.0, "the Library keeps its size");
 }

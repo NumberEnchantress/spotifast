@@ -3990,3 +3990,37 @@ msgstr "Als kaart tonen"
 #: src/ui/playlist_map.rs:1138
 msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
 msgstr "Scroll om te zoomen, sleep de achtergrond om te verschuiven, dubbelklik om alles te zien. Klik om te openen, rechtsklik voor meer, sleep playlists, mappen of nummers naar hun plek."
+
+#. Translators: Home map toggle: make each playlist, album or folder as large as the time listened to it.
+#: src/demo.rs:7173
+msgid "Size by listening"
+msgstr "Grootte naar luistertijd"
+
+#. Translators: How long the songs played from a playlist, album, artist, podcast or folder were listened to. {time} is a length of time, such as 2 hr 13 min.
+#: src/ui/playlist_map.rs:1532
+#, rust-format
+msgid "{time} listened"
+msgstr "{time} geluisterd"
+
+#: src/ui/settings.rs:2446
+msgid "Keep every play"
+msgstr "Elke weergave bewaren"
+
+#. Translators: {folder} is the path of the folder older plays are kept in.
+#: src/ui/settings.rs:2450
+#, rust-format
+msgid "Off, the newest 500 plays are kept. On, older plays move to {folder} instead of being deleted, each with how long you listened and where it was played from."
+msgstr "Uit: de nieuwste 500 weergaven worden bewaard. Aan: oudere weergaven gaan naar {folder} in plaats van te worden verwijderd, elk met hoe lang je luisterde en waarvandaan."
+
+#: src/ui/dialogs.rs:94
+msgid "Clear play history?"
+msgstr "Afspeelgeschiedenis wissen?"
+
+#: src/ui/dialogs.rs:96
+msgid "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
+msgstr "Alle weergaven die Spotifast heeft bewaard worden verwijderd, samen met de luistertijd waarop de kaart zijn formaten baseert. Dit kan niet ongedaan worden gemaakt."
+
+#. Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
+#: src/demo.rs:2997
+msgid "Show as"
+msgstr "Tonen als"

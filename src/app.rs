@@ -275,6 +275,20 @@ struct Listening {
     listened: std::time::Duration,
     playing_since: Option<Instant>,
     recorded: bool,
+    /// When the play was written down, once it counts, to find it again
+    /// and keep its listening time up to date.
+    at: Option<String>,
+}
+
+impl Listening {
+    /// Time listened so far, paused time and seeking left out.
+    fn so_far(&self) -> std::time::Duration {
+        self.listened
+            + self
+                .playing_since
+                .map(|since| since.elapsed())
+                .unwrap_or_default()
+    }
 }
 
 /// Where the play counts of one album or artist stand.
@@ -986,7 +1000,8 @@ impl App {
         // The legacy password file has no endpoint of its own. Keep the old
         // settings beside it until migration binds that password in the store.
         settings.proxy_password_legacy |= dirs.proxy_secret_file().try_exists().unwrap_or(true);
-        let plays = crate::history::History::load(&dirs.history_file());
+        let plays =
+            crate::history::History::load(&dirs.history_file()).with_archive(dirs.plays_dir());
         let tap = crate::vis::AudioTap::new();
         let eq = crate::eq::shared();
         if let Ok(mut shared) = eq.lock() {
@@ -3337,6 +3352,8 @@ impl App {
         if state.track_sequence != self.local.track_sequence
             && matches!(self.target(), Target::Local)
         {
+            // The play that ends keeps the time it got.
+            self.settle_listening();
             self.listening = None;
         }
         let track_changed =
@@ -12126,6 +12143,10 @@ impl App {
                 self.settings.home.map_layout = layout;
                 self.mark_settings_dirty();
             }
+            Action::SetMapListening(listening) => {
+                self.settings.home.map_listening = listening;
+                self.mark_settings_dirty();
+            }
             Action::SetMapFocus { folder, focus } => {
                 if folder {
                     self.settings.home.map_folder = focus;
@@ -12413,6 +12434,13 @@ impl App {
                 });
             }
             Action::ClearPlayHistory => {
+                if matches!(self.dialog, Some(Dialog::ConfirmClearHistory)) {
+                    self.dialog = None;
+                }
+                // The play being listened to is gone with the rest.
+                if let Some(listening) = &mut self.listening {
+                    listening.at = None;
+                }
                 self.plays.clear();
                 self.plays.save(&self.files, &self.dirs.history_file());
                 self.rebuild_recents();
@@ -13092,7 +13120,11 @@ impl App {
             match event {
                 Event::Suspending(ack) | Event::EndingSession(ack) => {
                     self.save_state();
+                    self.settle_listening();
                     self.plays.save(&self.files, &self.dirs.history_file());
+                    // A clear still under way finishes, within a share of
+                    // the time the system holds for the app.
+                    self.plays.flush(SUSPEND_FLUSH_TIMEOUT / 3);
                     // The system may stop for good after this: the writes
                     // reach the disk before it is told to go ahead, within
                     // the time the system is held for.
@@ -13155,47 +13187,81 @@ impl App {
     ///
     /// Paused time and seeking do not count. Each track is recorded once.
     fn note_listening(&mut self) {
+        self.plays.set_keep_all(self.settings.keep_every_play);
+        if self.plays.poll() {
+            self.plays.save(&self.files, &self.dirs.history_file());
+            self.rebuild_recents();
+        }
         let Some(now) = self.now_playing_live() else {
+            self.settle_listening();
             self.listening = None;
             return;
         };
-        let listening = match &mut self.listening {
-            Some(held) if held.uri == now.uri => held,
-            _ => {
-                self.listening = Some(Listening {
-                    uri: now.uri.clone(),
-                    listened: std::time::Duration::ZERO,
-                    playing_since: now.playing.then(Instant::now),
-                    recorded: false,
-                });
-                return;
-            }
+        if self
+            .listening
+            .as_ref()
+            .is_none_or(|held| held.uri != now.uri)
+        {
+            // The song before is over: its play keeps the time it got.
+            self.settle_listening();
+            self.listening = Some(Listening {
+                uri: now.uri.clone(),
+                listened: std::time::Duration::ZERO,
+                playing_since: now.playing.then(Instant::now),
+                recorded: false,
+                at: None,
+            });
+            return;
+        }
+        let Some(listening) = self.listening.as_mut() else {
+            return;
         };
+        let mut paused = false;
         match (now.playing, listening.playing_since) {
             // Add the completed interval when playback pauses.
             (false, Some(since)) => {
                 listening.listened += since.elapsed();
                 listening.playing_since = None;
+                paused = true;
             }
             (true, None) => listening.playing_since = Some(Instant::now()),
             _ => {}
         }
-        if listening.recorded {
-            return;
-        }
-        let listened = listening.listened
-            + listening
-                .playing_since
-                .map(|since| since.elapsed())
-                .unwrap_or_default();
-        if listened < crate::history::counts_after(now.duration_ms) {
+        let listened = listening.so_far();
+        if listening.recorded || listened < crate::history::counts_after(now.duration_ms) {
+            // A play paused keeps the time it got so far.
+            if paused {
+                self.settle_listening();
+            }
             return;
         }
         listening.recorded = true;
-        self.plays
-            .record(crate::history::played_track(&now), jiff::Timestamp::now());
+        let at = jiff::Timestamp::now();
+        listening.at = Some(at.to_string());
+        let from = self.playing_context_uri();
+        self.plays.record(
+            crate::history::played_track(&now),
+            at,
+            from.as_deref(),
+            listened,
+        );
         self.plays.save(&self.files, &self.dirs.history_file());
         self.rebuild_recents();
+    }
+
+    /// Writes down how long the play being listened to has been listened
+    /// to so far, once it counts: when it pauses or ends, and before the
+    /// app stops or the computer sleeps.
+    fn settle_listening(&mut self) {
+        let Some(listening) = &self.listening else {
+            return;
+        };
+        let Some(at) = &listening.at else {
+            return;
+        };
+        if self.plays.listened(&listening.uri, at, listening.so_far()) {
+            self.plays.save(&self.files, &self.dirs.history_file());
+        }
     }
 
     /// Puts Spotifast in the Dock or takes it out, as Settings asks, on a
@@ -13512,6 +13578,11 @@ impl App {
     /// Final teardown at real quit.
     pub fn shutdown(&mut self) {
         self.save_state();
+        self.settle_listening();
+        self.plays.save(&self.files, &self.dirs.history_file());
+        // A clear or a batch of old plays still being written finishes
+        // first, so Clear history holds and nothing waits half done.
+        self.plays.flush(fastframe_file::FLUSH_TIMEOUT);
         self.flush_files();
         self.backend.shutdown();
     }
@@ -13704,7 +13775,7 @@ fn increase_playlist_total(playlist: &mut Playlist, added: u32) {
 
 /// This fork's own version, after Spotifast's: one more each round of
 /// changes it ships.
-pub const FORK_VERSION: &str = "mod 10";
+pub const FORK_VERSION: &str = "mod 11";
 
 /// The window's title: the playing song, if any, then Spotifast's version
 /// and this fork's.
@@ -15902,6 +15973,7 @@ mod tests {
             track: song(uri),
             played_at: None,
             context: None,
+            listened_ms: None,
         }
     }
 
@@ -16919,6 +16991,8 @@ mod tests {
                 ..Default::default()
             },
             jiff::Timestamp::now(),
+            None,
+            Duration::from_secs(30),
         );
         app.save_state();
         app.flush_files();
@@ -21789,6 +21863,7 @@ mod tests {
             },
             played_at: Some(at.to_string()),
             context: None,
+            listened_ms: None,
         }
     }
 
@@ -28022,6 +28097,7 @@ mod tests {
                 },
                 played_at: Some(format!("2026-09-01T1{}:00:00Z", 5 - index)),
                 context: None,
+                listened_ms: None,
             })
             .collect();
         app.recents.loaded_once = true;
@@ -28831,6 +28907,85 @@ mod tests {
             app.note_listening();
             assert_eq!(app.plays.plays().len(), sequence as usize);
         }
+        app.backend.shutdown();
+        let _ = std::fs::remove_dir_all(state_dir);
+    }
+
+    /// A play keeps where it was played from and how long it was listened
+    /// to: written down once it counts, and brought up to date when it is
+    /// paused and when the next song starts, paused time left out.
+    #[test]
+    fn a_play_keeps_where_it_came_from_and_how_long_it_was_heard() {
+        let mut app = headless_app();
+        app.remote = None;
+        app.selected_device = None;
+        app.plays = crate::history::History::default();
+        let state_dir =
+            std::env::temp_dir().join(format!("spotifast-listened-{}", std::process::id()));
+        app.dirs.state = state_dir.clone();
+        app.assumed_context = Some(AssumedContext {
+            uri: "spotify:user:someone:playlist:mix".into(),
+            shuffle: None,
+            at: Instant::now(),
+        });
+        let playing = |sequence, uri: &str, playback| LocalState {
+            connected: true,
+            playback,
+            track_sequence: sequence,
+            track: Some(crate::player::LocalTrack {
+                uri: uri.into(),
+                title: "Song".into(),
+                duration_ms: 240_000,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        app.handle_local(playing(1, "spotify:track:one", Playback::Playing));
+        app.note_listening();
+        app.listening.as_mut().unwrap().playing_since =
+            Some(Instant::now() - Duration::from_secs(31));
+        app.note_listening();
+        let play = &app.plays.plays()[0];
+        assert_eq!(
+            play.context.as_ref().map(|context| context.uri.as_str()),
+            Some("spotify:playlist:mix"),
+            "where it was played from"
+        );
+        assert!(play.listened_ms.unwrap() >= 31_000);
+        assert_eq!(
+            app.plays.listening().get("spotify:playlist:mix").copied(),
+            play.listened_ms
+        );
+
+        // Two minutes on, paused: the play has the time it got.
+        app.listening.as_mut().unwrap().playing_since =
+            Some(Instant::now() - Duration::from_secs(120));
+        app.handle_local(playing(1, "spotify:track:one", Playback::Paused));
+        app.note_listening();
+        let heard = app.plays.plays()[0].listened_ms.unwrap();
+        assert!((120_000..125_000).contains(&heard), "{heard}");
+        // Paused time is not listening.
+        app.note_listening();
+        assert_eq!(app.plays.plays()[0].listened_ms, Some(heard));
+
+        // Played on and then the next song: the first keeps its whole time.
+        app.handle_local(playing(1, "spotify:track:one", Playback::Playing));
+        app.note_listening();
+        app.listening.as_mut().unwrap().playing_since =
+            Some(Instant::now() - Duration::from_secs(60));
+        app.handle_local(playing(2, "spotify:track:two", Playback::Playing));
+        app.note_listening();
+        let whole = app.plays.plays()[0].listened_ms.unwrap();
+        assert!((180_000..186_000).contains(&whole), "{whole}");
+        assert_eq!(
+            app.plays.plays().len(),
+            1,
+            "the next song has not counted yet"
+        );
+        assert_eq!(
+            app.plays.listening().get("spotify:playlist:mix").copied(),
+            Some(whole)
+        );
         app.backend.shutdown();
         let _ = std::fs::remove_dir_all(state_dir);
     }

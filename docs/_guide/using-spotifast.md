@@ -662,8 +662,13 @@ shorter than a minute. A newly loaded local repeat earns its own listening
 time; pausing or seeking the current play does not create another entry.
 The same play reported both locally and by Spotify appears once.
 
-The local list is stored in `history.json` and is never uploaded. Settings →
-Storage shows its location and has a **Clear history** button.
+The local list is stored in `history.json` and is never uploaded. Each play
+keeps how long you listened and where it was played from. Spotifast keeps
+the newest 500; turn on **Keep every play** in Settings → Storage to keep
+them all, the older ones in a `plays` folder beside it. Settings → Storage
+shows where they are and has a **Clear history** button, which asks first.
+The Home map's **Size by listening** sizes each playlist, album and folder
+by this listening time.
 
 On Windows, the main window's minimize, maximize, and close buttons share the
 top bar with Spotifast's controls. Drag an empty part of that bar to move or
@@ -787,9 +792,9 @@ use a personal Spotify app, reconnect it in Settings as well.
 ## This fork's version
 
 The window title, and the taskbar's, end with Spotifast's version and this
-fork's, such as `Spotifast 0.14.1 · mod 10`, after the playing song. With
+fork's, such as `Spotifast 0.14.1 · mod 11`, after the playing song. With
 **Custom title bar** on the window has no title, so **Show version**, in
-Settings → Appearance, puts `0.14.1 · mod 10` in the top bar instead, beside
+Settings → Appearance, puts `0.14.1 · mod 11` in the top bar instead, beside
 the update button; in a narrow window it gives way before anything else
 there.
 

@@ -85,6 +85,8 @@ pub struct HomeSettings {
     pub map_folder: MapFocus,
     /// What the map does with what the Library's filters leave out.
     pub map_filters: MapFocus,
+    /// Each node's size follows the time listened to it, by the plays kept.
+    pub map_listening: bool,
 }
 
 /// How the Home map draws the Library's folders.
@@ -355,6 +357,9 @@ pub struct Settings {
     pub sidebar_width: f32,
     /// The sidebar's width while it shows the map, wider than the list's.
     pub sidebar_map_width: f32,
+    /// Keep every play rather than the newest 500, moving older ones to
+    /// files of their own.
+    pub keep_every_play: bool,
     pub lyrics_width: f32,
     pub queue_width: f32,
     /// Use compact single-line rows without cover art in track lists.
@@ -565,6 +570,7 @@ impl Default for Settings {
             sidebar_map: false,
             sidebar_width: 250.0,
             sidebar_map_width: 520.0,
+            keep_every_play: false,
             lyrics_width: 360.0,
             queue_width: 360.0,
             tracklist_compact: false,

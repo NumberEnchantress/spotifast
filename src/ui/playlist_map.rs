@@ -122,6 +122,9 @@ pub(crate) struct Node {
     pub(crate) radius: f32,
     /// The Library's own row, for its right-click menu.
     pub(crate) entry: Option<super::sidebar::Entry>,
+    /// Time listened to it, a folder's what it holds, in milliseconds,
+    /// while the map is sized by listening.
+    pub(crate) listened: Option<u64>,
 }
 
 impl Node {
@@ -156,6 +159,7 @@ pub(crate) fn graph(app: &App) -> Vec<Node> {
         away: false,
         radius: 0.0,
         entry: None,
+        listened: None,
     });
     let mut listed = vec![true];
     let mut keys: HashSet<String> = HashSet::from(["library".to_string()]);
@@ -198,10 +202,30 @@ pub(crate) fn graph(app: &App) -> Vec<Node> {
             away: false,
             radius: 0.0,
             entry: row.entry,
+            listened: None,
         });
         listed.push(row.listed);
     }
     let count = raw.len();
+    if home.map_listening {
+        let times = app.plays.listening();
+        for node in &mut raw {
+            node.listened = Some(
+                listening_key(&node.kind)
+                    .and_then(|key| times.get(&key).copied())
+                    .unwrap_or(0),
+            );
+        }
+        // What a folder holds comes after it: from the end, each adds its
+        // time to its folder's, as the Library holds them.
+        for index in (1..count).rev() {
+            let parent = raw[index].parent.unwrap_or(0);
+            let time = raw[index].listened.unwrap_or(0);
+            if let Some(held) = &mut raw[parent].listened {
+                *held += time;
+            }
+        }
+    }
     let parent_of = |index: usize| raw[index].parent.unwrap_or(0);
     // Every node comes after the one holding it, so one pass settles each.
     let mut keep = vec![true; count];
@@ -282,7 +306,67 @@ pub(crate) fn graph(app: &App) -> Vec<Node> {
             4.5 + 1.6 * height + songs.min(3.0)
         };
     }
+    if home.map_listening {
+        size_by_listening(&mut nodes);
+    }
     nodes
+}
+
+/// What a node's listening time is counted under: where its songs were
+/// played from. Folders and the rest add up what they hold.
+fn listening_key(kind: &Kind) -> Option<String> {
+    let Kind::Item(page) = kind else {
+        return None;
+    };
+    Some(match page {
+        Page::LikedSongs => crate::history::context_key(":collection"),
+        Page::Playlist(id) => format!("spotify:playlist:{id}"),
+        Page::Album(id) => format!("spotify:album:{id}"),
+        Page::Artist(id) => format!("spotify:artist:{id}"),
+        Page::Show(id) => format!("spotify:show:{id}"),
+        _ => return None,
+    })
+}
+
+/// The least radius a node takes when sized by listening, one that holds
+/// others or not, and the radius of the node listened to most.
+const QUIET: f32 = 4.0;
+const QUIET_FOLDER: f32 = 6.0;
+const LOUDEST: f32 = 24.0;
+
+/// Sizes every node but the root so its area grows with the time listened
+/// to it: one never played is small, the one played most is largest. What
+/// holds others is weighed against the others that hold, and the rest
+/// against the rest, so a folder's sum never shrinks what is in it. The
+/// Library, whether at the root or the way back out, holds everything and
+/// keeps its own size.
+fn size_by_listening(nodes: &mut [Node]) {
+    let weighed = |node: &Node| node.kind != Kind::Library && !node.away;
+    let most = |holds: bool| {
+        nodes
+            .iter()
+            .skip(1)
+            .filter(|node| weighed(node) && node.holds() == holds)
+            .filter_map(|node| node.listened)
+            .max()
+            .unwrap_or(0)
+    };
+    let (most_holding, most_held) = (most(true), most(false));
+    for node in nodes.iter_mut().skip(1) {
+        if node.kind == Kind::Library {
+            continue;
+        }
+        let (least, most) = if node.holds() {
+            (QUIET_FOLDER, most_holding)
+        } else {
+            (QUIET, most_held)
+        };
+        let share = match node.listened {
+            Some(time) if most > 0 => (time as f32 / most as f32).min(1.0),
+            _ => 0.0,
+        };
+        node.radius = (least * least + (LOUDEST * LOUDEST - least * least) * share).sqrt();
+    }
 }
 
 /// The round tree: the root in the middle and each level of folders a ring
@@ -895,6 +979,7 @@ fn focus_of(app: &App) -> u64 {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     let settings = &app.settings;
     settings.home.map_layout.hash(&mut hasher);
+    settings.home.map_listening.hash(&mut hasher);
     format!(
         "{:?}{:?}",
         settings.home.map_folder, settings.home.map_filters
@@ -972,6 +1057,28 @@ fn toolbar(app: &mut App, ui: &mut egui::Ui) {
             home.map_layout == MapLayout::Circles,
         ) {
             app.actions.push(Action::SetMapLayout(MapLayout::Circles));
+        }
+        ui.add_space(10.0);
+        // Translators: Home map toggle: make each playlist, album or folder as large as the time listened to it.
+        let by_listening = gettext(locale, "Size by listening");
+        let response = theme::soft_button(
+            ui,
+            &palette,
+            Some(Icon::Clock),
+            &by_listening,
+            home.map_listening,
+        );
+        response.widget_info(|| {
+            egui::WidgetInfo::selected(
+                egui::WidgetType::Checkbox,
+                true,
+                home.map_listening,
+                by_listening.as_ref(),
+            )
+        });
+        if response.clicked() {
+            app.actions
+                .push(Action::SetMapListening(!home.map_listening));
         }
         ui.add_space(10.0);
         // Translators: Home map: what to do with the rest of the Library while a folder is open.
@@ -1430,10 +1537,18 @@ fn draw(app: &mut App, ui: &mut egui::Ui, side: bool) {
         let presence = drawn.shown * if node.focus { 1.0 } else { 0.35 };
         child.set_opacity(presence);
         let painter = child.painter().clone();
-        let label = match node.songs {
+        let mut label = match node.songs {
             Some(songs) => format!("{}, {}", node.name, locale.song_count(songs)),
             None => node.name.clone(),
         };
+        if let Some(time) = node.listened.filter(|time| *time > 0) {
+            label = format!(
+                "{label}, {}",
+                // Translators: How long the songs played from a playlist, album, artist, podcast or folder were listened to. {time} is a length of time, such as 2 hr 13 min.
+                gettext(locale, "{time} listened")
+                    .replace("{time}", &crate::util::format_total_ms(locale, time))
+            );
+        }
         // A folder's circle answers only on its name, leaving the space
         // inside to what it holds and to the map; anything else only on
         // its own circle, not the square around it.

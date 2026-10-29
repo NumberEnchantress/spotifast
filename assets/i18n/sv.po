@@ -3964,3 +3964,37 @@ msgstr "Visa som karta"
 #: src/ui/playlist_map.rs:1138
 msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
 msgstr "Skrolla för att zooma, dra i bakgrunden för att flytta, dubbelklicka för att se allt. Klicka för att öppna, högerklicka för mer, dra spellistor, mappar eller låtar dit de ska."
+
+#. Translators: Home map toggle: make each playlist, album or folder as large as the time listened to it.
+#: src/demo.rs:7173
+msgid "Size by listening"
+msgstr "Storlek efter lyssning"
+
+#. Translators: How long the songs played from a playlist, album, artist, podcast or folder were listened to. {time} is a length of time, such as 2 hr 13 min.
+#: src/ui/playlist_map.rs:1532
+#, rust-format
+msgid "{time} listened"
+msgstr "{time} lyssnat"
+
+#: src/ui/settings.rs:2446
+msgid "Keep every play"
+msgstr "Behåll varje uppspelning"
+
+#. Translators: {folder} is the path of the folder older plays are kept in.
+#: src/ui/settings.rs:2450
+#, rust-format
+msgid "Off, the newest 500 plays are kept. On, older plays move to {folder} instead of being deleted, each with how long you listened and where it was played from."
+msgstr "Av: de 500 senaste uppspelningarna behålls. På: äldre uppspelningar flyttas till {folder} i stället för att raderas, var och en med hur länge du lyssnade och varifrån den spelades."
+
+#: src/ui/dialogs.rs:94
+msgid "Clear play history?"
+msgstr "Rensa uppspelningshistoriken?"
+
+#: src/ui/dialogs.rs:96
+msgid "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
+msgstr "Alla uppspelningar som Spotifast har behållit raderas, tillsammans med lyssningstiden som kartans storlekar bygger på. Det går inte att ångra."
+
+#. Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
+#: src/demo.rs:2997
+msgid "Show as"
+msgstr "Visa som"
