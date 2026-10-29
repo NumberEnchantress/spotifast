@@ -787,9 +787,9 @@ use a personal Spotify app, reconnect it in Settings as well.
 ## This fork's version
 
 The window title, and the taskbar's, end with Spotifast's version and this
-fork's, such as `Spotifast 0.14.1 · mod 8`, after the playing song. With
+fork's, such as `Spotifast 0.14.1 · mod 9`, after the playing song. With
 **Custom title bar** on the window has no title, so **Show version**, in
-Settings → Appearance, puts `0.14.1 · mod 8` in the top bar instead, beside
+Settings → Appearance, puts `0.14.1 · mod 9` in the top bar instead, beside
 the update button; in a narrow window it gives way before anything else
 there.
 

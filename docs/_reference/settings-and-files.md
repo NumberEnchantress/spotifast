@@ -508,9 +508,10 @@ gap; nothing overlaps. Everything eases into place, grows in as it arrives
 and shrinks back into its folder as it goes.
 
 Above the map, **Tree** draws the folders as a round tree, each level a ring
-further from the root, its branches thicker the nearer the root, and each
-folder's playlists, albums and the like gathered close round it, so even a
-large library fits in one view; **Circles** draws each folder as a circle
+the same step further from the root, its branches thicker the nearer the
+root, and each folder's playlists, albums and the like gathered close by it
+(just beyond a folder with no folders inside), so even a large library fits
+in one view; **Circles** draws each folder as a circle
 around everything it holds. A folder opened, on the map or in the Library,
 becomes the root: **Open folder: Zoom in** keeps the rest of the Library
 further out and zooms in on the folder, and **Only its contents** leaves the

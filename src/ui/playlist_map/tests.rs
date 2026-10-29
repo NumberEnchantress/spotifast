@@ -53,6 +53,46 @@ fn big_library() -> Vec<Node> {
     nodes
 }
 
+/// With a folder open, the way back out to a much larger rest of the
+/// Library moves further out rather than spreading the folder's own tree,
+/// and nothing overlaps.
+#[test]
+fn the_way_out_never_spreads_the_open_folders_tree() {
+    let mut nodes = big_library();
+    let alone = radial(&nodes, 2.0);
+    let add = |nodes: &mut Vec<Node>, parent: usize, holds: bool| {
+        let index = nodes.len();
+        let mut node = nodes[if holds { 1 } else { 2 }].clone();
+        node.key = format!("away{index}");
+        node.parent = Some(parent);
+        node.children = Vec::new();
+        node.depth = nodes[parent].depth + 1;
+        node.away = true;
+        node.focus = false;
+        nodes.push(node);
+        nodes[parent].children.push(index);
+        index
+    };
+    let up = add(&mut nodes, 0, true);
+    for _ in 0..80 {
+        let folder = add(&mut nodes, up, true);
+        for _ in 0..4 {
+            add(&mut nodes, folder, false);
+        }
+    }
+    let tree = radial(&nodes, 2.0);
+    assert!((tree[1].at.length() - alone[1].at.length()).abs() < 0.01);
+    for x in 0..nodes.len() {
+        for y in x + 1..nodes.len() {
+            let apart = (tree[x].at - tree[y].at).length() + 0.5;
+            assert!(
+                apart >= tree[x].radius + tree[y].radius + GAP,
+                "{x} and {y}"
+            );
+        }
+    }
+}
+
 /// However large the library, no two nodes of the round tree overlap, and
 /// in circles each folder holds what is in it while nothing else overlaps;
 /// a node grown under the pointer keeps the gap to the others.
@@ -63,6 +103,17 @@ fn large_libraries_lay_out_without_overlaps() {
         (places[x].at - places[y].at).length() + 0.5 >= places[x].radius + places[y].radius + GAP
     };
     let mut tree = radial(&nodes, 2.0);
+    // Every level of folders is the same step further out, the first too.
+    let step = tree[1].at.length();
+    for (index, node) in nodes.iter().enumerate().skip(1) {
+        if !node.children.is_empty() {
+            let out = tree[index].at.length();
+            assert!(
+                (out - step * node.depth as f32).abs() < 0.01,
+                "{index} is off its ring"
+            );
+        }
+    }
     for x in 0..nodes.len() {
         for y in x + 1..nodes.len() {
             assert!(clear(&tree, x, y), "the tree overlaps {x} and {y}");

@@ -275,13 +275,16 @@ pub(crate) fn graph(app: &App) -> Vec<Node> {
 }
 
 /// The round tree: the root in the middle and each level of folders a ring
-/// further out, each folder given a share of the circle by the room it and
-/// the folders under it take, so nothing on a ring overlaps. What a node
-/// holds that holds nothing itself, its playlists, albums and the like, is
-/// packed close round it, what is in focus nearest, so a large library
-/// stays compact. The way back out of an open folder starts on a ring of
-/// its own, `outside` times as far as the folder reaches, past what a view
-/// fitted to it shows.
+/// the same step further out than the one inside it, so every branch reaches
+/// out as far as every other. Each folder takes as much of the circle as
+/// it, or the folders under it on any ring further out, needs there, and
+/// the step is the shortest that lets nothing overlap. What a node holds
+/// that holds nothing itself, its playlists, albums and the like, is packed
+/// close by it, what is in focus nearest: round a folder that has folders
+/// further out, and just beyond one that has none, out of the way of the
+/// rings inside, so a large pile does not push every ring apart. The way
+/// back out of an open folder starts on a ring of its own, `outside` times
+/// as far as the folder reaches, past what a view fitted to it shows.
 pub(crate) fn radial(nodes: &[Node], outside: f32) -> Vec<Place> {
     let count = nodes.len();
     if count == 0 {
@@ -296,9 +299,13 @@ pub(crate) fn radial(nodes: &[Node], outside: f32) -> Vec<Place> {
             .filter(|child| branch(*child))
             .collect::<Vec<usize>>()
     };
-    // Each branch with what it holds packed round it: how far that reaches.
+    // Each branch's pile, laid out facing away from the root: how far it
+    // reaches in towards the root and out past the branch, and the circles,
+    // as a size and a distance beyond the branch, it takes on its ring.
     let mut offset = vec![Vec2::ZERO; count];
-    let mut reach = vec![0.0f32; count];
+    let mut inner = vec![0.0f32; count];
+    let mut outer = vec![0.0f32; count];
+    let mut bulk = vec![[(0.0f32, 0.0f32); 2]; count];
     for index in (0..count).filter(|index| branch(*index)) {
         let mut leaves: Vec<usize> = nodes[index]
             .children
@@ -307,17 +314,36 @@ pub(crate) fn radial(nodes: &[Node], outside: f32) -> Vec<Place> {
             .filter(|child| !branch(*child))
             .collect();
         leaves.sort_by_key(|leaf| !nodes[*leaf].focus);
-        let mut radii = Vec::with_capacity(leaves.len() + 1);
-        radii.push(nodes[index].radius + GAP / 2.0);
-        radii.extend(leaves.iter().map(|leaf| nodes[*leaf].radius + GAP / 2.0));
-        let (centres, _) = pack(&radii);
-        let middle = centres[0];
-        let mut extent = radii[0];
-        for ((leaf, centre), radius) in leaves.iter().zip(&centres[1..]).zip(&radii[1..]) {
-            offset[*leaf] = *centre - middle;
-            extent = extent.max(offset[*leaf].length() + radius);
+        let own = nodes[index].radius + GAP / 2.0;
+        let sizes = |leaves: &[usize]| {
+            leaves
+                .iter()
+                .map(|leaf| nodes[*leaf].radius + GAP / 2.0)
+                .collect::<Vec<f32>>()
+        };
+        if index != 0 && !leaves.is_empty() && branches(index).is_empty() {
+            let (centres, enclosing) = pack(&sizes(&leaves));
+            let lift = own + enclosing;
+            for (leaf, centre) in leaves.iter().zip(centres) {
+                offset[*leaf] = centre + vec2(lift, 0.0);
+            }
+            inner[index] = own;
+            outer[index] = lift + enclosing;
+            bulk[index] = [(own, 0.0), (enclosing, lift)];
+        } else {
+            let mut radii = vec![own];
+            radii.extend(sizes(&leaves));
+            let (centres, _) = pack(&radii);
+            let middle = centres[0];
+            let mut extent = own;
+            for ((leaf, centre), radius) in leaves.iter().zip(&centres[1..]).zip(&radii[1..]) {
+                offset[*leaf] = *centre - middle;
+                extent = extent.max(offset[*leaf].length() + radius);
+            }
+            inner[index] = extent;
+            outer[index] = extent;
+            bulk[index] = [(extent, 0.0), (0.0, 0.0)];
         }
-        reach[index] = extent;
     }
     // Rings: a level of branches each, the way out past the rest.
     let mut level = vec![0usize; count];
@@ -338,61 +364,155 @@ pub(crate) fn radial(nodes: &[Node], outside: f32) -> Vec<Place> {
             ring[parent] + 1
         };
     }
-    // A share of the circle by room; beside the open folder, the way out
-    // takes a slim share at most.
-    let mut room = vec![0.0f32; count];
-    for index in (0..count).rev().filter(|index| branch(*index)) {
-        let kids = branches(index);
-        let near: f32 = kids
-            .iter()
-            .filter(|kid| !nodes[**kid].away)
-            .map(|kid| room[*kid])
-            .sum();
-        if !nodes[index].away && near > 0.0 {
-            for &kid in &kids {
-                if nodes[kid].away {
-                    room[kid] = room[kid].min(near * 0.3);
-                }
+    let rings = ring.iter().max().copied().unwrap_or(0) + 1;
+    // How far each ring's piles reach in, and, beside the open folder, out.
+    let mut widest_in = vec![0.0f32; rings];
+    let mut near_out = vec![0.0f32; rings];
+    for index in (0..count).filter(|index| branch(*index)) {
+        widest_in[ring[index]] = widest_in[ring[index]].max(inner[index]);
+        if !nodes[index].away {
+            near_out[ring[index]] = near_out[ring[index]].max(outer[index]);
+        }
+    }
+    // The rings a step apart; the way out starts past everything beside
+    // the open folder, and at least `push` from the root.
+    let spaced = |step: f32, push: f32| {
+        let mut distance = vec![0.0f32; rings];
+        let mut reach = near_out[0];
+        for k in 1..rings {
+            let mut out = distance[k - 1] + step;
+            if k == home + 2 && widest_in[k] > 0.0 {
+                out = out
+                    .max(reach * outside + widest_in[k] + GAP * 6.0)
+                    .max(push);
+            }
+            distance[k] = out;
+            if k <= home {
+                reach = reach.max(out + near_out[k]);
             }
         }
-        let under: f32 = kids.iter().map(|kid| room[*kid]).sum();
-        room[index] = under.max(2.0 * reach[index] + GAP);
+        distance
+    };
+    // The angle each branch needs: for itself on its ring, or for the
+    // branches under it, whichever is more.
+    let needs = |distance: &[f32]| {
+        let mut need = vec![0.0f32; count];
+        for index in (1..count).rev().filter(|index| branch(*index)) {
+            let at = distance[ring[index]];
+            let mut own = 0.0f32;
+            for (size, lift) in bulk[index] {
+                if size > 0.0 {
+                    let ratio = size / (at + lift).max(1e-3);
+                    own = own.max(if ratio >= 1.0 {
+                        TAU
+                    } else {
+                        2.0 * ratio.asin()
+                    });
+                }
+            }
+            let under: f32 = branches(index).iter().map(|kid| need[*kid]).sum();
+            need[index] = own.max(under);
+        }
+        need
+    };
+    // The shortest step that fits, found by doubling and halving.
+    let least = |from: f32, fits: &dyn Fn(f32) -> bool| {
+        if fits(from) {
+            return from;
+        }
+        let (mut low, mut high) = (from, from * 2.0);
+        for _ in 0..40 {
+            if fits(high) {
+                break;
+            }
+            low = high;
+            high *= 2.0;
+        }
+        for _ in 0..24 {
+            let middle = (low + high) / 2.0;
+            if fits(middle) {
+                high = middle;
+            } else {
+                low = middle;
+            }
+        }
+        high
+    };
+    // What is beside the open folder sets the step; the way back out to
+    // the rest of the Library keeps a slice of the circle and moves out
+    // until it fits that, so it never spreads the folder's own tree.
+    let (near_top, out_top): (Vec<usize>, Vec<usize>) =
+        branches(0).into_iter().partition(|kid| !nodes[*kid].away);
+    let room = if out_top.is_empty() { TAU } else { TAU * 0.9 };
+    let sum = |need: &[f32], kids: &[usize]| kids.iter().map(|kid| need[*kid]).sum::<f32>();
+    // The step clears each branch's pile from its folders' on the next
+    // ring, with a band between for the branches to turn in.
+    let mut step = GAP * 2.0;
+    for index in (1..count).filter(|index| branch(*index)) {
+        let parent = nodes[index].parent.unwrap_or(0);
+        if ring[index] == ring[parent] + 1 {
+            step = step.max(outer[parent] + inner[index] + GAP);
+        }
     }
+    let step = least(step, &|step| {
+        sum(&needs(&spaced(step, 0.0)), &near_top) <= room
+    });
+    let near = sum(&needs(&spaced(step, 0.0)), &near_top);
+    let way_out = if out_top.is_empty() {
+        0.0
+    } else {
+        (TAU - near).clamp(TAU * 0.1, TAU * 0.25)
+    };
+    let mut push = 0.0;
+    if !out_top.is_empty() && home + 2 < rings {
+        let from = spaced(step, 0.0)[home + 2];
+        push = least(from, &|push| {
+            sum(&needs(&spaced(step, push)), &out_top) <= way_out
+        });
+    }
+    let distance = spaced(step, push);
+    let need = needs(&distance);
+    // Each branch its share of its parent's, what is spare going by need;
+    // round the open folder, the way out takes its slice and the rest goes
+    // to what is beside the folder.
     let mut start = vec![-PI / 2.0; count];
     let mut span = vec![TAU; count];
     for index in (0..count).filter(|index| branch(*index)) {
         let kids = branches(index);
-        let under: f32 = kids.iter().map(|kid| room[*kid]).sum();
+        if kids.is_empty() {
+            continue;
+        }
+        let parted = index == 0 && !out_top.is_empty();
+        let (whole, wanted) = if parted {
+            (span[index] - way_out, near)
+        } else {
+            (span[index], sum(&need, &kids))
+        };
+        let spare = (whole - wanted).max(0.0);
+        let out_need = sum(&need, &out_top);
         let mut angle = start[index];
-        for kid in kids {
-            span[kid] = span[index] * room[kid] / under.max(f32::EPSILON);
+        for &kid in &kids {
+            span[kid] = if parted && nodes[kid].away {
+                if out_need > 0.0 {
+                    way_out * need[kid] / out_need
+                } else {
+                    way_out / out_top.len() as f32
+                }
+            } else if wanted > 0.0 {
+                need[kid] + spare * need[kid] / wanted
+            } else {
+                let shared = if parted { near_top.len() } else { kids.len() };
+                spare / shared.max(1) as f32
+            };
             start[kid] = angle;
             angle += span[kid];
         }
     }
-    let rings = ring.iter().max().copied().unwrap_or(0) + 1;
-    let mut largest = vec![0.0f32; rings];
-    let mut needed = vec![0.0f32; rings];
-    for index in (1..count).filter(|index| branch(*index)) {
-        let k = ring[index];
-        largest[k] = largest[k].max(reach[index]);
-        // Neighbours on a ring sit a chord apart: wide enough for this one.
-        let half = (span[index].min(PI) / 2.0).sin().max(1e-4);
-        needed[k] = needed[k].max((2.0 * reach[index] + GAP) / (2.0 * half));
-    }
-    largest[0] = reach[0];
-    let mut distance = vec![0.0f32; rings];
-    for k in 1..rings {
-        let mut out = distance[k - 1] + largest[k - 1] + largest[k] + GAP * 2.0;
-        out = out.max(needed[k]);
-        if k == home + 2 && largest[k] > 0.0 {
-            out = out.max((distance[home] + largest[home]) * outside + largest[k] + GAP * 6.0);
-        }
-        distance[k] = out;
-    }
     let mut places = vec![Place::default(); count];
+    let mut facing = vec![0.0f32; count];
     for index in 0..count {
         let radius = nodes[index].radius;
+        let parent = nodes[index].parent.unwrap_or(0);
         places[index] = if index == 0 {
             Place {
                 at: Vec2::ZERO,
@@ -402,18 +522,26 @@ pub(crate) fn radial(nodes: &[Node], outside: f32) -> Vec<Place> {
         } else if branch(index) {
             let k = ring[index];
             let angle = start[index] + span[index] / 2.0;
-            // The branch turns in the empty band between this ring and the
-            // one inside it.
-            let turn = (distance[k - 1] + largest[k - 1] + distance[k] - largest[k]) / 2.0;
+            facing[index] = angle;
+            // The branch turns in the empty band between its parent's pile
+            // and the folders beside it on this ring.
+            let beside = branches(parent)
+                .into_iter()
+                .filter(|kid| ring[*kid] == k)
+                .map(|kid| inner[kid])
+                .fold(0.0f32, f32::max);
+            let turn = (distance[ring[parent]] + outer[parent] + distance[k] - beside) / 2.0;
             Place {
                 at: vec2(angle.cos(), angle.sin()) * distance[k],
                 radius,
                 elbow: turn / distance[k].max(1e-3),
             }
         } else {
-            let parent = nodes[index].parent.unwrap_or(0);
+            let (sin, cos) = facing[parent].sin_cos();
+            let local = offset[index];
             Place {
-                at: places[parent].at + offset[index],
+                at: places[parent].at
+                    + vec2(local.x * cos - local.y * sin, local.x * sin + local.y * cos),
                 radius,
                 elbow: 0.0,
             }
