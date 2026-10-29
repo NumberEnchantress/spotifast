@@ -309,7 +309,11 @@ fn rows(app: &App, now: Option<&NowPlaying>) -> (Vec<Row>, Vec<String>) {
             artist_id: now.artists.first().and_then(|artist| artist.id.clone()),
         });
     }
-    let queued: &[PlayableItem] = queue.map(|queue| queue.queue.as_slice()).unwrap_or(&[]);
+    // The queue holds the guessing game's next songs, by name.
+    let queued: &[PlayableItem] = queue
+        .filter(|_| !app.game_hides_queue())
+        .map(|queue| queue.queue.as_slice())
+        .unwrap_or(&[]);
     let stale = current.is_none() && queue.is_some();
     let mut skipped_playing = false;
     for (index, item) in queued.iter().enumerate() {

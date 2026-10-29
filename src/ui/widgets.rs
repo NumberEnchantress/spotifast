@@ -1227,6 +1227,16 @@ pub fn context_menu_items(
     {
         app.actions.push(Action::ShufflePlay(uri.to_string()));
     }
+    if (kind == "playlist" || kind == "album" || uri.ends_with(":collection"))
+        && menu_item(
+            ui,
+            &palette,
+            Some(Icon::Gamepad),
+            &gettext(locale, "Guessing game"),
+        )
+    {
+        app.actions.push(Action::OpenGame(Some(uri.to_string())));
+    }
     if kind == "album"
         && menu_item(
             ui,

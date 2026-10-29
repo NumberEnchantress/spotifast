@@ -4220,3 +4220,275 @@ msgstr "Questa pagina riguarda una persona o ciò che è popolare."
 #: src/demo.rs:2264
 msgid "Show anyway"
 msgstr "Mostra comunque"
+
+#: src/ui/game.rs:21
+msgid "Guessing game"
+msgstr "Gioco a indovinare"
+
+#: src/app/game.rs:129
+msgid "Nothing to play in this game"
+msgstr "Niente da riprodurre in questo gioco"
+
+#: src/ui/game.rs:38
+msgid "Year"
+msgstr "Anno"
+
+#. Translators: Guessing game: a song's version, such as Live or 2011 Remaster.
+#: src/ui/game.rs:40
+msgid "Version"
+msgstr "Versione"
+
+#: src/ui/game.rs:61
+msgid "Songs play from where you choose, in a shuffled order. Name what you can before the first lyric: title 1 point, artist 2, album 3, year 4, version 5."
+msgstr "I brani vengono dalla fonte scelta, in ordine casuale. Indovina ciò che puoi prima del primo verso: titolo 1 punto, artista 2, album 3, anno 4, versione 5."
+
+#. Translators: Guessing game source: Liked Songs and every playlist opened.
+#: src/ui/game.rs:88
+msgid "Your library"
+msgstr "La tua libreria"
+
+#: src/ui/game.rs:90
+msgid "Play from"
+msgstr "Riproduci da"
+
+#: src/ui/game.rs:105
+msgid "Name it"
+msgstr "Indovina"
+
+#. Translators: Guessing game mode: name the song by typing; only these count in the stats.
+#: src/ui/game.rs:107
+msgid "Name it, typed"
+msgstr "Indovina, scrivendo"
+
+#: src/ui/game.rs:108
+msgid "Cover grid"
+msgstr "Griglia di copertine"
+
+#: src/ui/game.rs:109
+msgid "Main colour"
+msgstr "Colore principale"
+
+#: src/ui/game.rs:119
+msgid "Say your answers aloud, then tick what you got."
+msgstr "Di le risposte ad alta voce, poi spunta ciò che hai indovinato."
+
+#: src/ui/game.rs:122
+msgid "Type your answers. Close enough counts; these rounds make the stats."
+msgstr "Scrivi le risposte. Quasi giusto vale; questi turni fanno le statistiche."
+
+#: src/ui/game.rs:124
+msgid "Pick the playing song's cover."
+msgstr "Scegli la copertina del brano in riproduzione."
+
+#: src/ui/game.rs:127
+msgid "Say what colour the playing song's cover mostly is."
+msgstr "Di di che colore è soprattutto la copertina del brano in riproduzione."
+
+#. Translators: Guessing game: how many covers the grid shows. {count} is a number.
+#: src/ui/game.rs:138
+#, rust-format
+msgid "{count} covers"
+msgstr "{count} copertine"
+
+#: src/ui/game.rs:146
+msgid "While you guess"
+msgstr "Mentre indovini"
+
+#. Translators: Guessing game: show the real names and covers while guessing.
+#: src/ui/game.rs:150
+msgid "Real names"
+msgstr "Nomi reali"
+
+#. Translators: Guessing game: show Vacuum's stand-ins while guessing.
+#: src/ui/game.rs:152
+msgid "Stand-ins"
+msgstr "Sostituti"
+
+#. Translators: Guessing game: show ??? and black squares while guessing.
+#: src/ui/game.rs:154
+msgid "Blanked"
+msgstr "Oscurati"
+
+#: src/demo.rs:2375
+msgid "Start"
+msgstr "Inizia"
+
+#: src/ui/game.rs:180
+msgid "Loading the songs…"
+msgstr "Caricamento dei brani…"
+
+#. Translators: Guessing game: {count} songs to play, {due} of them missed before and due again.
+#: src/ui/game.rs:189
+#, rust-format
+msgid "{count} songs, {due} due to come back"
+msgstr "{count} brani, {due} da ripassare"
+
+#: src/ui/game.rs:231
+msgid "Your stats"
+msgstr "Le tue statistiche"
+
+#. Translators: {count} is how many typed rounds were played so far.
+#: src/ui/game.rs:245
+#, rust-format
+msgid "Stats show after 10 songs named by typing. {count} so far."
+msgstr "Le statistiche appaiono dopo 10 brani scritti. Finora {count}."
+
+#: src/ui/game.rs:271
+msgid "Points per song"
+msgstr "Punti per brano"
+
+#: src/ui/game.rs:277
+msgid "Average time to answer"
+msgstr "Tempo medio di risposta"
+
+#: src/ui/game.rs:292
+msgid "Points per song, week by week"
+msgstr "Punti per brano, settimana per settimana"
+
+#. Translators: Guessing game: {count} songs played so far and {points} points scored.
+#: src/ui/game.rs:318
+#, rust-format
+msgid "{count} songs · {points} points"
+msgstr "{count} brani · {points} punti"
+
+#: src/ui/game.rs:325
+msgid "End game"
+msgstr "Termina partita"
+
+#: src/ui/game.rs:334
+msgid "Waiting for the first song…"
+msgstr "In attesa del primo brano…"
+
+#: src/ui/game.rs:350
+msgid "Name what you can: title, artist, album, year, version."
+msgstr "Indovina ciò che puoi: titolo, artista, album, anno, versione."
+
+#: src/ui/game.rs:356
+msgid "Reveal"
+msgstr "Rivela"
+
+#. Translators: Guessing game countdown. {seconds} is a number.
+#: src/ui/game.rs:389
+#, rust-format
+msgid "{seconds} s until the first lyric"
+msgstr "{seconds} s al primo verso"
+
+#. Translators: Guessing game countdown, for a song without synced lyrics. {seconds} is a number.
+#: src/ui/game.rs:392
+#, rust-format
+msgid "{seconds} s left"
+msgstr "Ancora {seconds} s"
+
+#: src/ui/game.rs:498
+msgid "Red"
+msgstr "Rosso"
+
+#: src/ui/game.rs:499
+msgid "Orange"
+msgstr "Arancione"
+
+#: src/ui/game.rs:500
+msgid "Yellow"
+msgstr "Giallo"
+
+#: src/ui/game.rs:501
+msgid "Green"
+msgstr "Verde"
+
+#: src/ui/game.rs:502
+msgid "Teal"
+msgstr "Verde acqua"
+
+#: src/ui/game.rs:503
+msgid "Blue"
+msgstr "Blu"
+
+#: src/ui/game.rs:504
+msgid "Purple"
+msgstr "Viola"
+
+#: src/ui/game.rs:505
+msgid "Pink"
+msgstr "Rosa"
+
+#: src/ui/game.rs:506
+msgid "Brown"
+msgstr "Marrone"
+
+#: src/ui/game.rs:508
+msgid "Grey"
+msgstr "Grigio"
+
+#: src/ui/game.rs:565
+msgid "Year unknown"
+msgstr "Anno sconosciuto"
+
+#: src/ui/game.rs:569
+msgid "No version named"
+msgstr "Nessuna versione indicata"
+
+#: src/ui/game.rs:583
+msgid "Tick what you got:"
+msgstr "Spunta ciò che hai indovinato:"
+
+#: src/ui/game.rs:649
+msgid "Right!"
+msgstr "Giusto!"
+
+#: src/ui/game.rs:651
+msgid "Not this time."
+msgstr "Non questa volta."
+
+#: src/ui/game.rs:672
+msgid "The cover is mostly"
+msgstr "La copertina è soprattutto"
+
+#. Translators: Guessing game: points scored for this song. {points} is a number.
+#: src/ui/game.rs:690
+#, rust-format
+msgid "+{points} points"
+msgstr "+{points} punti"
+
+#: src/sink.rs:1577
+msgid "Next song"
+msgstr "Brano successivo"
+
+#: src/demo.rs:2400
+msgid "Lyrics are hidden while you guess"
+msgstr "I testi sono nascosti mentre indovini"
+
+#: src/ui/lyrics.rs:134
+msgid "They come back when the song is revealed."
+msgstr "Tornano quando il brano viene rivelato."
+
+#. Guessing game: every song of the game has been played.
+#: src/ui/game.rs:389
+msgid "Game over"
+msgstr "Partita finita"
+
+#: src/ui/game.rs:395
+msgid "Play again"
+msgstr "Gioca ancora"
+
+#. Guessing game: a song from elsewhere, or one already guessed, is playing.
+#: src/ui/game.rs:403
+msgid "The playing song is not one to guess."
+msgstr "Il brano in riproduzione non è da indovinare."
+
+#: src/ui/game.rs:408
+msgid "Continue the game"
+msgstr "Continua la partita"
+
+#. Guessing game: the cover is being read for its colours.
+#: src/ui/game.rs:593
+msgid "Reading the cover…"
+msgstr "Lettura della copertina…"
+
+#. Guessing game: the cover could not be read, or too few covers were found.
+#: src/ui/game.rs:707
+msgid "This song could not be scored."
+msgstr "Non è stato possibile assegnare punti a questo brano."
+
+#: src/ui/queue.rs:362
+msgid "The queue is hidden while the guessing game plays."
+msgstr "La coda è nascosta durante il gioco a indovinare."

@@ -1144,6 +1144,40 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
                 app.library.playlists = Loadable::Loaded(playlists);
             }
             "sidebar-map" => app.settings.sidebar_map = true,
+            // The guessing game, its playing song being guessed.
+            "game-typed" | "game-grid" | "game-colour" | "game-honor" => {
+                let mode = match surface {
+                    "game-typed" => crate::game::Mode::Typed,
+                    "game-grid" => crate::game::Mode::CoverGrid,
+                    "game-colour" => crate::game::Mode::MainColour,
+                    _ => crate::game::Mode::Honor,
+                };
+                let mut songs: Vec<crate::api::models::Track> = app
+                    .playlist_pages
+                    .values()
+                    .flat_map(|page| page.items.items.iter())
+                    .filter_map(|item| match item.playable() {
+                        Some(PlayableItem::Track(track)) => Some(track.clone()),
+                        _ => None,
+                    })
+                    .collect();
+                if let Some(PlayableItem::Track(track)) = app.now_playing_item() {
+                    songs.insert(0, track);
+                }
+                app.game = Some(crate::game::Session {
+                    setup: crate::game::Setup {
+                        mode,
+                        hiding: crate::game::Hiding::Blanked,
+                        grid: 9,
+                    },
+                    source: crate::game::LIBRARY.into(),
+                    songs,
+                    played: 3,
+                    points: 17,
+                    ..Default::default()
+                });
+                app.open(Page::Game);
+            }
             // Vacuum on, with pictures drawn offline.
             "vacuum" => {
                 app.settings.vacuum.on = true;
@@ -2319,6 +2353,190 @@ mod tests {
         let seen = vacuum_frame(&ctx, &mut app);
         assert!(!leaks(&seen).is_empty(), "everything real again at once");
         assert!(!crate::vacuum::gate::on());
+        app.backend.shutdown();
+    }
+
+    /// A typed round of the guessing game, blanked: while the song is
+    /// guessed nothing on screen, in the window's title or the media
+    /// controls says what it is, and its lyrics and the queue are hidden;
+    /// answering and revealing scores it, keeps it in the record and shows
+    /// the real song; the next song is hidden from the frame Next is
+    /// pressed; a song from elsewhere, or one already guessed, is not
+    /// guessed or hidden; a round left before its reveal is not kept; the
+    /// search box keeps what was typed; ending the game lets everything be
+    /// real again.
+    #[test]
+    fn a_guessing_game_round_hides_the_song_until_it_is_revealed() {
+        use crate::game::{Category, Hiding, LIBRARY, Mode, Session, Setup};
+        let (ctx, mut app) = accessible_app("guessing-game");
+        apply_flags(&mut app, None, Some("lyrics"));
+        let Some(PlayableItem::Track(track)) = app.now_playing_item() else {
+            panic!("the demo plays a song");
+        };
+        let (title, artist) = (track.name.clone(), track.artists[0].name.clone());
+        // The queue's first song is the game's second.
+        let next = app
+            .queue
+            .get()
+            .and_then(|queue| queue.queue.first().cloned())
+            .and_then(|item| match item {
+                PlayableItem::Track(next) => Some(next),
+                _ => None,
+            })
+            .expect("the demo queues a song");
+        app.search.query = "beatles".into();
+        app.apply(Action::OpenGame(None), &ctx);
+        assert_eq!(app.page(), &Page::Game);
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        accessible_node(&tree, "Start", egui::accesskit::Role::Button);
+
+        app.game = Some(Session {
+            setup: Setup {
+                mode: Mode::Typed,
+                hiding: Hiding::Blanked,
+                grid: 9,
+            },
+            source: LIBRARY.into(),
+            songs: vec![track.clone(), next.clone()],
+            ..Default::default()
+        });
+        app.sync_game(&ctx);
+        assert!(app.game_hiding().is_some(), "a round is being guessed");
+        let started = app
+            .game
+            .as_ref()
+            .unwrap()
+            .round
+            .as_ref()
+            .unwrap()
+            .started_ms;
+        let deadline = app
+            .game
+            .as_ref()
+            .unwrap()
+            .round
+            .as_ref()
+            .unwrap()
+            .deadline_ms;
+        assert!(
+            started <= 5_000 || deadline >= started + 30_000,
+            "a song joined late still gets half a minute"
+        );
+        let seen = vacuum_frame(&ctx, &mut app);
+        let shown = |seen: &[String], name: &str| seen.iter().any(|text| text.contains(name));
+        assert!(
+            !shown(&seen, &title) && !shown(&seen, &artist),
+            "blanked while guessed"
+        );
+        assert!(!app.window_title_text().contains(&title));
+        assert!(!format!("{:?}", app.media_state(None)).contains(&title));
+        assert!(
+            shown(&seen, "Lyrics are hidden while you guess"),
+            "the words would give it away"
+        );
+        assert!(
+            !shown(&seen, &next.name),
+            "the queue would name the next song"
+        );
+        assert_eq!(app.search.query, "beatles", "the search box is left alone");
+
+        let round = app.game.as_mut().unwrap().round.as_mut().unwrap();
+        round.answers.insert(Category::Title, title.to_lowercase());
+        round.answers.insert(Category::Artist, artist.clone());
+        app.apply(Action::RevealRound, &ctx);
+        let round = app.game.as_ref().unwrap().round.as_ref().unwrap();
+        assert!(round.revealed && round.recorded);
+        assert_eq!(round.got.get(&Category::Title), Some(&true));
+        assert_eq!(round.got.get(&Category::Artist), Some(&true));
+        assert!(round.points >= 3);
+        assert_eq!(app.game_record.rounds.len(), 1, "kept in the record");
+        assert!(app.game_hiding().is_none());
+        let seen = vacuum_frame(&ctx, &mut app);
+        assert!(shown(&seen, &title), "the reveal shows the real song");
+        assert!(
+            !shown(&seen, &next.name),
+            "the queue stays hidden at the reveal"
+        );
+
+        // Next: the next song is hidden from the same frame, before its
+        // round begins.
+        app.apply(Action::NextGameSong, &ctx);
+        vacuum_frame(&ctx, &mut app);
+        assert_eq!(app.now_playing().map(|now| now.uri), Some(next.uri.clone()));
+        assert!(app.game_hiding().is_some(), "hidden before its round");
+        assert!(!format!("{:?}", app.media_state(None)).contains(&next.name));
+        assert!(!app.window_title_text().contains(&next.name));
+        app.sync_game(&ctx);
+        assert_eq!(
+            app.game.as_ref().unwrap().round.as_ref().unwrap().track.uri,
+            next.uri
+        );
+
+        // Ending the game mid-guess keeps nothing of that round.
+        app.apply(Action::EndGame, &ctx);
+        assert_eq!(app.game_record.rounds.len(), 1, "a round left is not kept");
+        assert!(app.game.is_none());
+        assert_eq!(app.search.query, "beatles");
+        vacuum_frame(&ctx, &mut app);
+        assert!(
+            !crate::vacuum::gate::on(),
+            "nothing hidden once the game ends"
+        );
+        app.backend.shutdown();
+    }
+
+    /// With Vacuum on, the search box holds the stand-in of what was typed;
+    /// a blanked game round never turns it back into the real name, and
+    /// switching Vacuum off afterwards does.
+    #[test]
+    fn a_blanked_game_with_vacuum_on_keeps_the_search_box_disguised() {
+        use crate::game::{Hiding, LIBRARY, Mode, Session, Setup};
+        use crate::vacuum::gate::{self, Level};
+        let (ctx, mut app) = accessible_app("guessing-game-vacuum");
+        app.settings.vacuum.on = true;
+        app.settings.vacuum.pictures = gate::Pictures::Generated;
+        let Some(PlayableItem::Track(track)) = app.now_playing_item() else {
+            panic!("the demo plays a song");
+        };
+        let artist = track.artists[0].name.clone();
+        app.search.query = artist.clone();
+        vacuum_frame(&ctx, &mut app);
+        let disguised = app.search.query.clone();
+        assert_ne!(disguised, artist, "Vacuum shows the stand-in");
+
+        app.game = Some(Session {
+            setup: Setup {
+                mode: Mode::Typed,
+                hiding: Hiding::Blanked,
+                grid: 9,
+            },
+            source: LIBRARY.into(),
+            songs: vec![track.clone()],
+            ..Default::default()
+        });
+        app.sync_game(&ctx);
+        vacuum_frame(&ctx, &mut app);
+        assert!(gate::at(Level::Blanked), "the round is blanked");
+        assert_eq!(
+            app.search.query, disguised,
+            "the real name never shows in the search box"
+        );
+        // A search submitted while blanked keeps what was typed.
+        app.search.query = "beatles".into();
+        app.apply(Action::Search("beatles".into()), &ctx);
+        assert_eq!(app.search.query, "beatles", "not turned into ???");
+        app.search.query = disguised.clone();
+        app.apply(Action::Search(disguised.clone()), &ctx);
+        app.apply(Action::RevealRound, &ctx);
+        vacuum_frame(&ctx, &mut app);
+        assert!(gate::at(Level::Disguised), "Vacuum again at the reveal");
+        assert_eq!(app.search.query, disguised);
+
+        app.apply(Action::EndGame, &ctx);
+        app.settings.vacuum.on = false;
+        vacuum_frame(&ctx, &mut app);
+        assert!(!gate::on());
+        assert_eq!(app.search.query, artist, "real again with Vacuum off");
         app.backend.shutdown();
     }
 

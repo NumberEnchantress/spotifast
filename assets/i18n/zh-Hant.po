@@ -4091,3 +4091,275 @@ msgstr "此頁面關於某個人，或關於熱門內容。"
 #: src/demo.rs:2264
 msgid "Show anyway"
 msgstr "仍然顯示"
+
+#: src/ui/game.rs:21
+msgid "Guessing game"
+msgstr "猜歌遊戲"
+
+#: src/app/game.rs:129
+msgid "Nothing to play in this game"
+msgstr "此遊戲中沒有可播放的歌曲"
+
+#: src/ui/game.rs:38
+msgid "Year"
+msgstr "年份"
+
+#. Translators: Guessing game: a song's version, such as Live or 2011 Remaster.
+#: src/ui/game.rs:40
+msgid "Version"
+msgstr "版本"
+
+#: src/ui/game.rs:61
+msgid "Songs play from where you choose, in a shuffled order. Name what you can before the first lyric: title 1 point, artist 2, album 3, year 4, version 5."
+msgstr "歌曲從你選擇的地方隨機播放。在第一句歌詞前說出你知道的：歌名 1 分，藝人 2，專輯 3，年份 4，版本 5。"
+
+#. Translators: Guessing game source: Liked Songs and every playlist opened.
+#: src/ui/game.rs:88
+msgid "Your library"
+msgstr "你的音樂庫"
+
+#: src/ui/game.rs:90
+msgid "Play from"
+msgstr "播放來源"
+
+#: src/ui/game.rs:105
+msgid "Name it"
+msgstr "說出來"
+
+#. Translators: Guessing game mode: name the song by typing; only these count in the stats.
+#: src/ui/game.rs:107
+msgid "Name it, typed"
+msgstr "說出來（輸入）"
+
+#: src/ui/game.rs:108
+msgid "Cover grid"
+msgstr "封面方格"
+
+#: src/ui/game.rs:109
+msgid "Main colour"
+msgstr "主色"
+
+#: src/ui/game.rs:119
+msgid "Say your answers aloud, then tick what you got."
+msgstr "大聲說出答案，然後勾選答對的。"
+
+#: src/ui/game.rs:122
+msgid "Type your answers. Close enough counts; these rounds make the stats."
+msgstr "輸入答案。接近即可；這些回合計入統計。"
+
+#: src/ui/game.rs:124
+msgid "Pick the playing song's cover."
+msgstr "選出正在播放歌曲的封面。"
+
+#: src/ui/game.rs:127
+msgid "Say what colour the playing song's cover mostly is."
+msgstr "說出正在播放歌曲的封面主要是什麼顏色。"
+
+#. Translators: Guessing game: how many covers the grid shows. {count} is a number.
+#: src/ui/game.rs:138
+#, rust-format
+msgid "{count} covers"
+msgstr "{count} 個封面"
+
+#: src/ui/game.rs:146
+msgid "While you guess"
+msgstr "猜的時候"
+
+#. Translators: Guessing game: show the real names and covers while guessing.
+#: src/ui/game.rs:150
+msgid "Real names"
+msgstr "真實名稱"
+
+#. Translators: Guessing game: show Vacuum's stand-ins while guessing.
+#: src/ui/game.rs:152
+msgid "Stand-ins"
+msgstr "替代名稱"
+
+#. Translators: Guessing game: show ??? and black squares while guessing.
+#: src/ui/game.rs:154
+msgid "Blanked"
+msgstr "遮住"
+
+#: src/demo.rs:2375
+msgid "Start"
+msgstr "開始"
+
+#: src/ui/game.rs:180
+msgid "Loading the songs…"
+msgstr "正在載入歌曲…"
+
+#. Translators: Guessing game: {count} songs to play, {due} of them missed before and due again.
+#: src/ui/game.rs:189
+#, rust-format
+msgid "{count} songs, {due} due to come back"
+msgstr "{count} 首歌，{due} 首待複習"
+
+#: src/ui/game.rs:231
+msgid "Your stats"
+msgstr "你的統計"
+
+#. Translators: {count} is how many typed rounds were played so far.
+#: src/ui/game.rs:245
+#, rust-format
+msgid "Stats show after 10 songs named by typing. {count} so far."
+msgstr "輸入作答滿 10 首後顯示統計。目前 {count} 首。"
+
+#: src/ui/game.rs:271
+msgid "Points per song"
+msgstr "每首得分"
+
+#: src/ui/game.rs:277
+msgid "Average time to answer"
+msgstr "平均作答時間"
+
+#: src/ui/game.rs:292
+msgid "Points per song, week by week"
+msgstr "每首得分（按週）"
+
+#. Translators: Guessing game: {count} songs played so far and {points} points scored.
+#: src/ui/game.rs:318
+#, rust-format
+msgid "{count} songs · {points} points"
+msgstr "{count} 首 · {points} 分"
+
+#: src/ui/game.rs:325
+msgid "End game"
+msgstr "結束遊戲"
+
+#: src/ui/game.rs:334
+msgid "Waiting for the first song…"
+msgstr "正在等待第一首歌…"
+
+#: src/ui/game.rs:350
+msgid "Name what you can: title, artist, album, year, version."
+msgstr "說出你知道的：歌名、藝人、專輯、年份、版本。"
+
+#: src/ui/game.rs:356
+msgid "Reveal"
+msgstr "揭曉"
+
+#. Translators: Guessing game countdown. {seconds} is a number.
+#: src/ui/game.rs:389
+#, rust-format
+msgid "{seconds} s until the first lyric"
+msgstr "距第一句歌詞 {seconds} 秒"
+
+#. Translators: Guessing game countdown, for a song without synced lyrics. {seconds} is a number.
+#: src/ui/game.rs:392
+#, rust-format
+msgid "{seconds} s left"
+msgstr "還剩 {seconds} 秒"
+
+#: src/ui/game.rs:498
+msgid "Red"
+msgstr "紅"
+
+#: src/ui/game.rs:499
+msgid "Orange"
+msgstr "橙"
+
+#: src/ui/game.rs:500
+msgid "Yellow"
+msgstr "黃"
+
+#: src/ui/game.rs:501
+msgid "Green"
+msgstr "綠"
+
+#: src/ui/game.rs:502
+msgid "Teal"
+msgstr "青綠"
+
+#: src/ui/game.rs:503
+msgid "Blue"
+msgstr "藍"
+
+#: src/ui/game.rs:504
+msgid "Purple"
+msgstr "紫"
+
+#: src/ui/game.rs:505
+msgid "Pink"
+msgstr "粉"
+
+#: src/ui/game.rs:506
+msgid "Brown"
+msgstr "棕"
+
+#: src/ui/game.rs:508
+msgid "Grey"
+msgstr "灰"
+
+#: src/ui/game.rs:565
+msgid "Year unknown"
+msgstr "年份未知"
+
+#: src/ui/game.rs:569
+msgid "No version named"
+msgstr "未註明版本"
+
+#: src/ui/game.rs:583
+msgid "Tick what you got:"
+msgstr "勾選答對的："
+
+#: src/ui/game.rs:649
+msgid "Right!"
+msgstr "答對了！"
+
+#: src/ui/game.rs:651
+msgid "Not this time."
+msgstr "這次沒對。"
+
+#: src/ui/game.rs:672
+msgid "The cover is mostly"
+msgstr "封面主要是"
+
+#. Translators: Guessing game: points scored for this song. {points} is a number.
+#: src/ui/game.rs:690
+#, rust-format
+msgid "+{points} points"
+msgstr "+{points} 分"
+
+#: src/sink.rs:1577
+msgid "Next song"
+msgstr "下一首"
+
+#: src/demo.rs:2400
+msgid "Lyrics are hidden while you guess"
+msgstr "猜歌時隱藏歌詞"
+
+#: src/ui/lyrics.rs:134
+msgid "They come back when the song is revealed."
+msgstr "揭曉歌曲後恢復顯示。"
+
+#. Guessing game: every song of the game has been played.
+#: src/ui/game.rs:389
+msgid "Game over"
+msgstr "遊戲結束"
+
+#: src/ui/game.rs:395
+msgid "Play again"
+msgstr "再玩一次"
+
+#. Guessing game: a song from elsewhere, or one already guessed, is playing.
+#: src/ui/game.rs:403
+msgid "The playing song is not one to guess."
+msgstr "正在播放的歌曲不用猜。"
+
+#: src/ui/game.rs:408
+msgid "Continue the game"
+msgstr "繼續遊戲"
+
+#. Guessing game: the cover is being read for its colours.
+#: src/ui/game.rs:593
+msgid "Reading the cover…"
+msgstr "正在讀取封面…"
+
+#. Guessing game: the cover could not be read, or too few covers were found.
+#: src/ui/game.rs:707
+msgid "This song could not be scored."
+msgstr "這首歌無法計分。"
+
+#: src/ui/queue.rs:362
+msgid "The queue is hidden while the guessing game plays."
+msgstr "猜歌遊戲期間隱藏播放佇列。"

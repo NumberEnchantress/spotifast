@@ -27,6 +27,7 @@ Spotifast follows each platform's conventions. On Linux:
 | Older plays, with Keep every play | `~/.local/state/spotifast/plays/` | Yes, those plays and their listening time are gone |
 | Vacuum's museum picks and learnt stand-ins, by seed id | `~/.local/state/spotifast/vacuum/` | Yes, pictures are looked up again; searching an old stand-in no longer finds its real name |
 | Vacuum's list of picture addresses of your own | `~/.config/spotifast/vacuum-pictures.txt` | Yes, load the list again |
+| The guessing game's rounds, reviews and setup | `~/.local/state/spotifast/game.json` | Yes, the stats and the songs due to come back are gone |
 | Songs added to local files one at a time | `~/.local/state/spotifast/local-files/` | Yes, they leave Local Files; the songs you picked stay where they were |
 | Audio cache | `~/.cache/spotifast/audio/` | Always |
 | Artwork cache | `~/.cache/spotifast/art/` | Always |

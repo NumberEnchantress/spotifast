@@ -129,6 +129,8 @@ pub enum Page {
     Radio(String),
     Queue,
     Settings,
+    /// The guessing game.
+    Game,
 }
 
 impl Page {
@@ -151,6 +153,7 @@ impl Page {
             Page::Radio(seed) => format!("radio:{seed}"),
             Page::Queue => "queue".into(),
             Page::Settings => "settings".into(),
+            Page::Game => "game".into(),
         }
     }
 
@@ -168,6 +171,7 @@ impl Page {
             "episodes" => Page::Episodes,
             "queue" => Page::Queue,
             "settings" => Page::Settings,
+            "game" => Page::Game,
             other => {
                 let (kind, id) = other.split_once(':')?;
                 match kind {
@@ -1311,6 +1315,29 @@ pub enum Action {
     SetMapListening(bool),
     /// Show a page Vacuum hides, by its encoded page, until restart.
     VacuumShowAnyway(String),
+    /// Open the guessing game, ready to play from a source: a playlist's or
+    /// album's URI, Liked Songs' collection, or the whole library.
+    OpenGame(Option<String>),
+    /// Start a game from a source.
+    StartGame(String),
+    /// How the next game is played.
+    SetGameSetup(crate::game::Setup),
+    /// Stop guessing the song and show what it is.
+    RevealRound,
+    /// The game's next song.
+    NextGameSong,
+    /// Stop the game; the music plays on.
+    EndGame,
+    /// Play the game's songs not played yet, after another song.
+    ContinueGame,
+    /// Ask for the songs a game would play from a source.
+    LoadGameSongs(String),
+    /// Tick, or untick, a category got, in Name it after the reveal.
+    TickRound(crate::game::Category),
+    /// Pick a cell of the cover grid.
+    PickCover(usize),
+    /// Say the cover's main colour.
+    PickColour(crate::game::Colour),
     /// Switch Vacuum on or off.
     SetVacuum(bool),
     SetLibrarySort {

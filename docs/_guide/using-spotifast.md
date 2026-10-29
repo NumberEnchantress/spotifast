@@ -792,9 +792,9 @@ use a personal Spotify app, reconnect it in Settings as well.
 ## This fork's version
 
 The window title, and the taskbar's, end with Spotifast's version and this
-fork's, such as `Spotifast 0.14.1 · mod 12`, after the playing song. With
+fork's, such as `Spotifast 0.14.1 · mod 13`, after the playing song. With
 **Custom title bar** on the window has no title, so **Show version**, in
-Settings → Appearance, puts `0.14.1 · mod 12` in the top bar instead, beside
+Settings → Appearance, puts `0.14.1 · mod 13` in the top bar instead, beside
 the update button; in a narrow window it gives way before anything else
 there.
 
@@ -861,6 +861,53 @@ What Vacuum cannot hide: Spotify Connect speakers and phones show what they
 play themselves, links copied or opened in Spotify carry real IDs, and the
 lyrics lookup still sends the real title and artist to LRCLIB. Lyrics are
 shown with the names Vacuum knows swapped.
+
+## Guessing game
+
+Name a song before its first lyric. Open **Guessing game** from the account
+menu, or from the right-click menu of a playlist, an album or Liked Songs to
+play from it. Choose where the songs come from (that playlist or album,
+Liked Songs, or your library: Liked Songs and the playlists in your library
+that have been opened), how to play, and how much of the song shows while
+you guess:
+
+- **Name it:** say what you can aloud, then **Reveal** and tick what you got.
+- **Name it, typed:** type the title, artist, album, year and version; Enter
+  moves to the next answer, and on the last one it is done. Close enough
+  counts: case, accents, punctuation, "feat." and "(with ...)" credits, a
+  version's words in another order (`Remastered 2011` for `2011 Remaster`),
+  and a slip of a letter in a longer name are forgiven. Numbers must be
+  exact. Only these rounds count in the stats.
+- **Cover grid:** pick the playing song's cover from 4, 9, 16 or 25. When the
+  game has too few albums, covers from your library fill the grid.
+- **Main colour:** say what colour its cover mostly is, once the cover has
+  been read.
+
+Points are title 1, artist 2, album 3, year 4 and version 5, each on its
+own. The version is what Spotify's title says, such as `2011 Remaster` or
+`Live`; where it says none, there is nothing to score. Guessing stops at the
+first line of the song's synced lyrics, or, without them, a fifth of the way
+in; a song joined late still gets half a minute.
+
+While you guess, the song shows as **Real names**, as Vacuum's
+**Stand-ins**, or **Blanked**: `???` and black squares everywhere, and its
+lyrics are hidden. Unless you chose real names, the queue is hidden for the
+whole game, as it would name the next songs. The reveal shows the real song.
+A game plays in its own order with shuffle off, and gives shuffle back when
+it ends.
+
+A song skipped before its reveal, or left by ending the game, is not kept.
+Playing a song from elsewhere, or one already guessed, pauses the guessing:
+**Continue the game** plays the songs not played yet. When every song has
+been played, the game is over and **Play again** starts a new one.
+
+Songs you miss come back a day later; got right each time, they come back
+again after three days, then seven, and are then done with. A miss when one
+comes back starts it over. Songs due to come back play first in the next
+game. **Your stats** show after ten typed songs:
+how often each category is right, the average time to answer, points per
+song, and how that changes week by week. Everything is kept on this
+computer in `game.json`.
 
 ## Lyrics
 

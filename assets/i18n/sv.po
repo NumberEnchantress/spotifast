@@ -4184,3 +4184,275 @@ msgstr "Den här sidan handlar om en person eller om det som är populärt."
 #: src/demo.rs:2264
 msgid "Show anyway"
 msgstr "Visa ändå"
+
+#: src/ui/game.rs:21
+msgid "Guessing game"
+msgstr "Gissningslek"
+
+#: src/app/game.rs:129
+msgid "Nothing to play in this game"
+msgstr "Inget att spela i det här spelet"
+
+#: src/ui/game.rs:38
+msgid "Year"
+msgstr "År"
+
+#. Translators: Guessing game: a song's version, such as Live or 2011 Remaster.
+#: src/ui/game.rs:40
+msgid "Version"
+msgstr "Version"
+
+#: src/ui/game.rs:61
+msgid "Songs play from where you choose, in a shuffled order. Name what you can before the first lyric: title 1 point, artist 2, album 3, year 4, version 5."
+msgstr "Låtar spelas från källan du väljer, i blandad ordning. Säg det du kan före första textraden: titel 1 poäng, artist 2, album 3, år 4, version 5."
+
+#. Translators: Guessing game source: Liked Songs and every playlist opened.
+#: src/ui/game.rs:88
+msgid "Your library"
+msgstr "Ditt bibliotek"
+
+#: src/ui/game.rs:90
+msgid "Play from"
+msgstr "Spela från"
+
+#: src/ui/game.rs:105
+msgid "Name it"
+msgstr "Gissa"
+
+#. Translators: Guessing game mode: name the song by typing; only these count in the stats.
+#: src/ui/game.rs:107
+msgid "Name it, typed"
+msgstr "Gissa, skrivet"
+
+#: src/ui/game.rs:108
+msgid "Cover grid"
+msgstr "Omslagsrutnät"
+
+#: src/ui/game.rs:109
+msgid "Main colour"
+msgstr "Huvudfärg"
+
+#: src/ui/game.rs:119
+msgid "Say your answers aloud, then tick what you got."
+msgstr "Säg svaren högt och bocka sedan av det du fick rätt."
+
+#: src/ui/game.rs:122
+msgid "Type your answers. Close enough counts; these rounds make the stats."
+msgstr "Skriv dina svar. Nästan rätt räknas; de här rundorna blir statistiken."
+
+#: src/ui/game.rs:124
+msgid "Pick the playing song's cover."
+msgstr "Välj omslaget till låten som spelas."
+
+#: src/ui/game.rs:127
+msgid "Say what colour the playing song's cover mostly is."
+msgstr "Säg vilken färg omslaget till låten som spelas mest har."
+
+#. Translators: Guessing game: how many covers the grid shows. {count} is a number.
+#: src/ui/game.rs:138
+#, rust-format
+msgid "{count} covers"
+msgstr "{count} omslag"
+
+#: src/ui/game.rs:146
+msgid "While you guess"
+msgstr "Medan du gissar"
+
+#. Translators: Guessing game: show the real names and covers while guessing.
+#: src/ui/game.rs:150
+msgid "Real names"
+msgstr "Riktiga namn"
+
+#. Translators: Guessing game: show Vacuum's stand-ins while guessing.
+#: src/ui/game.rs:152
+msgid "Stand-ins"
+msgstr "Ersättningar"
+
+#. Translators: Guessing game: show ??? and black squares while guessing.
+#: src/ui/game.rs:154
+msgid "Blanked"
+msgstr "Dolt"
+
+#: src/demo.rs:2375
+msgid "Start"
+msgstr "Starta"
+
+#: src/ui/game.rs:180
+msgid "Loading the songs…"
+msgstr "Läser in låtar…"
+
+#. Translators: Guessing game: {count} songs to play, {due} of them missed before and due again.
+#: src/ui/game.rs:189
+#, rust-format
+msgid "{count} songs, {due} due to come back"
+msgstr "{count} låtar, {due} att repetera"
+
+#: src/ui/game.rs:231
+msgid "Your stats"
+msgstr "Din statistik"
+
+#. Translators: {count} is how many typed rounds were played so far.
+#: src/ui/game.rs:245
+#, rust-format
+msgid "Stats show after 10 songs named by typing. {count} so far."
+msgstr "Statistiken visas efter 10 skrivna låtar. Hittills {count}."
+
+#: src/ui/game.rs:271
+msgid "Points per song"
+msgstr "Poäng per låt"
+
+#: src/ui/game.rs:277
+msgid "Average time to answer"
+msgstr "Genomsnittlig svarstid"
+
+#: src/ui/game.rs:292
+msgid "Points per song, week by week"
+msgstr "Poäng per låt, vecka för vecka"
+
+#. Translators: Guessing game: {count} songs played so far and {points} points scored.
+#: src/ui/game.rs:318
+#, rust-format
+msgid "{count} songs · {points} points"
+msgstr "{count} låtar · {points} poäng"
+
+#: src/ui/game.rs:325
+msgid "End game"
+msgstr "Avsluta spelet"
+
+#: src/ui/game.rs:334
+msgid "Waiting for the first song…"
+msgstr "Väntar på första låten…"
+
+#: src/ui/game.rs:350
+msgid "Name what you can: title, artist, album, year, version."
+msgstr "Säg det du kan: titel, artist, album, år, version."
+
+#: src/ui/game.rs:356
+msgid "Reveal"
+msgstr "Visa svaret"
+
+#. Translators: Guessing game countdown. {seconds} is a number.
+#: src/ui/game.rs:389
+#, rust-format
+msgid "{seconds} s until the first lyric"
+msgstr "{seconds} s till första textraden"
+
+#. Translators: Guessing game countdown, for a song without synced lyrics. {seconds} is a number.
+#: src/ui/game.rs:392
+#, rust-format
+msgid "{seconds} s left"
+msgstr "{seconds} s kvar"
+
+#: src/ui/game.rs:498
+msgid "Red"
+msgstr "Röd"
+
+#: src/ui/game.rs:499
+msgid "Orange"
+msgstr "Orange"
+
+#: src/ui/game.rs:500
+msgid "Yellow"
+msgstr "Gul"
+
+#: src/ui/game.rs:501
+msgid "Green"
+msgstr "Grön"
+
+#: src/ui/game.rs:502
+msgid "Teal"
+msgstr "Blågrön"
+
+#: src/ui/game.rs:503
+msgid "Blue"
+msgstr "Blå"
+
+#: src/ui/game.rs:504
+msgid "Purple"
+msgstr "Lila"
+
+#: src/ui/game.rs:505
+msgid "Pink"
+msgstr "Rosa"
+
+#: src/ui/game.rs:506
+msgid "Brown"
+msgstr "Brun"
+
+#: src/ui/game.rs:508
+msgid "Grey"
+msgstr "Grå"
+
+#: src/ui/game.rs:565
+msgid "Year unknown"
+msgstr "År okänt"
+
+#: src/ui/game.rs:569
+msgid "No version named"
+msgstr "Ingen version angiven"
+
+#: src/ui/game.rs:583
+msgid "Tick what you got:"
+msgstr "Bocka av det du fick rätt:"
+
+#: src/ui/game.rs:649
+msgid "Right!"
+msgstr "Rätt!"
+
+#: src/ui/game.rs:651
+msgid "Not this time."
+msgstr "Inte den här gången."
+
+#: src/ui/game.rs:672
+msgid "The cover is mostly"
+msgstr "Omslaget är mest"
+
+#. Translators: Guessing game: points scored for this song. {points} is a number.
+#: src/ui/game.rs:690
+#, rust-format
+msgid "+{points} points"
+msgstr "+{points} poäng"
+
+#: src/sink.rs:1577
+msgid "Next song"
+msgstr "Nästa låt"
+
+#: src/demo.rs:2400
+msgid "Lyrics are hidden while you guess"
+msgstr "Låttexten döljs medan du gissar"
+
+#: src/ui/lyrics.rs:134
+msgid "They come back when the song is revealed."
+msgstr "Den kommer tillbaka när låten avslöjas."
+
+#. Guessing game: every song of the game has been played.
+#: src/ui/game.rs:389
+msgid "Game over"
+msgstr "Spelet är slut"
+
+#: src/ui/game.rs:395
+msgid "Play again"
+msgstr "Spela igen"
+
+#. Guessing game: a song from elsewhere, or one already guessed, is playing.
+#: src/ui/game.rs:403
+msgid "The playing song is not one to guess."
+msgstr "Låten som spelas är inte en att gissa."
+
+#: src/ui/game.rs:408
+msgid "Continue the game"
+msgstr "Fortsätt spelet"
+
+#. Guessing game: the cover is being read for its colours.
+#: src/ui/game.rs:593
+msgid "Reading the cover…"
+msgstr "Läser omslaget…"
+
+#. Guessing game: the cover could not be read, or too few covers were found.
+#: src/ui/game.rs:707
+msgid "This song could not be scored."
+msgstr "Den här låten kunde inte poängsättas."
+
+#: src/ui/queue.rs:362
+msgid "The queue is hidden while the guessing game plays."
+msgstr "Kön är dold medan gissningsleken pågår."

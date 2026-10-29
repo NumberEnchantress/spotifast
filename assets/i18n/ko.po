@@ -4122,3 +4122,275 @@ msgstr "이 페이지는 한 사람이나 인기 있는 것에 관한 것입니�
 #: src/demo.rs:2264
 msgid "Show anyway"
 msgstr "그래도 보기"
+
+#: src/ui/game.rs:21
+msgid "Guessing game"
+msgstr "맞히기 게임"
+
+#: src/app/game.rs:129
+msgid "Nothing to play in this game"
+msgstr "이 게임에서 재생할 곡이 없습니다"
+
+#: src/ui/game.rs:38
+msgid "Year"
+msgstr "연도"
+
+#. Translators: Guessing game: a song's version, such as Live or 2011 Remaster.
+#: src/ui/game.rs:40
+msgid "Version"
+msgstr "버전"
+
+#: src/ui/game.rs:61
+msgid "Songs play from where you choose, in a shuffled order. Name what you can before the first lyric: title 1 point, artist 2, album 3, year 4, version 5."
+msgstr "선택한 곳의 곡이 섞인 순서로 재생됩니다. 첫 가사 전에 아는 것을 맞히세요: 제목 1점, 아티스트 2, 앨범 3, 연도 4, 버전 5."
+
+#. Translators: Guessing game source: Liked Songs and every playlist opened.
+#: src/ui/game.rs:88
+msgid "Your library"
+msgstr "내 라이브러리"
+
+#: src/ui/game.rs:90
+msgid "Play from"
+msgstr "재생할 곳"
+
+#: src/ui/game.rs:105
+msgid "Name it"
+msgstr "맞히기"
+
+#. Translators: Guessing game mode: name the song by typing; only these count in the stats.
+#: src/ui/game.rs:107
+msgid "Name it, typed"
+msgstr "맞히기 (입력)"
+
+#: src/ui/game.rs:108
+msgid "Cover grid"
+msgstr "커버 고르기"
+
+#: src/ui/game.rs:109
+msgid "Main colour"
+msgstr "주요 색"
+
+#: src/ui/game.rs:119
+msgid "Say your answers aloud, then tick what you got."
+msgstr "답을 소리 내어 말하고 맞힌 것을 체크하세요."
+
+#: src/ui/game.rs:122
+msgid "Type your answers. Close enough counts; these rounds make the stats."
+msgstr "답을 입력하세요. 거의 맞아도 인정되며 이 판이 통계에 들어갑니다."
+
+#: src/ui/game.rs:124
+msgid "Pick the playing song's cover."
+msgstr "재생 중인 곡의 커버를 고르세요."
+
+#: src/ui/game.rs:127
+msgid "Say what colour the playing song's cover mostly is."
+msgstr "재생 중인 곡의 커버가 주로 무슨 색인지 말하세요."
+
+#. Translators: Guessing game: how many covers the grid shows. {count} is a number.
+#: src/ui/game.rs:138
+#, rust-format
+msgid "{count} covers"
+msgstr "커버 {count}개"
+
+#: src/ui/game.rs:146
+msgid "While you guess"
+msgstr "맞히는 동안"
+
+#. Translators: Guessing game: show the real names and covers while guessing.
+#: src/ui/game.rs:150
+msgid "Real names"
+msgstr "실제 이름"
+
+#. Translators: Guessing game: show Vacuum's stand-ins while guessing.
+#: src/ui/game.rs:152
+msgid "Stand-ins"
+msgstr "대체 이름"
+
+#. Translators: Guessing game: show ??? and black squares while guessing.
+#: src/ui/game.rs:154
+msgid "Blanked"
+msgstr "가리기"
+
+#: src/demo.rs:2375
+msgid "Start"
+msgstr "시작"
+
+#: src/ui/game.rs:180
+msgid "Loading the songs…"
+msgstr "곡을 불러오는 중…"
+
+#. Translators: Guessing game: {count} songs to play, {due} of them missed before and due again.
+#: src/ui/game.rs:189
+#, rust-format
+msgid "{count} songs, {due} due to come back"
+msgstr "{count}곡, 복습할 곡 {due}곡"
+
+#: src/ui/game.rs:231
+msgid "Your stats"
+msgstr "내 통계"
+
+#. Translators: {count} is how many typed rounds were played so far.
+#: src/ui/game.rs:245
+#, rust-format
+msgid "Stats show after 10 songs named by typing. {count} so far."
+msgstr "입력으로 맞힌 곡이 10곡이 되면 통계가 나타납니다. 지금까지 {count}곡."
+
+#: src/ui/game.rs:271
+msgid "Points per song"
+msgstr "곡당 점수"
+
+#: src/ui/game.rs:277
+msgid "Average time to answer"
+msgstr "평균 답변 시간"
+
+#: src/ui/game.rs:292
+msgid "Points per song, week by week"
+msgstr "주별 곡당 점수"
+
+#. Translators: Guessing game: {count} songs played so far and {points} points scored.
+#: src/ui/game.rs:318
+#, rust-format
+msgid "{count} songs · {points} points"
+msgstr "{count}곡 · {points}점"
+
+#: src/ui/game.rs:325
+msgid "End game"
+msgstr "게임 끝내기"
+
+#: src/ui/game.rs:334
+msgid "Waiting for the first song…"
+msgstr "첫 곡을 기다리는 중…"
+
+#: src/ui/game.rs:350
+msgid "Name what you can: title, artist, album, year, version."
+msgstr "아는 것을 말하세요: 제목, 아티스트, 앨범, 연도, 버전."
+
+#: src/ui/game.rs:356
+msgid "Reveal"
+msgstr "정답 보기"
+
+#. Translators: Guessing game countdown. {seconds} is a number.
+#: src/ui/game.rs:389
+#, rust-format
+msgid "{seconds} s until the first lyric"
+msgstr "첫 가사까지 {seconds}초"
+
+#. Translators: Guessing game countdown, for a song without synced lyrics. {seconds} is a number.
+#: src/ui/game.rs:392
+#, rust-format
+msgid "{seconds} s left"
+msgstr "{seconds}초 남음"
+
+#: src/ui/game.rs:498
+msgid "Red"
+msgstr "빨강"
+
+#: src/ui/game.rs:499
+msgid "Orange"
+msgstr "주황"
+
+#: src/ui/game.rs:500
+msgid "Yellow"
+msgstr "노랑"
+
+#: src/ui/game.rs:501
+msgid "Green"
+msgstr "초록"
+
+#: src/ui/game.rs:502
+msgid "Teal"
+msgstr "청록"
+
+#: src/ui/game.rs:503
+msgid "Blue"
+msgstr "파랑"
+
+#: src/ui/game.rs:504
+msgid "Purple"
+msgstr "보라"
+
+#: src/ui/game.rs:505
+msgid "Pink"
+msgstr "분홍"
+
+#: src/ui/game.rs:506
+msgid "Brown"
+msgstr "갈색"
+
+#: src/ui/game.rs:508
+msgid "Grey"
+msgstr "회색"
+
+#: src/ui/game.rs:565
+msgid "Year unknown"
+msgstr "연도 모름"
+
+#: src/ui/game.rs:569
+msgid "No version named"
+msgstr "버전 표시 없음"
+
+#: src/ui/game.rs:583
+msgid "Tick what you got:"
+msgstr "맞힌 것을 체크하세요:"
+
+#: src/ui/game.rs:649
+msgid "Right!"
+msgstr "정답!"
+
+#: src/ui/game.rs:651
+msgid "Not this time."
+msgstr "이번엔 아니에요."
+
+#: src/ui/game.rs:672
+msgid "The cover is mostly"
+msgstr "커버의 주요 색"
+
+#. Translators: Guessing game: points scored for this song. {points} is a number.
+#: src/ui/game.rs:690
+#, rust-format
+msgid "+{points} points"
+msgstr "+{points}점"
+
+#: src/sink.rs:1577
+msgid "Next song"
+msgstr "다음 곡"
+
+#: src/demo.rs:2400
+msgid "Lyrics are hidden while you guess"
+msgstr "맞히는 동안 가사가 숨겨집니다"
+
+#: src/ui/lyrics.rs:134
+msgid "They come back when the song is revealed."
+msgstr "곡의 정답이 나오면 다시 보입니다."
+
+#. Guessing game: every song of the game has been played.
+#: src/ui/game.rs:389
+msgid "Game over"
+msgstr "게임 종료"
+
+#: src/ui/game.rs:395
+msgid "Play again"
+msgstr "다시 하기"
+
+#. Guessing game: a song from elsewhere, or one already guessed, is playing.
+#: src/ui/game.rs:403
+msgid "The playing song is not one to guess."
+msgstr "재생 중인 곡은 맞힐 곡이 아닙니다."
+
+#: src/ui/game.rs:408
+msgid "Continue the game"
+msgstr "게임 계속하기"
+
+#. Guessing game: the cover is being read for its colours.
+#: src/ui/game.rs:593
+msgid "Reading the cover…"
+msgstr "커버를 읽는 중…"
+
+#. Guessing game: the cover could not be read, or too few covers were found.
+#: src/ui/game.rs:707
+msgid "This song could not be scored."
+msgstr "이 곡은 채점할 수 없었습니다."
+
+#: src/ui/queue.rs:362
+msgid "The queue is hidden while the guessing game plays."
+msgstr "맞히기 게임 중에는 대기열이 숨겨집니다."

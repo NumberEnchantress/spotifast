@@ -121,7 +121,25 @@ pub fn side_panel(app: &mut App, ui: &mut egui::Ui) {
     }
 }
 
+/// While a song is being guessed its words would give it away.
+fn hidden_for_game(app: &App, ui: &mut egui::Ui) -> bool {
+    if app.game_hiding().is_none() {
+        return false;
+    }
+    widgets::empty_state(
+        ui,
+        &app.palette,
+        Icon::Gamepad,
+        &gettext(app.locale, "Lyrics are hidden while you guess"),
+        &gettext(app.locale, "They come back when the song is revealed."),
+    );
+    true
+}
+
 fn contents(app: &mut App, ui: &mut egui::Ui) {
+    if hidden_for_game(app, ui) {
+        return;
+    }
     let palette = app.palette;
     let Some(now) = app.now_playing_shown() else {
         widgets::empty_state(
@@ -670,6 +688,9 @@ fn track_heading(app: &App, ui: &mut egui::Ui) {
 }
 
 fn fullscreen_contents(app: &mut App, ui: &mut egui::Ui) {
+    if hidden_for_game(app, ui) {
+        return;
+    }
     let palette = theme::Palette::dark();
     let Some(now) = app.now_playing_shown() else {
         widgets::empty_state(

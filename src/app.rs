@@ -492,11 +492,28 @@ pub struct App {
     /// What Vacuum's gate was last built from, to build it again only when
     /// that changes. See [`crate::vacuum`].
     vacuum_built: Option<u64>,
+    /// Whether the gate up is only the guessing game's blanks, Vacuum being
+    /// off: it draws no stand-in and learns none.
+    vacuum_light: bool,
+    /// Whether the search box holds the stand-in of what was typed.
+    vacuum_search_hidden: bool,
+    /// Vacuum's list of picture addresses of your own, read once, and
+    /// again when a new list is loaded.
+    vacuum_pictures: Option<std::sync::Arc<Vec<String>>>,
     /// Vacuum's verdicts on playlists, by ID. Person and popularity
     /// verdicts stick. See [`crate::vacuum::collections`].
     pub vacuum_verdicts: HashMap<String, crate::vacuum::collections::Verdict>,
     /// Pages about a person or popularity shown anyway, until restart.
     pub vacuum_shown_anyway: HashSet<String>,
+    /// The guessing game being played.
+    pub game: Option<crate::game::Session>,
+    /// The game's rounds, reviews and setup.
+    pub game_record: crate::game::Record,
+    /// What the game page offers to play from, as opened.
+    pub game_source: Option<String>,
+    /// The text of a `game.json` that could not be read, set aside beside
+    /// it before the record is first saved over it.
+    game_unreadable: Option<String>,
     /// The seed whose learnt stand-ins were read from disk.
     vacuum_names_loaded: Option<String>,
     /// The seed's derivation, kept with its cache across rebuilds.
@@ -1021,6 +1038,7 @@ impl App {
         settings.proxy_password_legacy |= dirs.proxy_secret_file().try_exists().unwrap_or(true);
         let plays =
             crate::history::History::load(&dirs.history_file()).with_archive(dirs.plays_dir());
+        let (game_record, game_unreadable) = App::load_game_record(&dirs.state.join("game.json"));
         let tap = crate::vis::AudioTap::new();
         let eq = crate::eq::shared();
         if let Ok(mut shared) = eq.lock() {
@@ -1207,8 +1225,15 @@ impl App {
             home: HomeData::default(),
             plays,
             vacuum_built: None,
+            vacuum_light: false,
+            vacuum_search_hidden: false,
+            vacuum_pictures: None,
             vacuum_verdicts: HashMap::new(),
             vacuum_shown_anyway: HashSet::new(),
+            game: None,
+            game_record,
+            game_source: None,
+            game_unreadable,
             vacuum_judged: HashMap::new(),
             vacuum_names_loaded: None,
             vacuum_deriver: None,
@@ -2599,6 +2624,7 @@ impl App {
                 Event::VacuumPicturesChosen(Ok(count)) => {
                     // Built again with the new list.
                     self.vacuum_built = None;
+                    self.vacuum_pictures = None;
                     self.toast(
                         // Translators: {count} is how many picture addresses a list held.
                         gettext(self.locale, "{count} pictures loaded")
@@ -3308,7 +3334,7 @@ impl App {
                     self.refresh_queue(true);
                 }
             }
-            Page::Settings => {}
+            Page::Settings | Page::Game => {}
         }
     }
 
@@ -5791,6 +5817,7 @@ impl App {
                 }
             }
             Page::Settings => self.refresh_autostart(),
+            Page::Game => {}
         }
     }
 
@@ -12016,7 +12043,17 @@ impl App {
                 // Enter submits what was typed; a recent search or a link
                 // starts afresh. Vacuum: the field shows the stand-in.
                 let typed = query == self.search.query;
-                self.search.query = crate::vacuum::gate::name(&query).into_owned();
+                self.search.query = if crate::vacuum::gate::at(crate::vacuum::gate::Level::Blanked)
+                {
+                    // The guessing game's blanks: what was typed stays as
+                    // typed; a recent search or a link, which could name the
+                    // song being guessed, is not shown.
+                    // Vacuum, if on, disguises it at the reveal.
+                    self.vacuum_search_hidden = false;
+                    if typed { query.clone() } else { String::new() }
+                } else {
+                    crate::vacuum::gate::name(&query).into_owned()
+                };
                 self.search.typed_at = None;
                 self.open(Page::Search);
                 if typed {
@@ -12274,6 +12311,26 @@ impl App {
                 self.settings.home.map_layout = layout;
                 self.mark_settings_dirty();
             }
+            Action::OpenGame(source) => {
+                if let Some(source) = &source {
+                    self.load_game_songs(source);
+                }
+                self.game_source = source;
+                self.open(Page::Game);
+            }
+            Action::StartGame(source) => self.start_game(source),
+            Action::SetGameSetup(setup) => {
+                self.game_record.setup = setup;
+                self.save_game_record();
+            }
+            Action::RevealRound => self.reveal_round(),
+            Action::NextGameSong => self.next_game_song(),
+            Action::EndGame => self.end_game(),
+            Action::ContinueGame => self.continue_game(),
+            Action::LoadGameSongs(source) => self.load_game_songs(&source),
+            Action::TickRound(category) => self.tick_round(category),
+            Action::PickCover(index) => self.pick_cover(index),
+            Action::PickColour(colour) => self.pick_colour(colour),
             Action::VacuumShowAnyway(page) => {
                 self.vacuum_shown_anyway.insert(page);
             }
@@ -13139,6 +13196,7 @@ impl App {
         self.handle_notch_commands();
         self.tick(ctx);
         self.note_listening();
+        self.sync_game(ctx);
         // MilkDrop runs in a child process and can outlive the main window.
         // Poll it before applying actions because its keys produce actions.
         #[cfg(feature = "milkdrop")]
@@ -13334,18 +13392,21 @@ impl App {
         use std::hash::{Hash, Hasher};
         // Off, nothing is worked out: the gate is let go once, and every
         // later frame costs one comparison.
-        if !self.settings.vacuum.on {
+        let game = self.game_hiding();
+        if !self.settings.vacuum.on && game.is_none() {
             if self.vacuum_built != Some(VACUUM_OFF) {
                 self.vacuum_built = Some(VACUUM_OFF);
-                self.save_vacuum_names();
-                self.vacuum_learnt = crate::vacuum::gate::current()
-                    .map(|gate| (gate.seed_id.clone(), gate.learnt()));
-                // The search box shows what was typed, real again.
-                if let Some(real) = crate::vacuum::gate::current()
-                    .and_then(|gate| gate.real_for(&self.search.query))
-                {
-                    self.search.query = real;
+                let gate = crate::vacuum::gate::current();
+                // A gate the game put up only to blank names learnt
+                // nothing, and left the search box as it was typed.
+                if !self.vacuum_light {
+                    self.save_vacuum_names();
+                    self.vacuum_learnt = gate
+                        .as_ref()
+                        .map(|gate| (gate.seed_id.clone(), gate.learnt()));
                 }
+                self.vacuum_search_real();
+                self.vacuum_light = false;
                 crate::vacuum::gate::set(None);
                 crate::vacuum::gate::set_probe(None);
                 crate::vacuum::art::configure(None);
@@ -13367,16 +13428,56 @@ impl App {
             .hash(&mut hasher);
         // Never the off marker, which would leave the gate unbuilt.
         let fingerprint = hasher.finish().max(1);
+        let level = game.unwrap_or(crate::vacuum::gate::Level::Disguised);
         if self.vacuum_built != Some(fingerprint) {
             self.vacuum_built = Some(fingerprint);
             self.vacuum_own_key = None;
-            self.build_vacuum(ctx);
+            self.build_vacuum(ctx, level);
+        } else if crate::vacuum::gate::current().is_some_and(|gate| gate.level != level) {
+            // The game hides a song, or lets it go, with Vacuum on: the
+            // same gate at another level, keeping what it learnt. The
+            // search box keeps its stand-in: the real text would tell.
+            self.vacuum_own_key = None;
+            crate::vacuum::gate::set(Some(self.vacuum_gate(level)));
+            self.vacuum_search_disguised();
+            ctx.request_repaint();
+        }
+        if self.vacuum_light {
+            // Every name is blank: nothing to tell apart or judge.
+            return;
         }
         self.vacuum_sync_own();
         self.vacuum_judge();
     }
 
-    fn build_vacuum(&mut self, ctx: &egui::Context) {
+    /// The search box shows what was typed, real, once nothing shows
+    /// stand-ins any more: Vacuum off, or only the game's blanks.
+    fn vacuum_search_real(&mut self) {
+        if !std::mem::take(&mut self.vacuum_search_hidden) {
+            return;
+        }
+        if let Some(real) =
+            crate::vacuum::gate::current().and_then(|gate| gate.real_for(&self.search.query))
+        {
+            self.search.query = real;
+        }
+    }
+
+    /// The search box shows the stand-in of what was typed once the gate
+    /// shows stand-ins, and keeps it while the game blanks a song. With
+    /// only the game's blanks, it is left as typed: it is your own text.
+    fn vacuum_search_disguised(&mut self) {
+        if !self.vacuum_search_hidden
+            && crate::vacuum::gate::at(crate::vacuum::gate::Level::Disguised)
+        {
+            self.search.query = crate::vacuum::gate::name(&self.search.query).into_owned();
+            self.vacuum_search_hidden = true;
+        }
+    }
+
+    /// A gate at `level` with Vacuum's settings and your account; what an
+    /// earlier gate learnt is carried over when it is put in charge.
+    fn vacuum_gate(&mut self, level: crate::vacuum::gate::Level) -> crate::vacuum::gate::Gate {
         let settings = &self.settings.vacuum;
         let seed = crate::vacuum::Seed::from_setting(settings.seed.as_deref());
         let seed_id = seed.id.clone();
@@ -13390,10 +13491,10 @@ impl App {
             }
         };
         let gate = crate::vacuum::gate::Gate::new(
-            crate::vacuum::gate::Level::Disguised,
-            deriver.clone(),
-            seed_id.clone(),
-            settings.options(),
+            level,
+            deriver,
+            seed_id,
+            self.settings.vacuum.options(),
             crate::vacuum::gate::Own {
                 user_id: self.user_id().map(str::to_owned),
                 user_name: self
@@ -13406,9 +13507,39 @@ impl App {
         for (id, verdict) in &self.vacuum_verdicts {
             gate.set_verdict(id, *verdict);
         }
-        let pictures = settings.pictures;
-        let was_on = crate::vacuum::gate::on();
+        gate
+    }
+
+    fn build_vacuum(&mut self, ctx: &egui::Context, level: crate::vacuum::gate::Level) {
+        let light = !self.settings.vacuum.on && level == crate::vacuum::gate::Level::Blanked;
+        if light && !self.vacuum_light && crate::vacuum::gate::on() {
+            // Vacuum switched off mid-round: what its gate learnt is kept
+            // before the game's blanks take over.
+            self.save_vacuum_names();
+            self.vacuum_learnt =
+                crate::vacuum::gate::current().map(|gate| (gate.seed_id.clone(), gate.learnt()));
+            self.vacuum_names_loaded = None;
+        }
+        // Built at Vacuum's own level first, so every loaded name is learnt
+        // (a blank learns none), then put at the game's level.
+        let gate = self.vacuum_gate(if light {
+            level
+        } else {
+            crate::vacuum::gate::Level::Disguised
+        });
+        let (seed_id, deriver) = (gate.seed_id.clone(), gate.deriver.clone());
+        let pictures = self.settings.vacuum.pictures;
+        if light {
+            self.vacuum_search_real();
+        }
         crate::vacuum::gate::set(Some(gate));
+        self.vacuum_light = light;
+        if light {
+            // Only the game's blanks: no stand-in is drawn, so nothing is
+            // learnt or read for one.
+            ctx.request_repaint();
+            return;
+        }
         self.vacuum_sync_own();
         // Stand-ins learnt in earlier runs find their real things in search:
         // from memory when Vacuum was on earlier in this run, else the file.
@@ -13429,14 +13560,12 @@ impl App {
         // one (a search typed before, a toast) shows its stand-in from the
         // first frame.
         self.vacuum_learn_loaded();
-        if !was_on {
-            self.search.query = crate::vacuum::gate::name(&self.search.query).into_owned();
-        }
+        self.vacuum_search_disguised();
         crate::vacuum::art::configure(Some(crate::vacuum::art::Config {
             seed_id,
             deriver,
             pictures,
-            custom: std::sync::Arc::new(self.vacuum_picture_list()),
+            custom: self.vacuum_picture_list(),
             state_dir: self.dirs.state.clone(),
         }));
         // A museum picture shows once it is ready; until then the generated
@@ -13451,6 +13580,10 @@ impl App {
                 false
             }
         })));
+        if level != crate::vacuum::gate::Level::Disguised {
+            self.vacuum_own_key = None;
+            crate::vacuum::gate::set(Some(self.vacuum_gate(level)));
+        }
         ctx.request_repaint();
     }
 
@@ -13724,10 +13857,15 @@ impl App {
 
     /// The picture addresses of your own Vacuum uses with Pictures: your
     /// list.
-    pub fn vacuum_picture_list(&self) -> Vec<String> {
-        std::fs::read_to_string(self.vacuum_picture_file())
-            .map(|text| crate::vacuum::art::parse_picture_list(&text))
-            .unwrap_or_default()
+    pub fn vacuum_picture_list(&mut self) -> std::sync::Arc<Vec<String>> {
+        if self.vacuum_pictures.is_none() {
+            self.vacuum_pictures = Some(std::sync::Arc::new(
+                std::fs::read_to_string(self.vacuum_picture_file())
+                    .map(|text| crate::vacuum::art::parse_picture_list(&text))
+                    .unwrap_or_default(),
+            ));
+        }
+        self.vacuum_pictures.clone().unwrap_or_default()
     }
 
     /// Records a track after enough active listening time.
@@ -13962,6 +14100,8 @@ impl App {
             self.winamp.playlist_scroll = offset;
         }
         self.refresh_frame_now();
+        // An action (Next in the game, say) can change what is hidden.
+        self.sync_vacuum(ctx);
         self.sync_media_controls(ctx);
 
         if !self.toasts.is_empty() {
@@ -14330,7 +14470,7 @@ fn increase_playlist_total(playlist: &mut Playlist, added: u32) {
 
 /// This fork's own version, after Spotifast's: one more each round of
 /// changes it ships.
-pub const FORK_VERSION: &str = "mod 12";
+pub const FORK_VERSION: &str = "mod 13";
 
 /// What `vacuum_built` holds while Vacuum is off.
 const VACUUM_OFF: u64 = 0;
@@ -14659,6 +14799,7 @@ fn cover_error(locale: Locale, error: &crate::api::client::ApiError) -> String {
     }
 }
 
+mod game;
 mod radio;
 
 #[cfg(test)]

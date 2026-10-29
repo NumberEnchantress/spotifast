@@ -50,7 +50,45 @@ record its own decisions and three rounds of adversarial grading.
   screen reader, put in the window title, the media controls or the command
   line, or any real picture asked for.
 
+### Guessing game, 29 October 2026
+
+- **Decisions (the user):** a song without synced lyrics is guessed until a
+  fifth of the way in; a game plays from a source picked per game; the
+  stats show after 10 songs; points are independent per category (title
+  1, artist 2, album 3, year 4, version 5).
+- **Mine, from the briefs:** Name it defaults to Blanked; only typed rounds
+  count in the stats; a song joined late (more than 5 seconds in) gets 30
+  seconds; a miss is the title missed, or the wrong cover or colour; it
+  comes back after a day, then, got right each time, after 3 and 7 days, and
+  plays first. A miss when due starts it over; a miss before it is due
+  changes nothing. A round skipped or ended before its reveal is not kept,
+  nor one that cannot be scored (no cover read, too few covers). Numbers in
+  typed answers must be exact; a version's words may come in any order. The version is read from Spotify's title, never
+  guessed. The cover grid offers covers of other albums in the game, and the
+  main colour is the largest of twelve colour bins over a small copy of the
+  cover, a close second counting too.
+- **Hiding:** the game puts Vacuum's gate at its level while a song is
+  guessed, and while a song of the game not yet guessed plays before its
+  round begins (so Next shows nothing real for a frame), Vacuum on or off,
+  and lets it go at the reveal. Blanked hides every name in the app, not
+  only the playing song's. The queue is hidden for the whole game unless the
+  game shows real names. With Vacuum off, a blanked game's gate is light: it
+  learns and reads nothing, and the search box keeps what was typed. A song
+  outside the game, or one guessed already (Previous), is not hidden or
+  guessed. Shuffle is turned off for the game and given back at its end.
+- **Lyrics:** the game asks for each song's lyrics, panel open or not, to
+  time the deadline; how-it-connects says so.
+- **Kept:** `game.json` in the state folder; the game's setup is kept there,
+  not as a setting.
+
 ### Still open
+
+- Guessing game: with Vacuum off and the game showing stand-ins, the gate is
+  built at each round and let go at each reveal, learning the library again
+  each time; a blanked game, and any game with Vacuum on, do not. An Honor
+  round revealed but not moved past is lost if the app quits, and shuffle
+  stays off if the app quits mid-game. A song librespot skips as unplayable
+  stays to be played, so Continue the game offers it again.
 
 - Playlist verdicts are not kept between runs; a playlist judged about a
   person from its songs is judged again from its title next time.

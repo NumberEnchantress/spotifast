@@ -4210,3 +4210,275 @@ msgstr "Deze pagina gaat over een persoon of over wat populair is."
 #: src/demo.rs:2264
 msgid "Show anyway"
 msgstr "Toch tonen"
+
+#: src/ui/game.rs:21
+msgid "Guessing game"
+msgstr "Raadspel"
+
+#: src/app/game.rs:129
+msgid "Nothing to play in this game"
+msgstr "Niets om te spelen in dit spel"
+
+#: src/ui/game.rs:38
+msgid "Year"
+msgstr "Jaar"
+
+#. Translators: Guessing game: a song's version, such as Live or 2011 Remaster.
+#: src/ui/game.rs:40
+msgid "Version"
+msgstr "Versie"
+
+#: src/ui/game.rs:61
+msgid "Songs play from where you choose, in a shuffled order. Name what you can before the first lyric: title 1 point, artist 2, album 3, year 4, version 5."
+msgstr "Nummers spelen uit de gekozen bron, in willekeurige volgorde. Noem wat je kunt vóór de eerste tekstregel: titel 1 punt, artiest 2, album 3, jaar 4, versie 5."
+
+#. Translators: Guessing game source: Liked Songs and every playlist opened.
+#: src/ui/game.rs:88
+msgid "Your library"
+msgstr "Je bibliotheek"
+
+#: src/ui/game.rs:90
+msgid "Play from"
+msgstr "Afspelen vanuit"
+
+#: src/ui/game.rs:105
+msgid "Name it"
+msgstr "Raad het"
+
+#. Translators: Guessing game mode: name the song by typing; only these count in the stats.
+#: src/ui/game.rs:107
+msgid "Name it, typed"
+msgstr "Raad het, getypt"
+
+#: src/ui/game.rs:108
+msgid "Cover grid"
+msgstr "Hoezenraster"
+
+#: src/ui/game.rs:109
+msgid "Main colour"
+msgstr "Hoofdkleur"
+
+#: src/ui/game.rs:119
+msgid "Say your answers aloud, then tick what you got."
+msgstr "Zeg je antwoorden hardop en vink aan wat je goed had."
+
+#: src/ui/game.rs:122
+msgid "Type your answers. Close enough counts; these rounds make the stats."
+msgstr "Typ je antwoorden. Bijna goed telt; deze rondes vormen de statistieken."
+
+#: src/ui/game.rs:124
+msgid "Pick the playing song's cover."
+msgstr "Kies de hoes van het spelende nummer."
+
+#: src/ui/game.rs:127
+msgid "Say what colour the playing song's cover mostly is."
+msgstr "Zeg welke kleur de hoes van het spelende nummer vooral heeft."
+
+#. Translators: Guessing game: how many covers the grid shows. {count} is a number.
+#: src/ui/game.rs:138
+#, rust-format
+msgid "{count} covers"
+msgstr "{count} hoezen"
+
+#: src/ui/game.rs:146
+msgid "While you guess"
+msgstr "Terwijl je raadt"
+
+#. Translators: Guessing game: show the real names and covers while guessing.
+#: src/ui/game.rs:150
+msgid "Real names"
+msgstr "Echte namen"
+
+#. Translators: Guessing game: show Vacuum's stand-ins while guessing.
+#: src/ui/game.rs:152
+msgid "Stand-ins"
+msgstr "Vervangers"
+
+#. Translators: Guessing game: show ??? and black squares while guessing.
+#: src/ui/game.rs:154
+msgid "Blanked"
+msgstr "Verborgen"
+
+#: src/demo.rs:2375
+msgid "Start"
+msgstr "Starten"
+
+#: src/ui/game.rs:180
+msgid "Loading the songs…"
+msgstr "Nummers laden…"
+
+#. Translators: Guessing game: {count} songs to play, {due} of them missed before and due again.
+#: src/ui/game.rs:189
+#, rust-format
+msgid "{count} songs, {due} due to come back"
+msgstr "{count} nummers, {due} om te herhalen"
+
+#: src/ui/game.rs:231
+msgid "Your stats"
+msgstr "Je statistieken"
+
+#. Translators: {count} is how many typed rounds were played so far.
+#: src/ui/game.rs:245
+#, rust-format
+msgid "Stats show after 10 songs named by typing. {count} so far."
+msgstr "Statistieken verschijnen na 10 getypte nummers. Tot nu toe {count}."
+
+#: src/ui/game.rs:271
+msgid "Points per song"
+msgstr "Punten per nummer"
+
+#: src/ui/game.rs:277
+msgid "Average time to answer"
+msgstr "Gemiddelde antwoordtijd"
+
+#: src/ui/game.rs:292
+msgid "Points per song, week by week"
+msgstr "Punten per nummer, week na week"
+
+#. Translators: Guessing game: {count} songs played so far and {points} points scored.
+#: src/ui/game.rs:318
+#, rust-format
+msgid "{count} songs · {points} points"
+msgstr "{count} nummers · {points} punten"
+
+#: src/ui/game.rs:325
+msgid "End game"
+msgstr "Spel beëindigen"
+
+#: src/ui/game.rs:334
+msgid "Waiting for the first song…"
+msgstr "Wachten op het eerste nummer…"
+
+#: src/ui/game.rs:350
+msgid "Name what you can: title, artist, album, year, version."
+msgstr "Noem wat je kunt: titel, artiest, album, jaar, versie."
+
+#: src/ui/game.rs:356
+msgid "Reveal"
+msgstr "Onthullen"
+
+#. Translators: Guessing game countdown. {seconds} is a number.
+#: src/ui/game.rs:389
+#, rust-format
+msgid "{seconds} s until the first lyric"
+msgstr "{seconds} s tot de eerste tekstregel"
+
+#. Translators: Guessing game countdown, for a song without synced lyrics. {seconds} is a number.
+#: src/ui/game.rs:392
+#, rust-format
+msgid "{seconds} s left"
+msgstr "Nog {seconds} s"
+
+#: src/ui/game.rs:498
+msgid "Red"
+msgstr "Rood"
+
+#: src/ui/game.rs:499
+msgid "Orange"
+msgstr "Oranje"
+
+#: src/ui/game.rs:500
+msgid "Yellow"
+msgstr "Geel"
+
+#: src/ui/game.rs:501
+msgid "Green"
+msgstr "Groen"
+
+#: src/ui/game.rs:502
+msgid "Teal"
+msgstr "Blauwgroen"
+
+#: src/ui/game.rs:503
+msgid "Blue"
+msgstr "Blauw"
+
+#: src/ui/game.rs:504
+msgid "Purple"
+msgstr "Paars"
+
+#: src/ui/game.rs:505
+msgid "Pink"
+msgstr "Roze"
+
+#: src/ui/game.rs:506
+msgid "Brown"
+msgstr "Bruin"
+
+#: src/ui/game.rs:508
+msgid "Grey"
+msgstr "Grijs"
+
+#: src/ui/game.rs:565
+msgid "Year unknown"
+msgstr "Jaar onbekend"
+
+#: src/ui/game.rs:569
+msgid "No version named"
+msgstr "Geen versie genoemd"
+
+#: src/ui/game.rs:583
+msgid "Tick what you got:"
+msgstr "Vink aan wat je goed had:"
+
+#: src/ui/game.rs:649
+msgid "Right!"
+msgstr "Goed!"
+
+#: src/ui/game.rs:651
+msgid "Not this time."
+msgstr "Deze keer niet."
+
+#: src/ui/game.rs:672
+msgid "The cover is mostly"
+msgstr "De hoes is vooral"
+
+#. Translators: Guessing game: points scored for this song. {points} is a number.
+#: src/ui/game.rs:690
+#, rust-format
+msgid "+{points} points"
+msgstr "+{points} punten"
+
+#: src/sink.rs:1577
+msgid "Next song"
+msgstr "Volgend nummer"
+
+#: src/demo.rs:2400
+msgid "Lyrics are hidden while you guess"
+msgstr "Songteksten zijn verborgen terwijl je raadt"
+
+#: src/ui/lyrics.rs:134
+msgid "They come back when the song is revealed."
+msgstr "Ze komen terug als het nummer onthuld is."
+
+#. Guessing game: every song of the game has been played.
+#: src/ui/game.rs:389
+msgid "Game over"
+msgstr "Spel voorbij"
+
+#: src/ui/game.rs:395
+msgid "Play again"
+msgstr "Opnieuw spelen"
+
+#. Guessing game: a song from elsewhere, or one already guessed, is playing.
+#: src/ui/game.rs:403
+msgid "The playing song is not one to guess."
+msgstr "Het spelende nummer hoeft niet geraden te worden."
+
+#: src/ui/game.rs:408
+msgid "Continue the game"
+msgstr "Spel voortzetten"
+
+#. Guessing game: the cover is being read for its colours.
+#: src/ui/game.rs:593
+msgid "Reading the cover…"
+msgstr "Hoes wordt gelezen…"
+
+#. Guessing game: the cover could not be read, or too few covers were found.
+#: src/ui/game.rs:707
+msgid "This song could not be scored."
+msgstr "Dit nummer kon niet worden gescoord."
+
+#: src/ui/queue.rs:362
+msgid "The queue is hidden while the guessing game plays."
+msgstr "De wachtrij is verborgen tijdens het raadspel."

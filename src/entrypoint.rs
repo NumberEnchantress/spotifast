@@ -56,7 +56,7 @@ struct Cli {
     /// `shuffle-selected`, `shuffle-started`, `undated-mix`, `signed-out`, `connecting`, `library-list`,
     /// `library-list-narrow`, `library-list-wide`, `library-grid`, `library-grid-narrow`,
     /// `library-grid-wide`, `library-mixed`, `playlist-map`, `map-circles`,
-    /// `map-folder`, `big-library`, `sidebar-map`, `map-listening`, `vacuum`, `show-version`, `theme-editor`,
+    /// `map-folder`, `big-library`, `sidebar-map`, `map-listening`, `vacuum`, `game-typed`, `game-grid`, `game-colour`, `game-honor`, `show-version`, `theme-editor`,
     /// `terminal`, or `incarnadine`.
     #[cfg(feature = "demo")]
     #[arg(long)]

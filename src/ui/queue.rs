@@ -353,6 +353,19 @@ fn contents(app: &mut App, ui: &mut egui::Ui, compact: bool) {
                 .collect(),
         });
     }
+    if app.game_hides_queue() {
+        // The queue holds the game's next songs, by name.
+        theme::text(
+            ui,
+            gettext(
+                app.locale,
+                "The queue is hidden while the guessing game plays.",
+            ),
+            theme::regular(13.0),
+            palette.secondary,
+        );
+        return;
+    }
     match &app.queue {
         Loadable::Loaded(_) => {}
         Loadable::Loading | Loadable::NotLoaded => {

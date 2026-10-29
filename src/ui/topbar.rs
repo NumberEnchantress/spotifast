@@ -534,6 +534,14 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                         ) {
                             app.actions.push(Action::Open(Page::Settings));
                         }
+                        if super::widgets::menu_item(
+                            ui,
+                            &palette,
+                            Some(Icon::Gamepad),
+                            &gettext(locale, "Guessing game"),
+                        ) {
+                            app.actions.push(Action::OpenGame(None));
+                        }
                         // Vacuum, one click away, saying whether it is on.
                         let vacuum = app.settings.vacuum.on;
                         if super::widgets::menu_item(

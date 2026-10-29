@@ -233,9 +233,9 @@ out, or a reconnection that gives up stops it.
   while the saved rows remain visible. Manual refresh starts immediately.
   Like and Unlike are kept over lagging reads until Spotify confirms them.
 - Spotifast has no telemetry, analytics, or hosted service. When the lyrics
-  panel is open and neither Spotify nor a local file has lyrics, it sends
-  the track's artist, title, album, and length to
-  [lrclib.net](https://lrclib.net). With Vacuum on and its pictures from
+  panel is open, or a guessing game is timing a song by its first lyric, and
+  neither Spotify nor a local file has lyrics, it sends the track's artist,
+  title, album, and length to [lrclib.net](https://lrclib.net). With Vacuum on and its pictures from
   museums, it asks The Metropolitan Museum of Art
   (collectionapi.metmuseum.org, images.metmuseum.org), the Art Institute of
   Chicago (api.artic.edu, www.artic.edu) and the Cleveland Museum of Art
