@@ -3955,43 +3955,39 @@ msgid "On this page, the search box at the top searches the settings instead of 
 msgstr "Na tej stronie pole wyszukiwania u góry przeszukuje ustawienia zamiast Spotify."
 
 #. Translators: Home map layout: a round tree, each level of folders a ring further out.
-#: src/ui/playlist_map.rs:824
+#: src/ui/playlist_map.rs:963
 msgid "Tree"
 msgstr "Drzewo"
 
 #. Translators: Home map layout: each folder a circle around what it holds.
-#: src/ui/playlist_map.rs:832
+#: src/ui/playlist_map.rs:971
 msgid "Circles"
 msgstr "Okręgi"
 
 #. Translators: Home map: what to do with the rest of the Library while a folder is open.
-#: src/ui/playlist_map.rs:841
+#: src/ui/playlist_map.rs:980
 msgid "Open folder:"
 msgstr "Otwarty folder:"
 
 #. Translators: Home map: keep the rest further out and zoom in on the open folder, or on what the Library's filters list.
-#: src/ui/playlist_map.rs:846
+#: src/ui/playlist_map.rs:985
 msgid "Zoom in"
 msgstr "Przybliż"
 
 #. Translators: Home map: show only what the open folder holds.
-#: src/ui/playlist_map.rs:856
+#: src/ui/playlist_map.rs:995
 msgid "Only its contents"
 msgstr "Tylko zawartość"
 
 #. Translators: Home map: what to do with what the Library's filters (Playlists, Albums, By You, search) leave out.
-#: src/ui/playlist_map.rs:868
+#: src/ui/playlist_map.rs:1007
 msgid "Filters:"
 msgstr "Filtry:"
 
 #. Translators: Home map: show only what the Library's filters list.
-#: src/ui/playlist_map.rs:881
+#: src/ui/playlist_map.rs:1020
 msgid "Only what they list"
 msgstr "Tylko to, co pokazują"
-
-#: src/ui/playlist_map.rs:902
-msgid "Scroll to zoom, drag to move, double-click to switch between everything and the focus. Click to open; drop songs on a playlist to add them."
-msgstr "Przewijaj, aby powiększyć, przeciągaj, aby przesunąć, kliknij dwukrotnie, aby przełączać między całością a fokusem. Kliknij, aby otworzyć; upuść utwory na playlistę, aby je dodać."
 
 #. Translators: A setting: with Spotifast's own title bar, show the app's version in the top bar.
 #: src/ui/settings.rs:1195
@@ -4015,3 +4011,12 @@ msgstr "Tylko to, o co proszę"
 #: src/ui/settings.rs:2382
 msgid "Hide what Spotify suggests: Made for you, top mixes, new releases, Recommended for you, Fans also like, and Autoplay."
 msgstr "Ukrywa to, co proponuje Spotify: Stworzone dla Ciebie, najczęściej słuchane miksy, nowości, Polecane dla Ciebie, Fani lubią też i autoodtwarzanie."
+
+#. Translators: Library sidebar button: show the Library as the playlist map in place of its rows.
+#: src/ui/sidebar.rs:2028
+msgid "Show as map"
+msgstr "Pokaż jako mapę"
+
+#: src/ui/playlist_map.rs:1138
+msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
+msgstr "Przewiń, aby powiększyć, przeciągnij tło, aby przesunąć, kliknij dwukrotnie, aby zobaczyć wszystko. Kliknij, aby otworzyć, prawy przycisk po więcej, przeciągaj playlisty, foldery lub utwory tam, gdzie mają trafić."

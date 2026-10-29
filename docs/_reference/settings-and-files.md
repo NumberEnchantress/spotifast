@@ -364,6 +364,8 @@ main fields are:
 | `liked_songs_pinned` | `true` | Keep Liked Songs in the pin block; older settings place it first until moved |
 | `sidebar_compact` | `false` | Names only in the library sidebar, no covers |
 | `sidebar_grid` | `false` | Library entries as responsive cover cards instead of rows |
+| `sidebar_map` | `false` | The playlist map in the sidebar in place of the Library's rows or cards |
+| `sidebar_map_width` | `520` | The sidebar's width while it shows the map |
 | `tracklist_compact` | `false` | One-line track rows without covers |
 | `middle_click_autoscroll` | `false` | Linux only: middle-click a list to autoscroll it. Windows always autoscrolls and macOS never does |
 | `winamp_window` | `false` | The window is the Winamp mini player |
@@ -521,11 +523,28 @@ list** leaves it out. Another kind already loaded has a branch of its own.
 Zoom in is the default for both. Clicking the open folder at the root goes
 back out of it.
 
-Scroll or pinch to zoom and drag to move. Double-click the background to
-see everything at once, and again to go back to the focus; the view also
-fits itself to the focus whenever it changes, until you move it. Click a node to open it (in Circles, a
-folder by its name, so the space inside it stays the map's), and drop songs
-on a playlist, or on Liked Songs, to add them, as on the Library's rows. The
+Scroll or pinch to zoom and drag the background to move. Double-click the
+background to see everything at once, and again to go back to the focus;
+the view also fits itself to the focus whenever it changes, until you move
+it. Click a node to open it (in Circles, a folder by its name, so the space
+inside it stays the map's), and drop songs on a playlist, or on Liked Songs,
+to add them, as on the Library's rows. Right-click a node for the menu its
+row in the Library has: play, rename and change its picture through Edit
+details, move to a folder, pin, remove and the rest; right-click the Library
+at the root to make a playlist or folder. Where folders can be changed, drag
+a playlist or folder onto a folder to move it inside, onto a playlist to put
+it just before that playlist in its folder, or onto the Library to move it
+to the top. While you drag, a dotted line runs to where it would go and a
+note says where it is and where it would land, such as `Curated\People →
+Archive\People`; Escape, or letting go where it cannot go or inside the
+folder it is in already, or outside the map, leaves it where it was.
+
+The **Show as map** button beside the Library's heading puts the map in the
+sidebar in place of the Library's rows or cards, with the same choices
+above it. The sidebar is wider for it and keeps that width of its own
+(`"sidebar_map_width"`). Clicking a playlist, album, artist or podcast opens
+it beside the map, as a row would; the button, now **Show as list** (or
+**Show as grid**), brings the rows back. It is kept as `"sidebar_map"`. The
 choices are kept as `"home": {"map_layout": "tree"}` (or `"circles"`),
 `"map_folder"` and `"map_filters"`, each `"zoom"` or `"only"`.
 

@@ -1141,6 +1141,7 @@ pub fn apply_flags(app: &mut App, page: Option<&str>, show: Option<&str>) {
                 app.rootlist = rootlist;
                 app.library.playlists = Loadable::Loaded(playlists);
             }
+            "sidebar-map" => app.settings.sidebar_map = true,
             "show-version" => {
                 app.demo_windows_controls = true;
                 app.settings.custom_titlebar = true;
@@ -7129,6 +7130,176 @@ mod tests {
             }
             app.backend.shutdown();
         }
+    }
+
+    /// The map works the Library as the sidebar does: a playlist dragged
+    /// onto a folder moves into it, a right click opens its row's menu, and
+    /// the map can stand in for the sidebar's rows, opening what is clicked
+    /// beside it.
+    #[test]
+    fn the_map_moves_playlists_opens_their_menus_and_stands_in_for_the_library() {
+        use crate::folders::Row;
+        let (ctx, mut app) = accessible_app("map-library");
+        apply_flags(&mut app, None, Some("playlist-map,folders"));
+        // Folders change over a playback session, signed in.
+        app.local_ready = true;
+        app.auth = AuthStatus::Connected {
+            username: "demo".into(),
+        };
+        let rows = app.rootlist.clone();
+        app.adopt_rootlist_offline(rows);
+        assert!(app.folders_editable());
+        let name = app
+            .library
+            .playlists
+            .get()
+            .and_then(|list| list.iter().find(|playlist| playlist.id == "pl4"))
+            .expect("pl4")
+            .name
+            .clone();
+        let pl4 = Row::Playlist("spotify:playlist:pl4".into());
+        assert_eq!(crate::folders::parent(&app.rootlist, &pl4), None);
+
+        // Dragged from the top of the Library onto the Focus folder.
+        let tree = settled_map(&ctx, &mut app, vec![]);
+        let from = map_node(&tree, &name).expect("pl4 in view").center();
+        let to = map_node(&tree, "Focus")
+            .expect("the folder in view")
+            .center();
+        let button = |pos, pressed| egui::Event::PointerButton {
+            pos,
+            button: egui::PointerButton::Primary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let escape = egui::Event::Key {
+            key: egui::Key::Escape,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers: egui::Modifiers::NONE,
+        };
+        let drag = |app: &mut App, from: egui::Pos2, to: egui::Pos2, cancel: bool| {
+            frame_events(
+                &ctx,
+                app,
+                vec![egui::Event::PointerMoved(from), button(from, true)],
+            );
+            for step in 1..=10 {
+                let at = from + (to - from) * (step as f32 / 10.0);
+                frame_events(&ctx, app, vec![egui::Event::PointerMoved(at)]);
+            }
+            assert!(app.playlist_map.moving(), "it is being moved");
+            if cancel {
+                frame_events(&ctx, app, vec![escape.clone()]);
+            }
+            frame_events(&ctx, app, vec![button(to, false)]);
+            for _ in 0..3 {
+                frame_events(&ctx, app, vec![]);
+            }
+        };
+        // Escape leaves it where it was.
+        drag(&mut app, from, to, true);
+        assert_eq!(crate::folders::parent(&app.rootlist, &pl4), None, "Escape");
+        drag(&mut app, from, to, false);
+        assert_eq!(
+            crate::folders::parent(&app.rootlist, &pl4).as_deref(),
+            Some("f1"),
+            "dropped on Focus, it is in Focus at once"
+        );
+        // Let go on the folder it is in already, it stays where it is.
+        let held = app.rootlist.clone();
+        let tree = settled_map(&ctx, &mut app, vec![]);
+        let from = map_node(&tree, &name).expect("pl4 in view").center();
+        let to = map_node(&tree, "Focus").expect("the folder").center();
+        drag(&mut app, from, to, false);
+        assert_eq!(app.rootlist, held, "nothing moves within its own folder");
+
+        // A right click opens what its row in the Library offers.
+        let tree = settled_map(&ctx, &mut app, vec![]);
+        let at = map_node(&tree, &name).expect("still on the map").center();
+        let right = |pressed| egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Secondary,
+            pressed,
+            modifiers: egui::Modifiers::NONE,
+        };
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![egui::Event::PointerMoved(at), right(true)],
+        );
+        accessible_frame(&ctx, &mut app, vec![right(false)]);
+        let tree = accessible_frame(&ctx, &mut app, vec![]);
+        assert!(
+            tree.nodes
+                .iter()
+                .any(|(_, node)| node.label() == Some("Move to folder")),
+            "the playlist's menu"
+        );
+
+        // In the sidebar, wider, the map opens what is clicked beside it.
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: egui::Modifiers::NONE,
+            }],
+        );
+        app.settings.home.playlist_map = false;
+        app.apply(Action::SetLibraryMap(true), &ctx);
+        let tree = settled_map(&ctx, &mut app, vec![]);
+        let side = |tree: &egui::accesskit::TreeUpdate| {
+            tree.nodes
+                .iter()
+                .filter_map(|(_, node)| {
+                    let bounds = node.bounds()?;
+                    let label = node.label()?;
+                    (node.role() == egui::accesskit::Role::Button
+                        && bounds.x1 < 520.0
+                        && bounds.y0 > 200.0
+                        && bounds.y1 < 700.0)
+                        .then(|| (label.to_string(), bounds))
+                })
+                .collect::<Vec<_>>()
+        };
+        let shown = side(&tree);
+        assert!(
+            shown.iter().any(|(label, _)| label == "Focus"),
+            "the map is in the sidebar: {shown:?}"
+        );
+        assert!(
+            tree.nodes
+                .iter()
+                .all(|(_, node)| node.label() != Some("Show as grid")),
+            "the grid gives way to the map"
+        );
+        let (_, bounds) = shown
+            .iter()
+            .find(|(label, _)| label == &name || label.starts_with(&format!("{name}, ")))
+            .expect("pl4 in the sidebar's map");
+        let at = egui::pos2(
+            ((bounds.x0 + bounds.x1) / 2.0) as f32,
+            ((bounds.y0 + bounds.y1) / 2.0) as f32,
+        );
+        accessible_frame(
+            &ctx,
+            &mut app,
+            vec![egui::Event::PointerMoved(at), button(at, true)],
+        );
+        accessible_frame(&ctx, &mut app, vec![button(at, false)]);
+        accessible_frame(&ctx, &mut app, vec![]);
+        assert_eq!(
+            app.page(),
+            &Page::Playlist("pl4".into()),
+            "opened beside the map"
+        );
+        assert!(app.settings.sidebar_map, "kept with the settings");
+        app.backend.shutdown();
     }
 
     /// A song dragged onto a playlist on the map is added to it, as on the

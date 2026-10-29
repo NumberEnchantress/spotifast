@@ -14,7 +14,8 @@ use crate::theme::{self, Icon, Palette};
 const DEFAULT_ROW_HEIGHT: f32 = 60.0;
 const COMPACT_ROW_HEIGHT: f32 = 32.0;
 
-struct Entry {
+#[derive(Clone, Debug)]
+pub(crate) struct Entry {
     image: Option<String>,
     grid_image: Option<String>,
     name: String,
@@ -41,6 +42,11 @@ struct Entry {
 }
 
 impl Entry {
+    /// What the row opens and plays; empty for Liked Songs and a folder.
+    pub(crate) fn uri(&self) -> &str {
+        &self.uri
+    }
+
     fn ordering_key(&self) -> &str {
         if self.liked {
             LIKED_SONGS_KEY
@@ -575,6 +581,8 @@ pub(crate) struct MapRow {
     /// The Library's own choices list it: a ticked kind, By You and the
     /// search. A folder or branch is listed while anything in it is.
     pub(crate) listed: bool,
+    /// The Library's own row, for its menu; a kind's branch has none.
+    pub(crate) entry: Option<Entry>,
 }
 
 /// Whether a kind has anything to show without loading more.
@@ -629,6 +637,7 @@ pub(crate) fn map_rows(app: &App) -> Vec<MapRow> {
                 songs: None,
                 takes_songs: false,
                 listed: false,
+                entry: None,
             });
         }
         map_block(app, shelves, sort, &needle, ticked, u8::from(branch), rows);
@@ -725,15 +734,16 @@ fn map_block(
                 _ => entry.ordering_key().to_string(),
             },
             takes_songs: entry.liked || entry.editable,
-            folder: entry.folder.map(|(id, _, _)| id),
-            name: entry.name,
-            image: entry.image,
+            folder: entry.folder.as_ref().map(|(id, _, _)| id.clone()),
+            name: entry.name.clone(),
+            image: entry.image.clone(),
             round: entry.round,
             page,
             group: None,
             depth: base + entry.depth,
             songs,
             listed,
+            entry: Some(entry),
         });
     }
     // A folder is listed while anything inside it is: walking back, each
@@ -1297,7 +1307,14 @@ fn pinned_rows(entries: &[Entry], pins: &[String]) -> usize {
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let palette = app.palette;
     let expanded_art = has_expanded_art(app);
-    let floating_art = app.settings.sidebar_grid && expanded_art;
+    let map = app.settings.sidebar_map;
+    let floating_art = app.settings.sidebar_grid && !map && expanded_art;
+    // The map takes a panel of its own, wider, with a width of its own.
+    let (id, widest, chosen) = if map {
+        ("sidebar-map", 1400.0, app.settings.sidebar_map_width)
+    } else {
+        ("sidebar", 600.0, app.settings.sidebar_width)
+    };
     // The traffic lights float over the top-left of the sidebar now, so the
     // first nav row has to start below them.
     let top = 12
@@ -1310,14 +1327,14 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     };
     let fit = super::yielding_panel(
         ui.ctx(),
-        "sidebar",
-        super::SIDEBAR_MIN_WIDTH..=600.0,
-        app.settings.sidebar_width,
+        id,
+        super::SIDEBAR_MIN_WIDTH..=widest,
+        chosen,
         ui.available_width() - super::topbar::least_width(ui.ctx()) - beside,
     );
-    let panel = egui::Panel::left("sidebar")
+    let panel = egui::Panel::left(id)
         .resizable(true)
-        .default_size(app.settings.sidebar_width)
+        .default_size(chosen)
         .size_range(fit.range.clone())
         .show_separator_line(false)
         .frame(Frame::new().fill(palette.panel).inner_margin(Margin {
@@ -1340,10 +1357,12 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         }
     });
     let width = response.response.rect.width();
-    if (width - app.settings.sidebar_width).abs() > 1.0
-        && super::panel_width_chosen(ui.ctx(), "sidebar", &fit)
-    {
-        app.settings.sidebar_width = width;
+    if (width - chosen).abs() > 1.0 && super::panel_width_chosen(ui.ctx(), id, &fit) {
+        if map {
+            app.settings.sidebar_map_width = width;
+        } else {
+            app.settings.sidebar_width = width;
+        }
         app.actions.push(Action::SettingsChanged);
     }
 }
@@ -1990,14 +2009,29 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
                 app.actions.push(Action::ToggleSidebar);
             }
             let grid = app.settings.sidebar_grid;
-            let (icon, label) = if grid {
-                (Icon::LayoutList, gettext(locale, "Show as list"))
-            } else {
-                (Icon::LayoutGrid, gettext(locale, "Show as grid"))
+            let map = app.settings.sidebar_map;
+            if !map {
+                let (icon, label) = if grid {
+                    (Icon::LayoutList, gettext(locale, "Show as list"))
+                } else {
+                    (Icon::LayoutGrid, gettext(locale, "Show as grid"))
+                };
+                if theme::icon_button(ui, icon, 16.0, palette.secondary, palette.text, &label)
+                    .clicked()
+                {
+                    app.actions.push(Action::SetLibraryGrid(!grid));
+                }
+            }
+            // The map stands in for the rows or cards, and gives way to them.
+            let (icon, label) = match (map, grid) {
+                // Translators: Library sidebar button: show the Library as the playlist map in place of its rows.
+                (false, _) => (Icon::Network, gettext(locale, "Show as map")),
+                (true, false) => (Icon::LayoutList, gettext(locale, "Show as list")),
+                (true, true) => (Icon::LayoutGrid, gettext(locale, "Show as grid")),
             };
             if theme::icon_button(ui, icon, 16.0, palette.secondary, palette.text, &label).clicked()
             {
-                app.actions.push(Action::SetLibraryGrid(!grid));
+                app.actions.push(Action::SetLibraryMap(!map));
             }
             // One item never deserved a menu: the plus creates directly.
             // Where folders can be made there are two, as in Spotify's apps.
@@ -2175,6 +2209,12 @@ fn contents(app: &mut App, ui: &mut egui::Ui, grid_art: Option<Rect>) {
     // Make sure every listed kind is loading.
     for &shelf in &shelves {
         keep_shelf_loading(app, shelf, sort);
+    }
+    // The map in place of the rows: an open folder is its root, and the
+    // way back out is on the map too.
+    if app.settings.sidebar_map {
+        super::playlist_map::sidebar(app, ui);
+        return;
     }
 
     // Opened into a folder: its name, and the way back to the folder that
@@ -3061,6 +3101,47 @@ fn entry_menu(app: &mut App, response: &egui::Response, entry: &Entry, custom_or
                 }
             });
     }
+}
+
+/// The menu a right click opens on the map: what the thing's own row in the
+/// Library offers, or, on the Library itself, a new playlist or folder.
+pub(crate) fn map_menu(app: &mut App, response: &egui::Response, entry: Option<&Entry>) {
+    if let Some(entry) = entry {
+        entry_menu(app, response, entry, false);
+        return;
+    }
+    let palette = app.palette;
+    let locale = app.locale;
+    egui::Popup::context_menu(response)
+        .frame(super::widgets::menu_frame(&palette))
+        .show(|ui| {
+            ui.set_min_width(200.0);
+            ui.set_max_width(300.0);
+            if super::widgets::menu_item(
+                ui,
+                &palette,
+                Some(Icon::ListMusic),
+                &gettext(locale, "Playlist"),
+            ) {
+                app.actions.push(Action::ShowDialog(Dialog::CreatePlaylist {
+                    name: String::new(),
+                    public: false,
+                    add_uris: Vec::new(),
+                }));
+            }
+            if app.folders_editable()
+                && super::widgets::menu_item(
+                    ui,
+                    &palette,
+                    Some(Icon::Library),
+                    &gettext(locale, "Folder"),
+                )
+            {
+                // The Library's own: at its top, whatever folder is open.
+                app.actions
+                    .push(Action::ShowDialog(new_folder(Place::Start, None)));
+            }
+        });
 }
 
 /// The dialog that names a new folder at `place`, taking in `adopt`.

@@ -3798,43 +3798,39 @@ msgid "On this page, the search box at the top searches the settings instead of 
 msgstr "在此页面上，顶部的搜索框会搜索设置，而不是 Spotify。"
 
 #. Translators: Home map layout: a round tree, each level of folders a ring further out.
-#: src/ui/playlist_map.rs:824
+#: src/ui/playlist_map.rs:963
 msgid "Tree"
 msgstr "树状"
 
 #. Translators: Home map layout: each folder a circle around what it holds.
-#: src/ui/playlist_map.rs:832
+#: src/ui/playlist_map.rs:971
 msgid "Circles"
 msgstr "圆圈"
 
 #. Translators: Home map: what to do with the rest of the Library while a folder is open.
-#: src/ui/playlist_map.rs:841
+#: src/ui/playlist_map.rs:980
 msgid "Open folder:"
 msgstr "打开的文件夹："
 
 #. Translators: Home map: keep the rest further out and zoom in on the open folder, or on what the Library's filters list.
-#: src/ui/playlist_map.rs:846
+#: src/ui/playlist_map.rs:985
 msgid "Zoom in"
 msgstr "放大"
 
 #. Translators: Home map: show only what the open folder holds.
-#: src/ui/playlist_map.rs:856
+#: src/ui/playlist_map.rs:995
 msgid "Only its contents"
 msgstr "仅其内容"
 
 #. Translators: Home map: what to do with what the Library's filters (Playlists, Albums, By You, search) leave out.
-#: src/ui/playlist_map.rs:868
+#: src/ui/playlist_map.rs:1007
 msgid "Filters:"
 msgstr "筛选："
 
 #. Translators: Home map: show only what the Library's filters list.
-#: src/ui/playlist_map.rs:881
+#: src/ui/playlist_map.rs:1020
 msgid "Only what they list"
 msgstr "仅筛选结果"
-
-#: src/ui/playlist_map.rs:902
-msgid "Scroll to zoom, drag to move, double-click to switch between everything and the focus. Click to open; drop songs on a playlist to add them."
-msgstr "滚动以缩放，拖动以移动，双击在全部与焦点之间切换。点击以打开；将歌曲拖到歌单上即可添加。"
 
 #. Translators: A setting: with Spotifast's own title bar, show the app's version in the top bar.
 #: src/ui/settings.rs:1195
@@ -3858,3 +3854,12 @@ msgstr "只显示我要的"
 #: src/ui/settings.rs:2382
 msgid "Hide what Spotify suggests: Made for you, top mixes, new releases, Recommended for you, Fans also like, and Autoplay."
 msgstr "隐藏 Spotify 推荐的内容：为你打造、热门合辑、新发行、为你推荐、粉丝也喜欢和自动播放。"
+
+#. Translators: Library sidebar button: show the Library as the playlist map in place of its rows.
+#: src/ui/sidebar.rs:2028
+msgid "Show as map"
+msgstr "以地图显示"
+
+#: src/ui/playlist_map.rs:1138
+msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
+msgstr "滚动缩放，拖动背景平移，双击查看全部。单击打开，右键查看更多，把歌单、文件夹或歌曲拖到要去的地方。"

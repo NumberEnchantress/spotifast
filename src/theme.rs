@@ -739,6 +739,7 @@ fastframe_icons::icons! {
         Monitor => lucide "monitor",
         Moon => lucide "moon",
         Music => "music",
+        Network => "network",
         Pause => lucide "pause",
         PauseFilled => "pause-filled",
         PanelLeft => lucide "panel-left",

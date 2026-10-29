@@ -659,6 +659,8 @@ pub struct App {
     )>,
     /// Where the playlist map's nodes are and how it is panned and zoomed.
     pub playlist_map: crate::ui::playlist_map::MapState,
+    /// The same for the map standing in for the Library in the sidebar.
+    pub sidebar_map: crate::ui::playlist_map::MapState,
     /// Requested shuffle mode, applied to every context until changed.
     shuffle_wanted: bool,
     /// The repeat mode saved by the last run, which the first local load
@@ -1275,6 +1277,7 @@ impl App {
             theme_draft: None,
             theme_save_undo: None,
             playlist_map: Default::default(),
+            sidebar_map: Default::default(),
             shuffle_wanted: session.shuffle_on,
             repeat_wanted: RepeatMode::from_api(&session.repeat),
             shuffle_set_at: None,
@@ -5173,6 +5176,16 @@ impl App {
             self.folder_edits += 1;
             self.backend.send(Command::EditFolders(edit));
         }
+    }
+
+    /// The session's read of the tree taken as it is, for demo tests,
+    /// which run offline and so hear nothing from a session.
+    #[cfg(test)]
+    pub(crate) fn adopt_rootlist_offline(&mut self, entries: Vec<crate::player::RootlistEntry>) {
+        self.adopt_rootlist(crate::player::Rootlist {
+            entries,
+            editable: Default::default(),
+        });
     }
 
     /// The session's read of the tree, for tests outside this module.
@@ -12125,6 +12138,10 @@ impl App {
                 self.settings.sidebar_grid = grid;
                 self.mark_settings_dirty();
             }
+            Action::SetLibraryMap(map) => {
+                self.settings.sidebar_map = map;
+                self.mark_settings_dirty();
+            }
             Action::ToggleLibraryFolder(id) => {
                 if self.collapsed_folders.contains(&id) {
                     self.collapsed_folders.retain(|held| held != &id);
@@ -13687,7 +13704,7 @@ fn increase_playlist_total(playlist: &mut Playlist, added: u32) {
 
 /// This fork's own version, after Spotifast's: one more each round of
 /// changes it ships.
-pub const FORK_VERSION: &str = "mod 9";
+pub const FORK_VERSION: &str = "mod 10";
 
 /// The window's title: the playing song, if any, then Spotifast's version
 /// and this fork's.

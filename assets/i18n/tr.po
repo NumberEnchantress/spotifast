@@ -3914,43 +3914,39 @@ msgid "On this page, the search box at the top searches the settings instead of 
 msgstr "Bu sayfada üstteki arama kutusu Spotify yerine ayarlarda arar."
 
 #. Translators: Home map layout: a round tree, each level of folders a ring further out.
-#: src/ui/playlist_map.rs:824
+#: src/ui/playlist_map.rs:963
 msgid "Tree"
 msgstr "Ağaç"
 
 #. Translators: Home map layout: each folder a circle around what it holds.
-#: src/ui/playlist_map.rs:832
+#: src/ui/playlist_map.rs:971
 msgid "Circles"
 msgstr "Daireler"
 
 #. Translators: Home map: what to do with the rest of the Library while a folder is open.
-#: src/ui/playlist_map.rs:841
+#: src/ui/playlist_map.rs:980
 msgid "Open folder:"
 msgstr "Açık klasör:"
 
 #. Translators: Home map: keep the rest further out and zoom in on the open folder, or on what the Library's filters list.
-#: src/ui/playlist_map.rs:846
+#: src/ui/playlist_map.rs:985
 msgid "Zoom in"
 msgstr "Yakınlaştır"
 
 #. Translators: Home map: show only what the open folder holds.
-#: src/ui/playlist_map.rs:856
+#: src/ui/playlist_map.rs:995
 msgid "Only its contents"
 msgstr "Yalnızca içeriği"
 
 #. Translators: Home map: what to do with what the Library's filters (Playlists, Albums, By You, search) leave out.
-#: src/ui/playlist_map.rs:868
+#: src/ui/playlist_map.rs:1007
 msgid "Filters:"
 msgstr "Filtreler:"
 
 #. Translators: Home map: show only what the Library's filters list.
-#: src/ui/playlist_map.rs:881
+#: src/ui/playlist_map.rs:1020
 msgid "Only what they list"
 msgstr "Yalnızca gösterdikleri"
-
-#: src/ui/playlist_map.rs:902
-msgid "Scroll to zoom, drag to move, double-click to switch between everything and the focus. Click to open; drop songs on a playlist to add them."
-msgstr "Yakınlaştırmak için kaydırın, taşımak için sürükleyin, tümü ile odak arasında geçiş için çift tıklayın. Açmak için tıklayın; eklemek için şarkıları bir çalma listesine bırakın."
 
 #. Translators: A setting: with Spotifast's own title bar, show the app's version in the top bar.
 #: src/ui/settings.rs:1195
@@ -3974,3 +3970,12 @@ msgstr "Yalnızca istediklerim"
 #: src/ui/settings.rs:2382
 msgid "Hide what Spotify suggests: Made for you, top mixes, new releases, Recommended for you, Fans also like, and Autoplay."
 msgstr "Spotify'ın önerdiklerini gizler: Senin İçin Hazırlandı, en çok dinlediğin mix'ler, yeni çıkanlar, Senin için önerilenler, Hayranlar bunları da beğendi ve otomatik çalma."
+
+#. Translators: Library sidebar button: show the Library as the playlist map in place of its rows.
+#: src/ui/sidebar.rs:2028
+msgid "Show as map"
+msgstr "Harita olarak göster"
+
+#: src/ui/playlist_map.rs:1138
+msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
+msgstr "Yakınlaştırmak için kaydırın, kaydırmak için arka planı sürükleyin, her şeyi görmek için çift tıklayın. Açmak için tıklayın, daha fazlası için sağ tıklayın, çalma listelerini, klasörleri veya şarkıları gidecekleri yere sürükleyin."

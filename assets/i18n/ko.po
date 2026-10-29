@@ -3837,43 +3837,39 @@ msgid "On this page, the search box at the top searches the settings instead of 
 msgstr "이 페이지에서는 상단 검색창이 Spotify 대신 설정을 검색합니다."
 
 #. Translators: Home map layout: a round tree, each level of folders a ring further out.
-#: src/ui/playlist_map.rs:824
+#: src/ui/playlist_map.rs:963
 msgid "Tree"
 msgstr "트리"
 
 #. Translators: Home map layout: each folder a circle around what it holds.
-#: src/ui/playlist_map.rs:832
+#: src/ui/playlist_map.rs:971
 msgid "Circles"
 msgstr "원"
 
 #. Translators: Home map: what to do with the rest of the Library while a folder is open.
-#: src/ui/playlist_map.rs:841
+#: src/ui/playlist_map.rs:980
 msgid "Open folder:"
 msgstr "열린 폴더:"
 
 #. Translators: Home map: keep the rest further out and zoom in on the open folder, or on what the Library's filters list.
-#: src/ui/playlist_map.rs:846
+#: src/ui/playlist_map.rs:985
 msgid "Zoom in"
 msgstr "확대"
 
 #. Translators: Home map: show only what the open folder holds.
-#: src/ui/playlist_map.rs:856
+#: src/ui/playlist_map.rs:995
 msgid "Only its contents"
 msgstr "내용만"
 
 #. Translators: Home map: what to do with what the Library's filters (Playlists, Albums, By You, search) leave out.
-#: src/ui/playlist_map.rs:868
+#: src/ui/playlist_map.rs:1007
 msgid "Filters:"
 msgstr "필터:"
 
 #. Translators: Home map: show only what the Library's filters list.
-#: src/ui/playlist_map.rs:881
+#: src/ui/playlist_map.rs:1020
 msgid "Only what they list"
 msgstr "표시되는 항목만"
-
-#: src/ui/playlist_map.rs:902
-msgid "Scroll to zoom, drag to move, double-click to switch between everything and the focus. Click to open; drop songs on a playlist to add them."
-msgstr "스크롤하여 확대/축소, 드래그하여 이동, 두 번 클릭하여 전체와 초점 사이를 전환. 클릭하여 열고, 노래를 플레이리스트에 놓으면 추가됩니다."
 
 #. Translators: A setting: with Spotifast's own title bar, show the app's version in the top bar.
 #: src/ui/settings.rs:1195
@@ -3897,3 +3893,12 @@ msgstr "요청한 것만"
 #: src/ui/settings.rs:2382
 msgid "Hide what Spotify suggests: Made for you, top mixes, new releases, Recommended for you, Fans also like, and Autoplay."
 msgstr "Spotify의 제안을 숨깁니다: 나를 위한 추천, 인기 믹스, 최신 발매, 추천, 팬들이 좋아하는 다른 아티스트, 자동 재생."
+
+#. Translators: Library sidebar button: show the Library as the playlist map in place of its rows.
+#: src/ui/sidebar.rs:2028
+msgid "Show as map"
+msgstr "지도로 보기"
+
+#: src/ui/playlist_map.rs:1138
+msgid "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go."
+msgstr "스크롤로 확대/축소, 배경을 드래그해 이동, 더블클릭으로 전체 보기. 클릭해서 열기, 우클릭으로 더 보기, 플레이리스트·폴더·곡은 갈 곳으로 드래그."

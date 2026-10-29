@@ -23,6 +23,7 @@ fn big_library() -> Vec<Node> {
             depth: parent.map_or(0, |parent: usize| nodes[parent].depth + 1),
             focus: true,
             away: false,
+            entry: None,
             radius: if holds {
                 12.0
             } else {

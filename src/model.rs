@@ -1307,6 +1307,8 @@ pub enum Action {
         sort: crate::settings::LibrarySort,
     },
     SetLibraryGrid(bool),
+    /// Show the Library as the map in the sidebar, or as it was.
+    SetLibraryMap(bool),
     ToggleLibraryFolder(String),
     /// Show only what a folder holds in the sidebar, as Spotify does when a
     /// folder is opened; `None` goes back to the whole library.

@@ -38,6 +38,8 @@ pub struct MapState {
     /// A double-click fits the view to everything, and another to the
     /// focus again.
     whole: bool,
+    /// The playlist or folder being dragged to a new place, by its key.
+    moving: Option<String>,
 }
 
 #[cfg(test)]
@@ -45,6 +47,11 @@ impl MapState {
     /// Whether the map still draws `key`, here or shrinking away.
     pub(crate) fn draws(&self, key: &str) -> bool {
         self.drawn.contains_key(key)
+    }
+
+    /// Whether a playlist or folder is being dragged on it.
+    pub(crate) fn moving(&self) -> bool {
+        self.moving.is_some()
     }
 }
 
@@ -113,6 +120,8 @@ pub(crate) struct Node {
     /// Outside the open folder: the way back out, kept out of view.
     pub(crate) away: bool,
     pub(crate) radius: f32,
+    /// The Library's own row, for its right-click menu.
+    pub(crate) entry: Option<super::sidebar::Entry>,
 }
 
 impl Node {
@@ -146,6 +155,7 @@ pub(crate) fn graph(app: &App) -> Vec<Node> {
         focus: true,
         away: false,
         radius: 0.0,
+        entry: None,
     });
     let mut listed = vec![true];
     let mut keys: HashSet<String> = HashSet::from(["library".to_string()]);
@@ -187,6 +197,7 @@ pub(crate) fn graph(app: &App) -> Vec<Node> {
             focus: true,
             away: false,
             radius: 0.0,
+            entry: row.entry,
         });
         listed.push(row.listed);
     }
@@ -1017,26 +1028,128 @@ fn toolbar(app: &mut App, ui: &mut egui::Ui) {
     });
 }
 
-/// The map, filling what is left of the page.
+/// The map on Home, filling what is left of the page.
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
+    draw(app, ui, false);
+}
+
+/// The map in the sidebar, in place of the Library's rows, filling the
+/// rest of it; what a click opens shows beside it.
+pub fn sidebar(app: &mut App, ui: &mut egui::Ui) {
+    draw(app, ui, true);
+}
+
+/// What a playlist or folder dragged on the map would become.
+struct Landing {
+    /// The node it would join.
+    to: String,
+    edit: crate::folders::FolderEdit,
+    /// Where it is and where it would go, as `Folder\Name → Folder\Name`.
+    text: String,
+}
+
+/// The Library's row a node stands for, where it can move: a folder, or a
+/// playlist in the Library's tree.
+fn row_of(node: &Node) -> Option<crate::folders::Row> {
+    match &node.kind {
+        Kind::Folder(id) if !id.is_empty() => Some(crate::folders::Row::Folder(id.clone())),
+        Kind::Item(Page::Playlist(_)) => node
+            .entry
+            .as_ref()
+            .map(|entry| crate::folders::Row::Playlist(entry.uri().to_string())),
+        _ => None,
+    }
+}
+
+/// A folder's name, or the Library for none.
+fn folder_called(app: &App, id: Option<&str>) -> String {
+    let Some(id) = id else {
+        return gettext(app.locale, "Library").into_owned();
+    };
+    app.rootlist
+        .iter()
+        .find_map(|row| match row {
+            crate::player::RootlistEntry::FolderStart { id: found, name } if found == id => {
+                Some(name.clone())
+            }
+            _ => None,
+        })
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| gettext(app.locale, "Folder").into_owned())
+}
+
+/// Where `row` would land dropped on `node`: into a folder, beside a
+/// playlist in its folder, or at the top of the Library. `None` where it
+/// cannot go, or would stay where it is.
+fn landing(app: &App, node: &Node, row: &crate::folders::Row, name: &str) -> Option<Landing> {
+    use crate::folders::{FolderEdit, Place as Spot, Row};
+    let place = match &node.kind {
+        Kind::Library | Kind::Group(LibraryShelf::Playlists) => Spot::Start,
+        Kind::Folder(id) if !id.is_empty() => Spot::InFolder(id.clone()),
+        Kind::Item(Page::Playlist(_)) => {
+            Spot::Before(Row::Playlist(node.entry.as_ref()?.uri().to_string()))
+        }
+        _ => return None,
+    };
+    let edit = match row {
+        Row::Playlist(uri) => FolderEdit::MovePlaylist {
+            uri: uri.clone(),
+            place: place.clone(),
+        },
+        Row::Folder(id) => FolderEdit::MoveFolder {
+            id: id.clone(),
+            place: place.clone(),
+        },
+    };
+    crate::folders::apply(&app.rootlist, &edit).ok()?;
+    let from = crate::folders::parent(&app.rootlist, row);
+    let into = match &place {
+        Spot::InFolder(id) => Some(id.clone()),
+        Spot::Before(beside) => crate::folders::parent(&app.rootlist, beside),
+        _ => None,
+    };
+    // Let go inside the folder it is in already, as in Circles, where the
+    // folder's circle is all round it, it stays where it is.
+    if matches!(place, Spot::InFolder(_) | Spot::Start) && into == from {
+        return None;
+    }
+    Some(Landing {
+        to: node.key.clone(),
+        edit,
+        text: format!(
+            "{}\\{name}  \u{2192}  {}\\{name}",
+            folder_called(app, from.as_deref()),
+            folder_called(app, into.as_deref()),
+        ),
+    })
+}
+
+/// The map, filling what is left of the page, or of the sidebar.
+fn draw(app: &mut App, ui: &mut egui::Ui, side: bool) {
     let palette = app.palette;
     let locale = app.locale;
     toolbar(app, ui);
     ui.add_space(4.0);
-    theme::text(
-        ui,
-        gettext(
-            locale,
-            "Scroll to zoom, drag to move, double-click to switch between everything and the focus. Click to open; drop songs on a playlist to add them.",
-        ),
-        theme::regular(12.5),
-        palette.dim,
-    );
+    if !side {
+        theme::text(
+            ui,
+            gettext(
+                locale,
+                "Scroll to zoom, drag the background to pan, double-click for everything. Click to open, right-click for more, drag playlists, folders or songs to where they go.",
+            ),
+            theme::regular(12.5),
+            palette.dim,
+        );
+    }
     ui.add_space(6.0);
     // The page's view less what stands above the map, which scrolling
-    // does not change.
-    let above = ui.cursor().top() - ui.max_rect().top();
-    let height = (ui.clip_rect().height() - above - 24.0).max(360.0);
+    // does not change; in the sidebar, the rest of it.
+    let height = if side {
+        (ui.available_height() - 4.0).max(160.0)
+    } else {
+        let above = ui.cursor().top() - ui.max_rect().top();
+        (ui.clip_rect().height() - above - 24.0).max(360.0)
+    };
     let (rect, background) =
         ui.allocate_exact_size(vec2(ui.available_width(), height), Sense::click_and_drag());
     ui.painter()
@@ -1045,7 +1158,11 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let layout = app.settings.home.map_layout;
     let circles = layout == MapLayout::Circles;
     let nodes = graph(app);
-    let mut state = std::mem::take(&mut app.playlist_map);
+    let mut state = std::mem::take(if side {
+        &mut app.sidebar_map
+    } else {
+        &mut app.playlist_map
+    });
     // Far enough out that a view fitted to the focus never shows it, in
     // the corners either: past the view's half-diagonal.
     let short = (rect.width().min(rect.height()) - 56.0).max(40.0);
@@ -1261,6 +1378,33 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         }
     }
 
+    // A playlist or folder being dragged: where it would land, on the
+    // smallest thing under the pointer.
+    let editable = app.folders_editable();
+    let pointer = ui.ctx().pointer_latest_pos();
+    let dragging = state
+        .moving
+        .as_ref()
+        .and_then(|key| nodes.iter().find(|node| &node.key == key))
+        .and_then(|node| Some((node, row_of(node)?)));
+    // Only over the map itself, where the line and the note can be seen.
+    let shown = rect.intersect(ui.clip_rect());
+    let dropping = dragging.as_ref().and_then(|(moved, row)| {
+        let pointer = pointer.filter(|at| shown.contains(*at))?;
+        let under = nodes
+            .iter()
+            .filter(|node| node.key != moved.key)
+            .filter_map(|node| {
+                let drawn = state.drawn.get(&node.key)?;
+                let reach = (drawn.radius * zoom).max(6.0) + 4.0;
+                (drawn.here && drawn.shown > 0.5 && pointer.distance(screen(drawn.at)) <= reach)
+                    .then_some((node, drawn.radius))
+            })
+            .min_by(|a, b| a.1.total_cmp(&b.1))?;
+        landing(app, under.0, row, &moved.name)
+    });
+    let mut drag_started: Option<String> = None;
+
     let playing = app.playing_context_uri();
     let art = app.backend.art().clone();
     let dragging_song = egui::DragAndDrop::has_payload_of_type::<DragTrack>(ui.ctx());
@@ -1302,8 +1446,16 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             area
         };
         let on_it = |at: Pos2| container || at.distance(centre) <= radius + 2.0;
+        // A playlist or folder can be dragged somewhere else.
+        let movable = editable && matches!(&node.kind, Kind::Folder(id) if !id.is_empty())
+            || editable && matches!(node.kind, Kind::Item(Page::Playlist(_)));
+        let sense = if movable {
+            Sense::click_and_drag()
+        } else {
+            Sense::click()
+        };
         let response = drawn.here.then(|| {
-            let response = child.interact(target, child.id().with(&node.key), Sense::click());
+            let response = child.interact(target, child.id().with(&node.key), sense);
             response.widget_info(|| {
                 egui::WidgetInfo::labeled(egui::WidgetType::Button, true, label.clone())
             });
@@ -1319,7 +1471,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             .as_ref()
             .is_some_and(|response| response.hover_pos().is_some_and(on_it))
             || drop_here;
-        if pointed && !container {
+        let landing_here = dropping.as_ref().is_some_and(|drop| drop.to == node.key);
+        // Nothing grows under a dragged playlist or folder.
+        if pointed && !container && dragging.is_none() {
             hovered_now = Some(node.key.clone());
         }
         if container {
@@ -1330,7 +1484,9 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 radius,
                 Stroke::new(
                     (0.8 + 0.9 * height) * zoom.sqrt().clamp(0.5, 1.4),
-                    if pointed {
+                    if landing_here {
+                        palette.accent
+                    } else if pointed {
                         palette.text
                     } else {
                         palette.outline
@@ -1402,13 +1558,13 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 Kind::Item(_) => playing.as_deref() == Some(node.key.as_str()),
                 _ => false,
             };
-            if is_playing || pointed {
+            if is_playing || pointed || landing_here {
                 painter.circle_stroke(
                     centre,
                     radius + 2.0,
                     Stroke::new(
                         2.0,
-                        if is_playing || drop_here {
+                        if is_playing || drop_here || landing_here {
                             palette.accent
                         } else {
                             palette.text
@@ -1416,7 +1572,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     ),
                 );
             }
-            if pointed {
+            if pointed && dragging.is_none() {
                 hovered_label = Some((centre + vec2(0.0, radius + 4.0), label.clone()));
             } else if (radius >= 9.0 && node.focus) || (node.holds() && radius >= 2.5) {
                 let from = drawn
@@ -1449,6 +1605,18 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         let Some(response) = response else {
             continue;
         };
+        if movable && response.drag_started_by(egui::PointerButton::Primary) {
+            drag_started = Some(node.key.clone());
+        }
+        // The menu its row in the Library has; the Library's own makes a
+        // playlist or folder.
+        match &node.kind {
+            Kind::Library => super::sidebar::map_menu(app, &response, None),
+            Kind::Folder(_) | Kind::Item(_) if node.entry.is_some() => {
+                super::sidebar::map_menu(app, &response, node.entry.as_ref());
+            }
+            _ => {}
+        }
         if node.takes_songs
             && let Some(track) = response.dnd_release_payload::<DragTrack>()
         {
@@ -1493,6 +1661,43 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     }
     child.set_opacity(1.0);
     let painter = child.painter().clone();
+    // The dragged playlist or folder follows the pointer, a dotted line to
+    // where it would join, and a note of where it is and where it would go.
+    if let (Some((moved, _)), Some(pointer)) = (&dragging, pointer) {
+        let radius = state
+            .drawn
+            .get(&moved.key)
+            .map_or(8.0, |drawn| (drawn.radius * zoom).clamp(6.0, 22.0));
+        if let Some(drop) = &dropping
+            && let Some(to) = state.drawn.get(&drop.to)
+        {
+            painter.extend(egui::Shape::dashed_line(
+                &[screen(to.at), pointer],
+                Stroke::new(2.0, palette.accent),
+                6.0,
+                4.0,
+            ));
+        }
+        painter.circle_filled(pointer, radius, palette.surface_active.gamma_multiply(0.85));
+        painter.circle_stroke(pointer, radius, Stroke::new(2.0, palette.accent));
+        let text = dropping
+            .as_ref()
+            .map_or_else(|| moved.name.clone(), |drop| drop.text.clone());
+        let galley = painter.layout_no_wrap(text, theme::medium(12.5), palette.text);
+        let back = Rect::from_min_size(
+            pointer + vec2(radius + 8.0, radius + 4.0),
+            galley.size() + vec2(12.0, 6.0),
+        );
+        // Kept inside the map, flipped left where it would run out.
+        let back = if back.right() > rect.right() {
+            back.translate(vec2(-(back.width() + 2.0 * radius + 16.0), 0.0))
+        } else {
+            back
+        };
+        painter.rect_filled(back, egui::CornerRadius::same(6), palette.overlay);
+        painter.galley(back.min + vec2(6.0, 3.0), galley, Color32::PLACEHOLDER);
+        moving = true;
+    }
     // A name that would cover one already placed is left out; the
     // pointer still shows it.
     names.sort_by(|a, b| a.0.cmp(&b.0).then(b.1.total_cmp(&a.1)));
@@ -1535,10 +1740,35 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
         state.hovered = hovered_now;
         moving = true;
     }
+    // Letting go of the button moves it in the Library at once, wherever
+    // its own node is by then; Escape, or letting go where it cannot go,
+    // leaves it where it was.
+    let (escaped, released) = ui.input(|input| {
+        (
+            input.key_pressed(egui::Key::Escape),
+            input.pointer.primary_released(),
+        )
+    });
+    if state.moving.is_some()
+        && released
+        && !escaped
+        && let Some(drop) = dropping
+    {
+        app.actions.push(Action::EditFolders(drop.edit));
+    }
+    if let Some(key) = drag_started {
+        state.moving = Some(key);
+    } else if escaped || released || ui.input(|input| !input.pointer.primary_down()) {
+        state.moving = None;
+    }
     if moving {
         ui.ctx().request_repaint();
     }
-    app.playlist_map = state;
+    if side {
+        app.sidebar_map = state;
+    } else {
+        app.playlist_map = state;
+    }
 }
 
 /// A branch of the round tree from a parent at `from` to a child at `to`,

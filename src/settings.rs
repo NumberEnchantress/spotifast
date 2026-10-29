@@ -350,7 +350,11 @@ pub struct Settings {
     pub sidebar_compact: bool,
     /// Show the Library as responsive cover cards instead of rows.
     pub sidebar_grid: bool,
+    /// Show the Library as the playlist map in place of rows or cards.
+    pub sidebar_map: bool,
     pub sidebar_width: f32,
+    /// The sidebar's width while it shows the map, wider than the list's.
+    pub sidebar_map_width: f32,
     pub lyrics_width: f32,
     pub queue_width: f32,
     /// Use compact single-line rows without cover art in track lists.
@@ -558,7 +562,9 @@ impl Default for Settings {
             art_expanded: false,
             sidebar_compact: false,
             sidebar_grid: false,
+            sidebar_map: false,
             sidebar_width: 250.0,
+            sidebar_map_width: 520.0,
             lyrics_width: 360.0,
             queue_width: 360.0,
             tracklist_compact: false,
