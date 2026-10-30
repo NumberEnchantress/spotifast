@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/assets/images/logo.svg" alt="Spotifast logo" width="88" height="88">
+  <img src="docs/assets/images/logo.svg" alt="Sirensong logo" width="88" height="88">
 </p>
 
-<h1 align="center">Spotifast</h1>
+<h1 align="center">Sirensong</h1>
 
 <p align="center"><strong>Spotify, native and fast.</strong><br>A lightweight music app for Linux, macOS, and Windows.</p>
 
@@ -19,22 +19,28 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-1ed760" alt="MIT license"></a>
 </p>
 
-Spotifast is a Spotify client written in Rust with
+Sirensong is a Spotify client written in Rust with
 [egui](https://www.egui.rs) and [fastframe](https://fastframe.dev), the
 framework behind a family of native desktop apps. It plays music through
 [librespot](https://github.com/librespot-org/librespot), typically uses
 100–250 MB of RAM, starts in well under a second, and has no browser engine.
 
+Sirensong is a fork of [Spotifast](https://github.com/crmne/spotifast) by
+Carmine Paolino. It adds Vacuum, which hides who you are listening to behind
+stand-in names and pictures, and a guessing game. The install options and
+guide links below are upstream Spotifast's; Sirensong is built from this
+repository.
+
 The interface includes complete
 [translations for all supported languages](docs/_reference/translating.md#languages-and-coverage).
 
 **Playback needs Spotify Premium.** Free accounts can browse and search, but
-cannot play music through Spotifast.
+cannot play music through Sirensong.
 
-![Spotifast Home with the playlist library, recommendations, queue, and player visible](docs/screenshot.png)
+![Sirensong Home with the playlist library, recommendations, queue, and player visible](docs/screenshot.png)
 
 <details>
-<summary><strong>Watch Spotifast in action</strong></summary>
+<summary><strong>Watch Sirensong in action</strong></summary>
 
 https://github.com/user-attachments/assets/a5f669ce-b3b7-4f8e-9933-976a78876c7e
 
@@ -51,11 +57,11 @@ https://github.com/user-attachments/assets/a5f669ce-b3b7-4f8e-9933-976a78876c7e
 | **Spotify Connect** | Play on this computer or control playback on your other devices, including Google Cast speakers and groups. Cast devices appear as they are discovered; frequently and recently chosen outputs rise to the top. |
 | **Queue** | Add songs to the queue, or choose **Play next** to put a song or selection first when playing on this computer. |
 | **Themes** | Choose light, dark, system appearance, or custom colours, with one theme for light mode and one for dark mode that switch with the system. On Omarchy, follow your desktop theme. |
-| **Desktop controls** | Use keyboard shortcuts and media keys. Keep music playing from the tray when supported by your desktop and settings, and start Spotifast with your computer, with its window or in the tray. |
+| **Desktop controls** | Use keyboard shortcuts and media keys. Keep music playing from the tray when supported by your desktop and settings, and start Sirensong with your computer, with its window or in the tray. |
 | **Winamp mini player** | Use classic skins with an equalizer, playlist, and animated sound displays. |
 | **MilkDrop** | Watch music-reactive visuals in a separate window or full screen. See platform availability below. |
 
-## Install
+## Install Spotifast
 
 | Platform | Installation |
 |---|---|
@@ -67,14 +73,14 @@ https://github.com/user-attachments/assets/a5f669ce-b3b7-4f8e-9933-976a78876c7e
 
 ## Start listening
 
-1. Open Spotifast and choose **Sign in with Spotify**. Approve access in your
+1. Open Sirensong and choose **Sign in with Spotify**. Approve access in your
    browser, then return to the app to see your library.
 2. To listen on this computer, open the device menu in the bottom player bar
    and choose **Set up playback here**, also available in Settings.
 3. Complete the separate playback approval in your browser. Your computer
-   appears as a Spotify Connect device named **Spotifast**.
+   appears as a Spotify Connect device named **Sirensong**.
 
-Library access and local playback have separate approvals. Spotifast remembers
+Library access and local playback have separate approvals. Sirensong remembers
 both using your computer's protected storage. See
 [Getting started](https://spotifast.rocks/getting-started/) for the full walkthrough
 and [How it connects](https://spotifast.rocks/how-it-connects/) for the details.
@@ -86,7 +92,7 @@ a playlist, and animated sound displays. Switch with **Ctrl+M**
 (**Cmd+Shift+M** on macOS), the shrink button, or Settings.
 
 <p align="center">
-  <img src="docs/assets/images/winamp.png" alt="Spotifast's Winamp mini player with the built-in skin, equalizer, and playlist" width="320">
+  <img src="docs/assets/images/winamp.png" alt="Sirensong's Winamp mini player with the built-in skin, equalizer, and playlist" width="320">
 </p>
 
 [Explore the mini player](https://spotifast.rocks/winamp/), including skins,
@@ -98,7 +104,7 @@ MilkDrop reacts to music playing on this computer, with more than 10,000
 presets downloaded on first use. Open it from the visualiser button,
 Settings, or the mini player's **V** menu.
 
-![MilkDrop visualiser displaying coloured concentric patterns in Spotifast](docs/assets/images/milkdrop-poster.jpg)
+![MilkDrop visualiser displaying coloured concentric patterns in Sirensong](docs/assets/images/milkdrop-poster.jpg)
 
 Included on **Linux**, **macOS**, and **Windows Intel/AMD** builds.
 It is not included in the Windows on ARM download.
@@ -130,13 +136,13 @@ cargo run --features demo -- --demo
 ```
 
 Translations live in `assets/i18n/`; see
-[Translating Spotifast](docs/_reference/translating.md). Release packaging
+[Translating Sirensong](docs/_reference/translating.md). Release packaging
 is described in [PACKAGING.md](PACKAGING.md).
 
 ## More native apps
 
 **Want WhatsApp just as fast and native?** [ZapFast](https://zapfast.rocks)
-is Spotifast's sibling. Both are built on
+is Sirensong's sibling. Both are built on
 [fastframe](https://fastframe.dev).
 
 ## Sonos playback
@@ -146,11 +152,11 @@ local playback first, then select the speaker in the device picker.
 
 ## Acknowledgements
 
-Spotifast uses [librespot](https://github.com/librespot-org/librespot),
+Sirensong uses [librespot](https://github.com/librespot-org/librespot),
 [egui](https://www.egui.rs), [fastframe](https://fastframe.dev), the [Inter](https://rsms.me/inter/)
 typeface (OFL), and [Lucide](https://lucide.dev) icons (ISC).
 
-Spotifast is an independent project and is not affiliated with Spotify.
+Sirensong is an independent project and is not affiliated with Spotify.
 Spotify is a trademark of Spotify AB.
 
 Licensed under the [MIT License](LICENSE).

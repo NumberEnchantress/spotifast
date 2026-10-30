@@ -122,7 +122,7 @@ impl Refusal {
             Self::IntoItself => gettext(locale, "A folder can't go inside itself."),
             Self::Malformed => gettext(
                 locale,
-                "Spotify's copy of this folder looks damaged, so Spotifast left it alone.",
+                "Spotify's copy of this folder looks damaged, so Sirensong left it alone.",
             ),
             Self::NoName => gettext(locale, "A folder needs a name."),
         }

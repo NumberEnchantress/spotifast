@@ -81,7 +81,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $binary = "target\${{ matrix.target }}\release\spotifast.exe"
+          $binary = "target\${{ matrix.target }}\release\sirensong.exe"
           $imports = & dumpbin /dependents $binary | Out-String
           $runtime = $imports | Select-String -Pattern 'MSVCP[0-9_]*\.dll|VCRUNTIME[0-9_]*\.dll'
           if ($runtime) { throw "Spotifast imports an MSVC runtime:`n$runtime" }
@@ -92,7 +92,7 @@ jobs:
           if ($headers -notmatch '${{ matrix.pe-machine }}') { throw "$binary is not built for ${{ matrix.target }}:`n$headers" }
           # Each Windows build runs on its own processor: start it once.
           $version = (& $binary --version | Out-String).Trim()
-          if ($version -notmatch '^spotifast \d+\.\d+\.\d+') { throw "Unexpected --version output: $version" }
+          if ($version -notmatch '^sirensong \d+\.\d+\.\d+') { throw "Unexpected --version output: $version" }
 
       - name: Package
         shell: bash
@@ -100,12 +100,12 @@ jobs:
           name="spotifast-${GITHUB_REF_NAME}-${{ matrix.target }}"
           mkdir -p "dist/$name"
           if [ "${{ runner.os }}" = "Windows" ]; then
-            cp "target/${{ matrix.target }}/release/spotifast.exe" "dist/$name/"
+            cp "target/${{ matrix.target }}/release/sirensong.exe" "dist/$name/"
           else
-            cp "target/${{ matrix.target }}/release/spotifast" "dist/$name/"
+            cp "target/${{ matrix.target }}/release/sirensong" "dist/$name/"
           fi
           cp README.md LICENSE "dist/$name/"
-          cp packaging/spotifast-portable.txt "dist/$name/"
+          cp packaging/sirensong-portable.txt "dist/$name/"
           if [ "${{ runner.os }}" = "Linux" ]; then
             # Desktop integration for package builds and hand-installs.
             cp --parents packaging/applications/spotifast.desktop packaging/icons/spotifast.svg "dist/$name/"
@@ -154,7 +154,7 @@ jobs:
           $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
           if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
           & $iscc "/DVersion=$version" "/DArch=$arch" `
-            "/DBinary=$PWD\target\${{ matrix.target }}\release\spotifast.exe" `
+            "/DBinary=$PWD\target\${{ matrix.target }}\release\sirensong.exe" `
             "/DOutputDir=$PWD\dist" packaging\windows\spotifast.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -177,7 +177,7 @@ jobs:
           $version = $env:GITHUB_REF_NAME.TrimStart("v")
           $payload = "dist\msi-input-${{ matrix.target }}"
           New-Item -ItemType Directory -Force $payload | Out-Null
-          $files = "target\${{ matrix.target }}\release\spotifast.exe", "README.md", "LICENSE", "packaging\windows\spotifast-installer.txt"
+          $files = "target\${{ matrix.target }}\release\sirensong.exe", "README.md", "LICENSE", "packaging\windows\sirensong-installer.txt"
           Copy-Item $files $payload
           $packages = "$env:RUNNER_TEMP\windows-packages"
           native-packages build --version $version --target ${{ matrix.package-target }} --defer-recipes --output $packages
@@ -223,8 +223,8 @@ jobs:
         run: |
           mkdir -p universal
           lipo -create \
-            target/aarch64-apple-darwin/release/spotifast \
-            target/x86_64-apple-darwin/release/spotifast \
+            target/aarch64-apple-darwin/release/sirensong \
+            target/x86_64-apple-darwin/release/sirensong \
             -output universal/spotifast
 
       - uses: ruby/setup-ruby@v1

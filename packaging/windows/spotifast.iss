@@ -27,8 +27,8 @@
   #define InnoArch "x64compatible"
 #endif
 
-#define AppName "Spotifast"
-#define AppExeName "spotifast.exe"
+#define AppName "Sirensong"
+#define AppExeName "sirensong.exe"
 #define AppIdentity "Spotifast"
 
 [Setup]
@@ -75,7 +75,14 @@ Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription:
 Source: "{#Binary}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
-Source: "spotifast-installer.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "sirensong-installer.txt"; DestDir: "{app}"; Flags: ignoreversion
+
+[InstallDelete]
+; Upgrading a Spotifast install: its program and shortcuts go.
+Type: files; Name: "{app}\spotifast.exe"
+Type: files; Name: "{app}\spotifast-installer.txt"
+Type: files; Name: "{autoprograms}\Spotifast.lnk"
+Type: files; Name: "{autodesktop}\Spotifast.lnk"
 
 [Icons]
 Name: "{autoprograms}\{#AppName}"; Filename: "{app}\{#AppExeName}"
@@ -120,7 +127,7 @@ begin
 end;
 #endif
 
-procedure CloseInstalledSpotifast;
+procedure CloseInstalledSirensong;
 var
   Locator, Services, Processes, Process, Path: Variant;
   Index: Integer;
@@ -137,10 +144,10 @@ begin
       // A portable copy can have the same name. Never close it by name alone.
       if not VarIsNull(Path) then
         if CompareText(Path, Exe) = 0 then
-          Log('Closing installed Spotifast: result ' + IntToStr(Process.Terminate(0)));
+          Log('Closing installed Sirensong: result ' + IntToStr(Process.Terminate(0)));
     end;
   except
-    Log('Could not close installed Spotifast: ' + GetExceptionMessage);
+    Log('Could not close installed Sirensong: ' + GetExceptionMessage);
   end;
 end;
 
@@ -166,13 +173,13 @@ begin
     end;
     if UninstallSilent then
       Exit;
-    case SuppressibleTaskDialogMsgBox('Spotifast cannot be removed yet.',
-      'Its program file is in use or inaccessible. Quit Spotifast and retry, or close it here to continue.' + #13#10#13#10 +
-      'Close Spotifast ends the process immediately. Unsaved changes may be lost.',
-      mbError, MB_YESNOCANCEL, ['Retry', 'Close Spotifast'], 0, IDCANCEL) of
+    case SuppressibleTaskDialogMsgBox('Sirensong cannot be removed yet.',
+      'Its program file is in use or inaccessible. Quit Sirensong and retry, or close it here to continue.' + #13#10#13#10 +
+      'Close Sirensong ends the process immediately. Unsaved changes may be lost.',
+      mbError, MB_YESNOCANCEL, ['Retry', 'Close Sirensong'], 0, IDCANCEL) of
       IDYES: ;
       IDNO: begin
-        CloseInstalledSpotifast;
+        CloseInstalledSirensong;
         Sleep(200);
       end;
     else

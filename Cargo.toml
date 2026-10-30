@@ -1,6 +1,6 @@
 [package]
 name = "spotifast"
-default-run = "spotifast"
+default-run = "sirensong"
 version = "0.14.1"
 edition = "2024"
 rust-version = "1.98"
@@ -15,7 +15,8 @@ name = "spotifast"
 path = "src/lib.rs"
 
 [[bin]]
-name = "spotifast"
+# The app is Sirensong; the package and library keep upstream's name.
+name = "sirensong"
 path = "src/spotifast.rs"
 
 [dependencies]

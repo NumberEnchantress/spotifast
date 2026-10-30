@@ -470,7 +470,7 @@ fn status_detail(status: Option<fastframe_theme::Status>, locale: Locale) -> Cow
         ),
         Status::Problem(_) => gettext(
             locale,
-            "Custom themes could not be loaded. Run spotifast reload-themes to try again.",
+            "Custom themes could not be loaded. Run sirensong reload-themes to try again.",
         ),
     }
 }
@@ -1536,7 +1536,13 @@ mod tests {
         let lines = |text: &str| text.replace("\r\n", "\n");
         assert_eq!(
             lines(include_str!("../contrib/omarchy/spotifast-theme")),
-            lines(&fastframe_theme::omarchy::hook_script("spotifast"))
+            // Sirensong's command and themes folder; Omarchy's own names,
+            // the palette file and the variables, stay upstream's.
+            lines(
+                &fastframe_theme::omarchy::hook_script("spotifast")
+                    .replace("/spotifast/themes", "/sirensong/themes")
+                    .replace("spotifast reload-themes", "sirensong reload-themes")
+            )
         );
         assert_eq!(
             lines(include_str!("../contrib/omarchy/spotifast.json.tpl")),

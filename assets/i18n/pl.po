@@ -298,8 +298,8 @@ msgid "Mute"
 msgstr "Wycisz"
 
 #: src/ui/player_bar.rs:981
-msgid "This device's volume can't be changed from Spotifast"
-msgstr "Głośności tego urządzenia nie można zmienić w Spotifast"
+msgid "This device's volume can't be changed from Sirensong"
+msgstr "Głośności tego urządzenia nie można zmienić w Sirensong"
 
 #: src/ui/player_bar.rs:1001 src/ui/devices.rs:401
 msgid "Connect to a device"
@@ -408,9 +408,9 @@ msgstr "Jesteś offline"
 #: src/ui/collection.rs:2065 src/ui/collection.rs:2312 src/ui/home.rs:34
 #: src/ui/library.rs:262 src/ui/show.rs:69 src/ui/show.rs:115
 #: src/ui/show.rs:145
-msgid "Spotifast will reconnect automatically when your connection returns."
+msgid "Sirensong will reconnect automatically when your connection returns."
 msgstr ""
-"Spotifast automatycznie połączy się ponownie po przywróceniu połączenia."
+"Sirensong automatycznie połączy się ponownie po przywróceniu połączenia."
 
 #. Translators: Keep {error} unchanged. It is the original failure detail.
 #: src/ui/lyrics.rs:171 src/ui/lyrics.rs:455 src/ui/lyrics.rs:691
@@ -714,8 +714,8 @@ msgid "Restoring proxy settings"
 msgstr "Przywracanie ustawień proxy"
 
 #: src/app.rs:1481
-msgid "Couldn't change how Spotifast starts with your computer."
-msgstr "Nie udało się zmienić sposobu uruchamiania Spotifast z komputerem."
+msgid "Couldn't change how Sirensong starts with your computer."
+msgstr "Nie udało się zmienić sposobu uruchamiania Sirensong z komputerem."
 
 #. Translators: {name} is the name of a speaker or other playback device.
 #: src/app.rs:2483
@@ -973,8 +973,8 @@ msgid "This song's album is not on Spotify"
 msgstr "Albumu z tym utworem nie ma w Spotify"
 
 #: src/app.rs:8263
-msgid "Spotifast cannot open this kind of Spotify link"
-msgstr "Spotifast nie może otworzyć tego rodzaju linku Spotify"
+msgid "Sirensong cannot open this kind of Spotify link"
+msgstr "Sirensong nie może otworzyć tego rodzaju linku Spotify"
 
 #: src/app.rs:8511
 msgid "Nothing is playing. Pick something first"
@@ -1435,16 +1435,16 @@ msgstr "Odtwarza utwory bez ciszy między nimi."
 
 #: src/ui/settings.rs:664
 msgid ""
-"Spotifast hides to the system tray. Quit from the tray menu or with Ctrl+Q."
+"Sirensong hides to the system tray. Quit from the tray menu or with Ctrl+Q."
 msgstr ""
-"Spotifast chowa się do zasobnika systemowego. Zamknij go z menu zasobnika "
+"Sirensong chowa się do zasobnika systemowego. Zamknij go z menu zasobnika "
 "lub skrótem Ctrl+Q."
 
 #: src/ui/settings.rs:668
 msgid ""
-"Spotifast hides to the system tray. Quit from the tray menu or with Cmd+Q."
+"Sirensong hides to the system tray. Quit from the tray menu or with Cmd+Q."
 msgstr ""
-"Spotifast chowa się do zasobnika systemowego. Zamknij go z menu zasobnika "
+"Sirensong chowa się do zasobnika systemowego. Zamknij go z menu zasobnika "
 "lub skrótem Cmd+Q."
 
 #: src/ui/settings.rs:675
@@ -1491,10 +1491,10 @@ msgstr "Pliki lokalne"
 
 #: src/ui/settings.rs:711
 msgid ""
-"When off, Spotifast lives in the menu bar and leaves Cmd+Tab. Open it from "
+"When off, Sirensong lives in the menu bar and leaves Cmd+Tab. Open it from "
 "its menu-bar icon."
 msgstr ""
-"Po wyłączeniu Spotifast działa tylko na pasku menu i nie pojawia się w "
+"Po wyłączeniu Sirensong działa tylko na pasku menu i nie pojawia się w "
 "Cmd+Tab. Otwórz go ikoną na pasku menu."
 
 #: src/ui/settings.rs:717
@@ -1659,9 +1659,9 @@ msgstr ""
 
 #: src/ui/settings.rs:1192
 msgid ""
-"Draw Spotifast's own title bar and window buttons instead of the desktop's."
+"Draw Sirensong's own title bar and window buttons instead of the desktop's."
 msgstr ""
-"Rysuj własny pasek tytułu i przyciski okna Spotifast zamiast tych ze "
+"Rysuj własny pasek tytułu i przyciski okna Sirensong zamiast tych ze "
 "środowiska graficznego."
 
 #: src/ui/settings.rs:1200
@@ -1860,39 +1860,39 @@ msgstr "Presety"
 #: src/ui/settings.rs:1865
 #, rust-format
 msgid ""
-"None yet in {folder}. Add .milk files here. Spotifast downloads presets when "
+"None yet in {folder}. Add .milk files here. Sirensong downloads presets when "
 "MilkDrop first opens with an empty folder."
 msgstr ""
-"Na razie brak presetów w {folder}. Dodaj tu pliki .milk. Spotifast pobiera "
+"Na razie brak presetów w {folder}. Dodaj tu pliki .milk. Sirensong pobiera "
 "presety, gdy MilkDrop po raz pierwszy otworzy się z pustym folderem."
 
 #. Translators: {folder} is the path of the MilkDrop presets folder.
 #: src/ui/settings.rs:1871
 #, rust-format
 msgid ""
-"One preset in {folder}. Add .milk files here. Spotifast downloads presets "
+"One preset in {folder}. Add .milk files here. Sirensong downloads presets "
 "when MilkDrop first opens with an empty folder."
 msgstr ""
-"Jeden preset w {folder}. Dodaj tu pliki .milk. Spotifast pobiera presety, "
+"Jeden preset w {folder}. Dodaj tu pliki .milk. Sirensong pobiera presety, "
 "gdy MilkDrop po raz pierwszy otworzy się z pustym folderem."
 
 #. Translators: {count} is the number of presets, {folder} the path of the MilkDrop presets folder.
 #: src/ui/settings.rs:1877
 #, rust-format
 msgid ""
-"{count} preset in {folder}. Add .milk files here. Spotifast downloads "
+"{count} preset in {folder}. Add .milk files here. Sirensong downloads "
 "presets when MilkDrop first opens with an empty folder."
 msgid_plural ""
-"{count} presets in {folder}. Add .milk files here. Spotifast downloads "
+"{count} presets in {folder}. Add .milk files here. Sirensong downloads "
 "presets when MilkDrop first opens with an empty folder."
 msgstr[0] ""
-"{count} preset w {folder}. Dodaj tu pliki .milk. Spotifast pobiera presety, "
+"{count} preset w {folder}. Dodaj tu pliki .milk. Sirensong pobiera presety, "
 "gdy MilkDrop po raz pierwszy otworzy się z pustym folderem."
 msgstr[1] ""
-"{count} presety w {folder}. Dodaj tu pliki .milk. Spotifast pobiera presety, "
+"{count} presety w {folder}. Dodaj tu pliki .milk. Sirensong pobiera presety, "
 "gdy MilkDrop po raz pierwszy otworzy się z pustym folderem."
 msgstr[2] ""
-"{count} presetów w {folder}. Dodaj tu pliki .milk. Spotifast pobiera "
+"{count} presetów w {folder}. Dodaj tu pliki .milk. Sirensong pobiera "
 "presety, gdy MilkDrop po raz pierwszy otworzy się z pustym folderem."
 
 #: src/ui/settings.rs:1886
@@ -2082,9 +2082,9 @@ msgid "In the tray"
 msgstr "W zasobniku"
 
 #: src/ui/settings.rs:2343
-msgid "Allow Spotifast in System Settings, General, Login Items."
+msgid "Allow Sirensong in System Settings, General, Login Items."
 msgstr ""
-"Zezwól na Spotifast w Ustawieniach systemowych, Ogólne, Rzeczy otwierane "
+"Zezwól na Sirensong w Ustawieniach systemowych, Ogólne, Rzeczy otwierane "
 "podczas logowania."
 
 #: src/ui/settings.rs:2348
@@ -2096,8 +2096,8 @@ msgstr ""
 "Do tego czasu otwiera się okno."
 
 #: src/ui/settings.rs:2353
-msgid "Open Spotifast when you log in, with its window or in the tray."
-msgstr "Otwieraj Spotifast po zalogowaniu, z oknem lub w zasobniku."
+msgid "Open Sirensong when you log in, with its window or in the tray."
+msgstr "Otwieraj Sirensong po zalogowaniu, z oknem lub w zasobniku."
 
 #: src/ui/settings.rs:2459
 msgctxt "language"
@@ -2210,9 +2210,9 @@ msgstr ""
 
 #: src/theme.rs:213
 msgid ""
-"Custom themes could not be loaded. Run spotifast reload-themes to try again."
+"Custom themes could not be loaded. Run sirensong reload-themes to try again."
 msgstr ""
-"Nie udało się wczytać własnych motywów. Uruchom spotifast reload-themes, aby "
+"Nie udało się wczytać własnych motywów. Uruchom sirensong reload-themes, aby "
 "spróbować ponownie."
 
 #: src/ui/artist.rs:32
@@ -2426,11 +2426,11 @@ msgstr "Krócej czekaj na Spotify"
 
 #: src/ui/dialogs.rs:47
 msgid ""
-"Spotifast's default connection shares Spotify's request limit with other "
+"Sirensong's default connection shares Spotify's request limit with other "
 "listeners. When it gets busy, loading music and using playback controls can "
 "take longer."
 msgstr ""
-"Domyślne połączenie Spotifast dzieli limit żądań Spotify z innymi "
+"Domyślne połączenie Sirensong dzieli limit żądań Spotify z innymi "
 "słuchaczami. Gdy jest duży ruch, wczytywanie muzyki i sterowanie "
 "odtwarzaniem może trwać dłużej."
 
@@ -2508,10 +2508,10 @@ msgstr "To konto nie może tutaj odtwarzać muzyki"
 #: src/ui/dialogs.rs:219
 msgid ""
 "Playback needs Spotify Premium. Free accounts can browse and search, but "
-"cannot play music through Spotifast."
+"cannot play music through Sirensong."
 msgstr ""
 "Odtwarzanie wymaga Spotify Premium. Konta Free mogą przeglądać i wyszukiwać, "
-"ale nie mogą odtwarzać muzyki w Spotifast."
+"ale nie mogą odtwarzać muzyki w Sirensong."
 
 #: src/ui/dialogs.rs:228
 msgid "OK"
@@ -2883,10 +2883,10 @@ msgstr "Zaloguj się przez Spotify"
 
 #: src/ui/login.rs:136
 msgid ""
-"Sign in through your browser. Spotifast never sees your password. Local "
+"Sign in through your browser. Sirensong never sees your password. Local "
 "playback needs Spotify Premium."
 msgstr ""
-"Zaloguj się w przeglądarce. Spotifast nigdy nie widzi Twojego hasła. Lokalne "
+"Zaloguj się w przeglądarce. Sirensong nigdy nie widzi Twojego hasła. Lokalne "
 "odtwarzanie wymaga Spotify Premium."
 
 #: src/ui/login.rs:169
@@ -2896,8 +2896,8 @@ msgstr "Ustawienia proxy"
 #. Translators: {version} is the app's version number, such as 1.2.0.
 #: src/ui/login.rs:195
 #, rust-format
-msgid "Spotifast {version} • not affiliated with Spotify"
-msgstr "Spotifast {version} • niepowiązany ze Spotify"
+msgid "Sirensong {version} • not affiliated with Spotify"
+msgstr "Sirensong {version} • niepowiązany ze Spotify"
 
 #: src/ui/mod.rs:476
 msgid "Minimize"
@@ -3125,9 +3125,9 @@ msgstr "Czego chcesz posłuchać?"
 
 #: src/ui/topbar.rs:521
 msgid ""
-"Spotifast is offline. Reconnecting automatically when connection returns."
+"Sirensong is offline. Reconnecting automatically when connection returns."
 msgstr ""
-"Spotifast jest offline. Automatycznie połączy się ponownie po przywróceniu "
+"Sirensong jest offline. Automatycznie połączy się ponownie po przywróceniu "
 "połączenia."
 
 #: src/ui/topbar.rs:548
@@ -3187,10 +3187,10 @@ msgid "Ready to install"
 msgstr "Gotowa do instalacji"
 
 #: src/ui/update.rs:115
-msgid "Music playing on this computer will stop when Spotifast restarts."
+msgid "Music playing on this computer will stop when Sirensong restarts."
 msgstr ""
 "Muzyka odtwarzana na tym komputerze zatrzyma się po ponownym uruchomieniu "
-"Spotifast."
+"Sirensong."
 
 #: src/ui/update.rs:122
 msgid "Restart to update"
@@ -3521,16 +3521,16 @@ msgstr ""
 "środowisku."
 
 #: src/window.rs:39
-msgid "Spotifast cannot open its window"
-msgstr "Spotifast nie może otworzyć okna"
+msgid "Sirensong cannot open its window"
+msgstr "Sirensong nie może otworzyć okna"
 
 #: src/window.rs:45
 msgid ""
-"On Windows on ARM, the OpenGL that Spotifast draws with comes from "
+"On Windows on ARM, the OpenGL that Sirensong draws with comes from "
 "Microsoft's OpenCL, OpenGL & Vulkan Compatibility Pack. Open its Microsoft "
 "Store page to install or repair it?"
 msgstr ""
-"W systemie Windows na ARM OpenGL, którego Spotifast używa do rysowania, "
+"W systemie Windows na ARM OpenGL, którego Sirensong używa do rysowania, "
 "pochodzi z pakietu OpenCL, OpenGL & Vulkan Compatibility Pack firmy "
 "Microsoft. Otworzyć jego stronę w Microsoft Store, aby go zainstalować lub "
 "naprawić?"
@@ -3540,11 +3540,11 @@ msgstr ""
 #: src/window.rs:55
 #, rust-format
 msgid ""
-"Spotifast needs a graphics driver with OpenGL 2.0 or newer, and this PC or "
+"Sirensong needs a graphics driver with OpenGL 2.0 or newer, and this PC or "
 "virtual machine does not provide one. Install the graphics driver, or turn "
 "on GPU acceleration for the virtual machine. Open {url} to read more?"
 msgstr ""
-"Spotifast potrzebuje sterownika graficznego z OpenGL 2.0 lub nowszym, a ten "
+"Sirensong potrzebuje sterownika graficznego z OpenGL 2.0 lub nowszym, a ten "
 "komputer lub ta maszyna wirtualna go nie zapewnia. Zainstaluj sterownik "
 "graficzny albo włącz akcelerację GPU maszyny wirtualnej. Otworzyć {url}, aby "
 "dowiedzieć się więcej?"
@@ -3592,8 +3592,8 @@ msgid "A folder can't go inside itself."
 msgstr "Folderu nie można umieścić w nim samym."
 
 #: src/folders.rs:1
-msgid "Spotify's copy of this folder looks damaged, so Spotifast left it alone."
-msgstr "Kopia tego folderu w Spotify wygląda na uszkodzoną, więc Spotifast jej nie zmienił."
+msgid "Spotify's copy of this folder looks damaged, so Sirensong left it alone."
+msgstr "Kopia tego folderu w Spotify wygląda na uszkodzoną, więc Sirensong jej nie zmienił."
 
 #: src/folders.rs:1
 msgid "A folder needs a name."
@@ -3787,8 +3787,8 @@ msgid "No local files yet"
 msgstr "Brak plików lokalnych"
 
 #: src/ui/collection.rs:1811
-msgid "Add a folder or songs to play them here. Spotifast looks nowhere else."
-msgstr "Dodaj folder lub utwory, aby odtwarzać je tutaj. Spotifast nie szuka nigdzie indziej."
+msgid "Add a folder or songs to play them here. Sirensong looks nowhere else."
+msgstr "Dodaj folder lub utwory, aby odtwarzać je tutaj. Sirensong nie szuka nigdzie indziej."
 
 #. Translators: Reads the local files folders again, for songs added or removed.
 #: src/ui/collection.rs:1950
@@ -3811,11 +3811,11 @@ msgstr[2] "Dodano {count} utworów do plików lokalnych"
 #. Translators: Keep {count} exactly as written. It becomes the number of picked files that could not be added.
 #: src/app.rs:10610
 #, rust-format
-msgid "Couldn't add {count} file. Spotifast plays MP3, FLAC, MP4 and M4P files."
-msgid_plural "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P files."
-msgstr[0] "Nie udało się dodać {count} pliku. Spotifast odtwarza pliki MP3, FLAC, MP4 i M4P."
-msgstr[1] "Nie udało się dodać {count} plików. Spotifast odtwarza pliki MP3, FLAC, MP4 i M4P."
-msgstr[2] "Nie udało się dodać {count} plików. Spotifast odtwarza pliki MP3, FLAC, MP4 i M4P."
+msgid "Couldn't add {count} file. Sirensong plays MP3, FLAC, MP4 and M4P files."
+msgid_plural "Couldn't add {count} files. Sirensong plays MP3, FLAC, MP4 and M4P files."
+msgstr[0] "Nie udało się dodać {count} pliku. Sirensong odtwarza pliki MP3, FLAC, MP4 i M4P."
+msgstr[1] "Nie udało się dodać {count} plików. Sirensong odtwarza pliki MP3, FLAC, MP4 i M4P."
+msgstr[2] "Nie udało się dodać {count} plików. Sirensong odtwarza pliki MP3, FLAC, MP4 i M4P."
 
 #. Translators: A colour in the theme editor: the window's background.
 #: src/ui/theme_editor.rs:18
@@ -4047,8 +4047,8 @@ msgid "Clear play history?"
 msgstr "Wyczyścić historię odtwarzania?"
 
 #: src/ui/dialogs.rs:96
-msgid "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
-msgstr "Wszystkie odtworzenia zachowane przez Spotifast zostaną usunięte wraz z czasem słuchania, według którego mapa dobiera rozmiary. Tej operacji nie można cofnąć."
+msgid "Every play Sirensong has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
+msgstr "Wszystkie odtworzenia zachowane przez Sirensong zostaną usunięte wraz z czasem słuchania, według którego mapa dobiera rozmiary. Tej operacji nie można cofnąć."
 
 #. Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
 #: src/demo.rs:2997

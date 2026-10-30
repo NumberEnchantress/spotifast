@@ -770,11 +770,11 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             super::keys::platform_shortcut(
                 &gettext(
                     locale,
-                    "Spotifast hides to the system tray. Quit from the tray menu or with Ctrl+Q.",
+                    "Sirensong hides to the system tray. Quit from the tray menu or with Ctrl+Q.",
                 ),
                 &gettext(
                     locale,
-                    "Spotifast hides to the system tray. Quit from the tray menu or with Cmd+Q.",
+                    "Sirensong hides to the system tray. Quit from the tray menu or with Cmd+Q.",
                 ),
             )
             .to_owned(),
@@ -817,7 +817,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             show_in_dock.clone(),
             gettext(
                 locale,
-                "When off, Spotifast lives in the menu bar and leaves Cmd+Tab. Open it from its menu-bar icon.",
+                "When off, Sirensong lives in the menu bar and leaves Cmd+Tab. Open it from its menu-bar icon.",
             ),
         )
         .when(cfg!(target_os = "macos")),
@@ -1294,7 +1294,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
             custom_titlebar.clone(),
             gettext(
                 locale,
-                "Draw Spotifast's own title bar and window buttons instead of the desktop's.",
+                "Draw Sirensong's own title bar and window buttons instead of the desktop's.",
             ),
         )
         .when(show_custom_titlebar),
@@ -1950,7 +1950,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 // the mini player opens.
                 const RANDOM: usize = usize::MAX;
                 let random = gettext(locale, "Random");
-                let mut options: Vec<(usize, &str)> = vec![(RANDOM, &random), (0, "Spotifast")];
+                let mut options: Vec<(usize, &str)> = vec![(RANDOM, &random), (0, "Sirensong")];
                 options.extend(
                     choices
                         .iter()
@@ -1984,7 +1984,7 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                     let label = options
                         .iter()
                         .find(|(value, _)| *value == showing)
-                        .map_or("Spotifast", |(_, label)| label);
+                        .map_or("Sirensong", |(_, label)| label);
                     theme::subtle(
                         ui,
                         &palette,
@@ -2067,20 +2067,20 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 0 => gettext(
                     locale,
                     // Translators: {folder} is the path of the MilkDrop presets folder.
-                    "None yet in {folder}. Add .milk files here. Spotifast downloads presets when MilkDrop first opens with an empty folder.",
+                    "None yet in {folder}. Add .milk files here. Sirensong downloads presets when MilkDrop first opens with an empty folder.",
                 )
                 .replace("{folder}", &folder),
                 1 => gettext(
                     locale,
                     // Translators: {folder} is the path of the MilkDrop presets folder.
-                    "One preset in {folder}. Add .milk files here. Spotifast downloads presets when MilkDrop first opens with an empty folder.",
+                    "One preset in {folder}. Add .milk files here. Sirensong downloads presets when MilkDrop first opens with an empty folder.",
                 )
                 .replace("{folder}", &folder),
                 n => ngettext(
                     locale,
                     // Translators: {count} is the number of presets, {folder} the path of the MilkDrop presets folder.
-                    "{count} preset in {folder}. Add .milk files here. Spotifast downloads presets when MilkDrop first opens with an empty folder.",
-                    "{count} presets in {folder}. Add .milk files here. Spotifast downloads presets when MilkDrop first opens with an empty folder.",
+                    "{count} preset in {folder}. Add .milk files here. Sirensong downloads presets when MilkDrop first opens with an empty folder.",
+                    "{count} presets in {folder}. Add .milk files here. Sirensong downloads presets when MilkDrop first opens with an empty folder.",
                     u32::try_from(n).unwrap_or(u32::MAX),
                 )
                 .replace("{count}", &n.to_string())
@@ -2771,7 +2771,11 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let source_code = gettext(locale, "Source code");
     let about_rows = [
         RowText::new(
-            format!("Spotifast {}", env!("CARGO_PKG_VERSION")),
+            format!(
+                "Sirensong {} \u{b7} Spotifast {}",
+                crate::app::FORK_VERSION,
+                env!("CARGO_PKG_VERSION")
+            ),
             built_with.clone(),
         ),
         RowText::new(
@@ -2788,7 +2792,11 @@ pub fn show(app: &mut App, ui: &mut egui::Ui) {
                 ui.vertical(|ui| {
                     theme::text(
                         ui,
-                        format!("Spotifast {}", env!("CARGO_PKG_VERSION")),
+                        format!(
+                            "Sirensong {} \u{b7} Spotifast {}",
+                            crate::app::FORK_VERSION,
+                            env!("CARGO_PKG_VERSION")
+                        ),
                         theme::semibold(15.0),
                         palette.text,
                     );
@@ -2893,7 +2901,7 @@ fn start_with_computer_detail(
     if matches!(state, Some(State::NeedsApproval(_))) && choice.is_some() {
         gettext(
             locale,
-            "Allow Spotifast in System Settings, General, Login Items.",
+            "Allow Sirensong in System Settings, General, Login Items.",
         )
     } else if choice == Some(Start::Hidden) && !keeps_running {
         gettext(
@@ -2903,7 +2911,7 @@ fn start_with_computer_detail(
     } else {
         gettext(
             locale,
-            "Open Spotifast when you log in, with its window or in the tray.",
+            "Open Sirensong when you log in, with its window or in the tray.",
         )
     }
 }

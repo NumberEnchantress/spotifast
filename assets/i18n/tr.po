@@ -293,8 +293,8 @@ msgid "Mute"
 msgstr "Sesi kapat"
 
 #: src/ui/player_bar.rs:981
-msgid "This device's volume can't be changed from Spotifast"
-msgstr "Bu cihazın ses düzeyi Spotifast üzerinden değiştirilemez"
+msgid "This device's volume can't be changed from Sirensong"
+msgstr "Bu cihazın ses düzeyi Sirensong üzerinden değiştirilemez"
 
 #: src/ui/player_bar.rs:1001 src/ui/devices.rs:401
 msgid "Connect to a device"
@@ -403,9 +403,9 @@ msgstr "Çevrimdışısınız"
 #: src/ui/collection.rs:2065 src/ui/collection.rs:2312 src/ui/home.rs:34
 #: src/ui/library.rs:262 src/ui/show.rs:69 src/ui/show.rs:115
 #: src/ui/show.rs:145
-msgid "Spotifast will reconnect automatically when your connection returns."
+msgid "Sirensong will reconnect automatically when your connection returns."
 msgstr ""
-"Bağlantınız geri geldiğinde Spotifast otomatik olarak yeniden bağlanacaktır."
+"Bağlantınız geri geldiğinde Sirensong otomatik olarak yeniden bağlanacaktır."
 
 #. Translators: Keep {error} unchanged. It is the original failure detail.
 #: src/ui/lyrics.rs:171 src/ui/lyrics.rs:455 src/ui/lyrics.rs:691
@@ -708,8 +708,8 @@ msgid "Restoring proxy settings"
 msgstr "Proxy ayarları geri yükleniyor"
 
 #: src/app.rs:1481
-msgid "Couldn't change how Spotifast starts with your computer."
-msgstr "Spotifast’in bilgisayarla nasıl başlayacağı değiştirilemedi."
+msgid "Couldn't change how Sirensong starts with your computer."
+msgstr "Sirensong’un bilgisayarla nasıl başlayacağı değiştirilemedi."
 
 #. Translators: {name} is the name of a speaker or other playback device.
 #: src/app.rs:2483
@@ -967,8 +967,8 @@ msgid "This song's album is not on Spotify"
 msgstr "Bu şarkının albümü Spotify'da bulunmuyor"
 
 #: src/app.rs:8263
-msgid "Spotifast cannot open this kind of Spotify link"
-msgstr "Spotifast bu tür bir Spotify bağlantısını açamaz"
+msgid "Sirensong cannot open this kind of Spotify link"
+msgstr "Sirensong bu tür bir Spotify bağlantısını açamaz"
 
 #: src/app.rs:8511
 msgid "Nothing is playing. Pick something first"
@@ -1427,15 +1427,15 @@ msgstr "Parçaları aralarında sessizlik olmadan çalar."
 
 #: src/ui/settings.rs:664
 msgid ""
-"Spotifast hides to the system tray. Quit from the tray menu or with Ctrl+Q."
+"Sirensong hides to the system tray. Quit from the tray menu or with Ctrl+Q."
 msgstr ""
-"Spotifast sistem tepsisine gizlenir. Tepsi menüsünden veya Ctrl+Q ile çıkın."
+"Sirensong sistem tepsisine gizlenir. Tepsi menüsünden veya Ctrl+Q ile çıkın."
 
 #: src/ui/settings.rs:668
 msgid ""
-"Spotifast hides to the system tray. Quit from the tray menu or with Cmd+Q."
+"Sirensong hides to the system tray. Quit from the tray menu or with Cmd+Q."
 msgstr ""
-"Spotifast sistem tepsisine gizlenir. Tepsi menüsünden veya Cmd+Q ile çıkın."
+"Sirensong sistem tepsisine gizlenir. Tepsi menüsünden veya Cmd+Q ile çıkın."
 
 #: src/ui/settings.rs:675
 msgid "Checks GitHub once a day. No personal data is sent."
@@ -1481,10 +1481,10 @@ msgstr "Yerel dosyalar"
 
 #: src/ui/settings.rs:711
 msgid ""
-"When off, Spotifast lives in the menu bar and leaves Cmd+Tab. Open it from "
+"When off, Sirensong lives in the menu bar and leaves Cmd+Tab. Open it from "
 "its menu-bar icon."
 msgstr ""
-"Kapalıyken Spotifast yalnızca menü çubuğunda kalır ve Cmd+Tab'de görünmez. "
+"Kapalıyken Sirensong yalnızca menü çubuğunda kalır ve Cmd+Tab'de görünmez. "
 "Menü çubuğundaki simgesinden açın."
 
 #: src/ui/settings.rs:717
@@ -1647,9 +1647,9 @@ msgstr ""
 
 #: src/ui/settings.rs:1192
 msgid ""
-"Draw Spotifast's own title bar and window buttons instead of the desktop's."
+"Draw Sirensong's own title bar and window buttons instead of the desktop's."
 msgstr ""
-"Masaüstü ortamının başlık çubuğu ve pencere düğmeleri yerine Spotifast'in "
+"Masaüstü ortamının başlık çubuğu ve pencere düğmeleri yerine Sirensong'un "
 "kendi başlık çubuğunu ve pencere düğmelerini çizer."
 
 #: src/ui/settings.rs:1200
@@ -1852,40 +1852,40 @@ msgstr "Hazır ayarlar"
 #: src/ui/settings.rs:1865
 #, rust-format
 msgid ""
-"None yet in {folder}. Add .milk files here. Spotifast downloads presets when "
+"None yet in {folder}. Add .milk files here. Sirensong downloads presets when "
 "MilkDrop first opens with an empty folder."
 msgstr ""
 "{folder} konumunda henüz hazır ayar yok. Buraya .milk dosyaları ekleyin. "
-"Spotifast, MilkDrop boş bir klasörle ilk açıldığında hazır ayarları otomatik "
+"Sirensong, MilkDrop boş bir klasörle ilk açıldığında hazır ayarları otomatik "
 "indirir."
 
 #. Translators: {folder} is the path of the MilkDrop presets folder.
 #: src/ui/settings.rs:1871
 #, rust-format
 msgid ""
-"One preset in {folder}. Add .milk files here. Spotifast downloads presets "
+"One preset in {folder}. Add .milk files here. Sirensong downloads presets "
 "when MilkDrop first opens with an empty folder."
 msgstr ""
 "{folder} içinde bir hazır ayar var. Buraya .milk dosyaları ekleyin. "
-"Spotifast, MilkDrop boş bir klasörle ilk açıldığında hazır ayarları otomatik "
+"Sirensong, MilkDrop boş bir klasörle ilk açıldığında hazır ayarları otomatik "
 "indirir."
 
 #. Translators: {count} is the number of presets, {folder} the path of the MilkDrop presets folder.
 #: src/ui/settings.rs:1877
 #, rust-format
 msgid ""
-"{count} preset in {folder}. Add .milk files here. Spotifast downloads "
+"{count} preset in {folder}. Add .milk files here. Sirensong downloads "
 "presets when MilkDrop first opens with an empty folder."
 msgid_plural ""
-"{count} presets in {folder}. Add .milk files here. Spotifast downloads "
+"{count} presets in {folder}. Add .milk files here. Sirensong downloads "
 "presets when MilkDrop first opens with an empty folder."
 msgstr[0] ""
 "{folder} içinde {count} hazır ayar var. Buraya .milk dosyaları ekleyin. "
-"Spotifast, MilkDrop boş bir klasörle ilk açıldığında hazır ayarları otomatik "
+"Sirensong, MilkDrop boş bir klasörle ilk açıldığında hazır ayarları otomatik "
 "indirir."
 msgstr[1] ""
 "{folder} içinde {count} hazır ayar var. Buraya .milk dosyaları ekleyin. "
-"Spotifast, MilkDrop boş bir klasörle ilk açıldığında hazır ayarları otomatik "
+"Sirensong, MilkDrop boş bir klasörle ilk açıldığında hazır ayarları otomatik "
 "indirir."
 
 #: src/ui/settings.rs:1886
@@ -2077,9 +2077,9 @@ msgid "In the tray"
 msgstr "Sistem tepsisinde"
 
 #: src/ui/settings.rs:2343
-msgid "Allow Spotifast in System Settings, General, Login Items."
+msgid "Allow Sirensong in System Settings, General, Login Items."
 msgstr ""
-"Sistem Ayarları, Genel, Giriş Öğeleri bölümünden Spotifast’e izin verin."
+"Sistem Ayarları, Genel, Giriş Öğeleri bölümünden Sirensong’a izin verin."
 
 #: src/ui/settings.rs:2348
 msgid ""
@@ -2090,9 +2090,9 @@ msgstr ""
 "etsin” açık olmalı. O zamana kadar pencere açılır."
 
 #: src/ui/settings.rs:2353
-msgid "Open Spotifast when you log in, with its window or in the tray."
+msgid "Open Sirensong when you log in, with its window or in the tray."
 msgstr ""
-"Oturum açtığınızda Spotifast’i penceresiyle veya sistem tepsisinde açar."
+"Oturum açtığınızda Sirensong’u penceresiyle veya sistem tepsisinde açar."
 
 #: src/ui/settings.rs:2459
 msgctxt "language"
@@ -2204,9 +2204,9 @@ msgstr ""
 
 #: src/theme.rs:213
 msgid ""
-"Custom themes could not be loaded. Run spotifast reload-themes to try again."
+"Custom themes could not be loaded. Run sirensong reload-themes to try again."
 msgstr ""
-"Özel temalar yüklenemedi. Tekrar denemek için spotifast reload-themes "
+"Özel temalar yüklenemedi. Tekrar denemek için sirensong reload-themes "
 "komutunu çalıştırın."
 
 #: src/ui/artist.rs:32
@@ -2416,11 +2416,11 @@ msgstr "Spotify'ı beklerken daha az zaman harcayın"
 
 #: src/ui/dialogs.rs:47
 msgid ""
-"Spotifast's default connection shares Spotify's request limit with other "
+"Sirensong's default connection shares Spotify's request limit with other "
 "listeners. When it gets busy, loading music and using playback controls can "
 "take longer."
 msgstr ""
-"Spotifast'in varsayılan bağlantısı, Spotify'ın istek limitini diğer "
+"Sirensong'un varsayılan bağlantısı, Spotify'ın istek limitini diğer "
 "dinleyicilerle paylaşır. Yoğunlaştığında, müzik yüklemek ve çalma "
 "kontrollerini kullanmak daha uzun sürebilir."
 
@@ -2499,10 +2499,10 @@ msgstr "Bu hesap burada müzik çalamaz"
 #: src/ui/dialogs.rs:219
 msgid ""
 "Playback needs Spotify Premium. Free accounts can browse and search, but "
-"cannot play music through Spotifast."
+"cannot play music through Sirensong."
 msgstr ""
 "Çalma için Spotify Premium gerekir. Ücretsiz hesaplar göz atabilir ve "
-"arayabilir, ancak Spotifast üzerinden müzik çalamaz."
+"arayabilir, ancak Sirensong üzerinden müzik çalamaz."
 
 #: src/ui/dialogs.rs:228
 msgid "OK"
@@ -2871,10 +2871,10 @@ msgstr "Spotify ile giriş yap"
 
 #: src/ui/login.rs:136
 msgid ""
-"Sign in through your browser. Spotifast never sees your password. Local "
+"Sign in through your browser. Sirensong never sees your password. Local "
 "playback needs Spotify Premium."
 msgstr ""
-"Tarayıcınız üzerinden giriş yapın. Spotifast parolanızı asla görmez. Yerel "
+"Tarayıcınız üzerinden giriş yapın. Sirensong parolanızı asla görmez. Yerel "
 "çalma için Spotify Premium gerekir."
 
 #: src/ui/login.rs:169
@@ -2884,8 +2884,8 @@ msgstr "Proxy Ayarları"
 #. Translators: {version} is the app's version number, such as 1.2.0.
 #: src/ui/login.rs:195
 #, rust-format
-msgid "Spotifast {version} • not affiliated with Spotify"
-msgstr "Spotifast {version} • Spotify ile bağlantılı değildir"
+msgid "Sirensong {version} • not affiliated with Spotify"
+msgstr "Sirensong {version} • Spotify ile bağlantılı değildir"
 
 #: src/ui/mod.rs:476
 msgid "Minimize"
@@ -3112,9 +3112,9 @@ msgstr "Ne çalmak istersiniz?"
 
 #: src/ui/topbar.rs:521
 msgid ""
-"Spotifast is offline. Reconnecting automatically when connection returns."
+"Sirensong is offline. Reconnecting automatically when connection returns."
 msgstr ""
-"Spotifast çevrimdışı. Bağlantı geri geldiğinde otomatik olarak yeniden "
+"Sirensong çevrimdışı. Bağlantı geri geldiğinde otomatik olarak yeniden "
 "bağlanacaktır."
 
 #: src/ui/topbar.rs:548
@@ -3174,8 +3174,8 @@ msgid "Ready to install"
 msgstr "Yüklemeye hazır"
 
 #: src/ui/update.rs:115
-msgid "Music playing on this computer will stop when Spotifast restarts."
-msgstr "Spotifast yeniden başlatıldığında bu bilgisayarda çalan müzik duracak."
+msgid "Music playing on this computer will stop when Sirensong restarts."
+msgstr "Sirensong yeniden başlatıldığında bu bilgisayarda çalan müzik duracak."
 
 #: src/ui/update.rs:122
 msgid "Restart to update"
@@ -3501,16 +3501,16 @@ msgstr ""
 "kullanın."
 
 #: src/window.rs:39
-msgid "Spotifast cannot open its window"
-msgstr "Spotifast penceresini açamıyor"
+msgid "Sirensong cannot open its window"
+msgstr "Sirensong penceresini açamıyor"
 
 #: src/window.rs:45
 msgid ""
-"On Windows on ARM, the OpenGL that Spotifast draws with comes from "
+"On Windows on ARM, the OpenGL that Sirensong draws with comes from "
 "Microsoft's OpenCL, OpenGL & Vulkan Compatibility Pack. Open its Microsoft "
 "Store page to install or repair it?"
 msgstr ""
-"ARM üzerinde Windows'ta Spotifast'in çizim için kullandığı OpenGL, "
+"ARM üzerinde Windows'ta Sirensong'un çizim için kullandığı OpenGL, "
 "Microsoft'un OpenCL, OpenGL & Vulkan Compatibility Pack paketinden gelir. "
 "Yüklemek veya onarmak için Microsoft Store sayfası açılsın mı?"
 
@@ -3519,11 +3519,11 @@ msgstr ""
 #: src/window.rs:55
 #, rust-format
 msgid ""
-"Spotifast needs a graphics driver with OpenGL 2.0 or newer, and this PC or "
+"Sirensong needs a graphics driver with OpenGL 2.0 or newer, and this PC or "
 "virtual machine does not provide one. Install the graphics driver, or turn "
 "on GPU acceleration for the virtual machine. Open {url} to read more?"
 msgstr ""
-"Spotifast, OpenGL 2.0 veya daha yenisini destekleyen bir grafik sürücüsüne "
+"Sirensong, OpenGL 2.0 veya daha yenisini destekleyen bir grafik sürücüsüne "
 "ihtiyaç duyar ve bu bilgisayar ya da sanal makine bunu sağlamıyor. Grafik "
 "sürücüsünü yükleyin veya sanal makine için GPU hızlandırmayı açın. Daha "
 "fazlasını okumak için {url} açılsın mı?"
@@ -3556,8 +3556,8 @@ msgid "A folder can't go inside itself."
 msgstr "Bir klasör kendi içine taşınamaz."
 
 #: src/folders.rs:1
-msgid "Spotify's copy of this folder looks damaged, so Spotifast left it alone."
-msgstr "Bu klasörün Spotify'daki kopyası bozuk görünüyor, bu yüzden Spotifast ona dokunmadı."
+msgid "Spotify's copy of this folder looks damaged, so Sirensong left it alone."
+msgstr "Bu klasörün Spotify'daki kopyası bozuk görünüyor, bu yüzden Sirensong ona dokunmadı."
 
 #: src/folders.rs:1
 msgid "A folder needs a name."
@@ -3748,8 +3748,8 @@ msgid "No local files yet"
 msgstr "Henüz yerel dosya yok"
 
 #: src/ui/collection.rs:1811
-msgid "Add a folder or songs to play them here. Spotifast looks nowhere else."
-msgstr "Burada çalmak için bir klasör ya da şarkı ekle. Spotifast başka hiçbir yere bakmaz."
+msgid "Add a folder or songs to play them here. Sirensong looks nowhere else."
+msgstr "Burada çalmak için bir klasör ya da şarkı ekle. Sirensong başka hiçbir yere bakmaz."
 
 #. Translators: Reads the local files folders again, for songs added or removed.
 #: src/ui/collection.rs:1950
@@ -3771,10 +3771,10 @@ msgstr[1] "Yerel dosyalara {count} şarkı eklendi"
 #. Translators: Keep {count} exactly as written. It becomes the number of picked files that could not be added.
 #: src/app.rs:10610
 #, rust-format
-msgid "Couldn't add {count} file. Spotifast plays MP3, FLAC, MP4 and M4P files."
-msgid_plural "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P files."
-msgstr[0] "{count} dosya eklenemedi. Spotifast MP3, FLAC, MP4 ve M4P dosyalarını çalar."
-msgstr[1] "{count} dosya eklenemedi. Spotifast MP3, FLAC, MP4 ve M4P dosyalarını çalar."
+msgid "Couldn't add {count} file. Sirensong plays MP3, FLAC, MP4 and M4P files."
+msgid_plural "Couldn't add {count} files. Sirensong plays MP3, FLAC, MP4 and M4P files."
+msgstr[0] "{count} dosya eklenemedi. Sirensong MP3, FLAC, MP4 ve M4P dosyalarını çalar."
+msgstr[1] "{count} dosya eklenemedi. Sirensong MP3, FLAC, MP4 ve M4P dosyalarını çalar."
 
 #. Translators: A colour in the theme editor: the window's background.
 #: src/ui/theme_editor.rs:18
@@ -3955,7 +3955,7 @@ msgstr "Sürümü göster"
 
 #: src/ui/settings.rs:1339
 msgid "With the custom title bar, show Spotifast's version and this fork's beside the update button."
-msgstr "Özel başlık çubuğunda, güncelleme düğmesinin yanında Spotifast'in ve bu çatalın sürümünü gösterir."
+msgstr "Özel başlık çubuğunda, güncelleme düğmesinin yanında Spotifast'un ve bu çatalın sürümünü gösterir."
 
 #. Translators: A settings section about what Spotify suggests: mixes, recommendations, related artists.
 #: src/ui/settings.rs:2375
@@ -4006,8 +4006,8 @@ msgid "Clear play history?"
 msgstr "Çalma geçmişi temizlensin mi?"
 
 #: src/ui/dialogs.rs:96
-msgid "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
-msgstr "Spotifast’in sakladığı tüm dinlemeler, haritanın boyutlandırmada kullandığı dinleme süresiyle birlikte silinecek. Bu işlem geri alınamaz."
+msgid "Every play Sirensong has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
+msgstr "Sirensong’un sakladığı tüm dinlemeler, haritanın boyutlandırmada kullandığı dinleme süresiyle birlikte silinecek. Bu işlem geri alınamaz."
 
 #. Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
 #: src/demo.rs:2997

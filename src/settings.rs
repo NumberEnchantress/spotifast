@@ -597,7 +597,7 @@ impl Default for Settings {
     /// settings files, including an inactive playlist ownership filter.
     fn default() -> Self {
         Self {
-            device_name: "Spotifast".to_string(),
+            device_name: "Sirensong".to_string(),
             bitrate: 320,
             normalisation: false,
             autoplay: true,

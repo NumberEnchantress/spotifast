@@ -475,9 +475,9 @@ main{{max-width:28rem;padding:2.5rem;border-radius:1.25rem;background:#181b20;bo
 
 fn success_page() -> String {
     page(
-        "Signed in to Spotifast",
+        "Signed in to Sirensong",
         "You're signed in",
-        "You can close this tab and go back to Spotifast.",
+        "You can close this tab and go back to Sirensong.",
         "#1ed760",
     )
 }
@@ -486,7 +486,7 @@ fn failure_page(reason: &str) -> String {
     page(
         "Sign-in failed",
         "Sign-in didn't complete",
-        &format!("{reason}. Return to Spotifast and try again."),
+        &format!("{reason}. Return to Sirensong and try again."),
         "#f5717f",
     )
 }

@@ -37,7 +37,7 @@
 #include <string.h>
 #include <wchar.h>
 
-#define EXECUTABLE L"spotifast.exe"
+#define EXECUTABLE L"sirensong.exe"
 
 /* Answers to one check before it gives up: a user interface that answers
    on its own must not keep it asking forever. */
@@ -45,12 +45,12 @@
 
 /* WixUI's ErrorDlg has room for about seven short lines; keep to five. */
 static const wchar_t REMOVE_QUESTION[] =
-    L"Spotifast is running, so it cannot be removed yet.\r\n\r\n"
+    L"Sirensong is running, so it cannot be removed yet.\r\n\r\n"
     L"Close it now? Yes ends it immediately; unsaved changes may be lost. "
     L"No checks again after you quit it. Cancel keeps it installed.";
 
 static const wchar_t UPDATE_QUESTION[] =
-    L"Spotifast is running, so it cannot be updated yet.\r\n\r\n"
+    L"Sirensong is running, so it cannot be updated yet.\r\n\r\n"
     L"Close it now? Yes ends it immediately; unsaved changes may be lost. "
     L"No checks again after you quit it. Cancel stops the setup.";
 

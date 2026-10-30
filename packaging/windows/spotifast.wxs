@@ -47,16 +47,20 @@
   <?endif?>
   <?define InnoUninstallKey = "Software\Microsoft\Windows\CurrentVersion\Uninstall\$(InnoAppId)_is1" ?>
   <?define InstallerKey = "Software\$(Identity)\Installer" ?>
+  <!-- The name people see; Identity stays Spotifast's, for the registry. -->
+  <?ifndef Shown ?>
+    <?define Shown = "Sirensong" ?>
+  <?endif ?>
 
   <Package
-    Name="$(Identity)"
+    Name="$(Shown)"
     Manufacturer="Carmine Paolino"
     Version="$(Version)"
     UpgradeCode="$(UpgradeCode)"
     Scope="perUser"
     Language="1033"
     Codepage="1252">
-    <SummaryInformation Description="$(Identity)" Comments="© 2026 Carmine Paolino" />
+    <SummaryInformation Description="$(Shown)" Comments="© 2026 Carmine Paolino" />
 
     <!-- Inside the transaction: if the new version fails, the old one comes back. -->
     <MajorUpgrade
@@ -90,7 +94,7 @@
 
     <StandardDirectory Id="LocalAppDataFolder">
       <Directory Id="UserProgramsFolder" Name="Programs">
-        <Directory Id="INSTALLFOLDER" Name="$(Identity)" />
+        <Directory Id="INSTALLFOLDER" Name="$(Shown)" />
       </Directory>
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder" />
@@ -156,11 +160,11 @@
     <ComponentGroup Id="Program" Directory="INSTALLFOLDER">
       <!-- A per-user component keeps its key path in HKCU. -->
       <Component Id="Program" Guid="$(ProgramComponent)">
-        <File Id="SpotifastExe" Source="$(Payload)\spotifast.exe" KeyPath="no" />
+        <File Id="SpotifastExe" Source="$(Payload)\sirensong.exe" KeyPath="no" />
         <File Id="Readme" Source="$(Payload)\README.md" KeyPath="no" />
         <File Id="License" Source="$(Payload)\LICENSE" KeyPath="no" />
         <!-- Tells the updater a Windows installer put Spotifast here. -->
-        <File Id="InstallerMarker" Source="$(Payload)\spotifast-installer.txt" KeyPath="no" />
+        <File Id="InstallerMarker" Source="$(Payload)\sirensong-installer.txt" KeyPath="no" />
         <RegistryValue Root="HKCU" Key="$(InstallerKey)" Name="InstallFolder" Type="string"
           Value="[INSTALLFOLDER]" KeyPath="yes" />
         <!--
@@ -178,6 +182,8 @@
         <RemoveFile Id="InnoUninstaller" Name="unins000.exe" On="install" />
         <RemoveFile Id="InnoUninstallLog" Name="unins000.dat" On="install" />
         <RemoveFile Id="InnoUninstallMessages" Name="unins000.msg" On="install" />
+        <RemoveFile Id="SpotifastProgram" Name="spotifast.exe" On="install" />
+        <RemoveFile Id="SpotifastInstallerMarker" Name="spotifast-installer.txt" On="install" />
         <RemoveRegistryKey Action="removeOnInstall" Root="HKCU" Key="$(InnoUninstallKey)" />
       </Component>
 
@@ -192,7 +198,7 @@
         </RegistryKey>
         <!-- Settings > Apps > Default apps lists Spotifast for spotify: links. -->
         <RegistryKey Root="HKCU" Key="Software\$(Identity)\Capabilities" ForceDeleteOnUninstall="yes">
-          <RegistryValue Name="ApplicationName" Type="string" Value="$(Identity)" />
+          <RegistryValue Name="ApplicationName" Type="string" Value="$(Shown)" />
           <RegistryValue Name="ApplicationDescription" Type="string" Value="A native Spotify client" />
           <RegistryValue Key="URLAssociations" Name="$(LinkScheme)" Type="string"
             Value="$(Identity).spotify" />
@@ -234,15 +240,17 @@
     <ComponentGroup Id="Shortcuts">
       <!-- Same name and place as the Inno Setup shortcut, which it replaces. -->
       <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder">
-        <RemoveFile Id="InnoStartMenuShortcut" Name="$(Identity).lnk" On="install" />
-        <Shortcut Id="StartMenuShortcut" Name="$(Identity)" Target="[#SpotifastExe]"
+        <RemoveFile Id="InnoStartMenuShortcut" Name="$(Shown).lnk" On="install" />
+        <RemoveFile Id="SpotifastStartMenuShortcut" Name="$(Identity).lnk" On="install" />
+        <Shortcut Id="StartMenuShortcut" Name="$(Shown)" Target="[#SpotifastExe]"
           WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKCU" Key="$(InstallerKey)" Name="StartMenuShortcut" Type="string"
           Value="1" KeyPath="yes" />
       </Component>
       <Component Id="DesktopShortcut" Directory="DesktopFolder" Condition='DESKTOPSHORTCUT = "1" OR REMOVE'>
-        <RemoveFile Id="InnoDesktopShortcut" Name="$(Identity).lnk" On="install" />
-        <Shortcut Id="DesktopShortcut" Name="$(Identity)" Target="[#SpotifastExe]"
+        <RemoveFile Id="InnoDesktopShortcut" Name="$(Shown).lnk" On="install" />
+        <RemoveFile Id="SpotifastDesktopShortcut" Name="$(Identity).lnk" On="install" />
+        <Shortcut Id="DesktopShortcut" Name="$(Shown)" Target="[#SpotifastExe]"
           WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKCU" Key="$(InstallerKey)" Name="DesktopShortcut" Type="string"
           Value="1" KeyPath="yes" />
@@ -250,13 +258,13 @@
       <!-- An Inno Setup desktop shortcut that is not wanted any more. -->
       <Component Id="RetiredDesktopShortcut" Directory="DesktopFolder"
         Condition='(DESKTOPSHORTCUT &lt;&gt; "1" AND INNOTASKS ~>&lt; "desktopicon") OR REMOVE'>
-        <RemoveFile Id="RetiredInnoDesktopShortcut" Name="$(Identity).lnk" On="install" />
+        <RemoveFile Id="RetiredInnoDesktopShortcut" Name="$(Shown).lnk" On="install" />
         <RegistryValue Root="HKCU" Key="$(InstallerKey)" Name="RetiredDesktopShortcut" Type="string"
           Value="1" KeyPath="yes" />
       </Component>
     </ComponentGroup>
 
-    <Feature Id="Spotifast" Title="$(Identity)" AllowAbsent="no">
+    <Feature Id="Spotifast" Title="$(Shown)" AllowAbsent="no">
       <ComponentGroupRef Id="Program" />
       <ComponentGroupRef Id="Shortcuts" />
     </Feature>
@@ -310,7 +318,7 @@
     <!-- The wizard: welcome, license, folder and desktop shortcut, install, launch. -->
     <WixVariable Id="WixUILicenseRtf" Value="$(LicenseRtf)" />
     <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
-    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch $(Identity)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch $(Shown)" />
     <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
     <Property Id="WixShellExecTarget" Value="[#SpotifastExe]" />
     <CustomAction Id="LaunchSpotifast" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixShellExec"

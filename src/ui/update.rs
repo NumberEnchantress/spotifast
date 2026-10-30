@@ -112,7 +112,7 @@ pub fn show(app: &mut App, ctx: &egui::Context) {
                         egui::Label::new(
                             RichText::new(gettext(
                                 locale,
-                                "Music playing on this computer will stop when Spotifast restarts.",
+                                "Music playing on this computer will stop when Sirensong restarts.",
                             ))
                             .font(theme::regular(14.0))
                             .color(palette.secondary),

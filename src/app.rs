@@ -882,7 +882,7 @@ const RECENTS_PAGE: u32 = 50;
 /// Who the desktop's media controls belong to. Links to Spotify, as
 /// `spotify:` URIs or web addresses, are what they may ask Spotifast to open.
 fn media_app() -> fastframe_now_playing::App {
-    let mut app = fastframe_now_playing::App::new("spotifast", "Spotifast");
+    let mut app = fastframe_now_playing::App::new("spotifast", "Sirensong");
     app.uri_schemes = vec!["spotify".into(), "https".into(), "http".into()];
     app
 }
@@ -943,7 +943,7 @@ impl fastframe_shell::Resident for App {
     /// window opens instead.
     fn start_hidden(&mut self) -> bool {
         if self.tray.is_none() || !self.settings.keep_playing_in_background {
-            log::info!("starting with the window: nothing would keep Spotifast in the tray");
+            log::info!("starting with the window: nothing would keep Sirensong in the tray");
             return false;
         }
         self.begin_hidden_start(Instant::now());
@@ -995,12 +995,12 @@ fn tray_config() -> fastframe_tray::Config {
     use fastframe_tray::MenuItem;
     fastframe_tray::Config {
         id: "spotifast",
-        title: "Spotifast".into(),
+        title: "Sirensong".into(),
         icon: util::app_icon_rgba,
         template_icon: Some(util::tray_template_rgba),
         themed_icon: true,
         menu: vec![
-            MenuItem::action(TRAY_SHOW, "Show or hide Spotifast"),
+            MenuItem::action(TRAY_SHOW, "Show or hide Sirensong"),
             MenuItem::Separator,
             MenuItem::action(TRAY_PLAY_PAUSE, play_pause_label(false)),
             MenuItem::action(TRAY_NEXT, "Next"),
@@ -1612,10 +1612,10 @@ impl App {
                 }
             }
             Err(error) => {
-                log::warn!("couldn't change how Spotifast starts at login: {error}");
+                log::warn!("couldn't change how Sirensong starts at login: {error}");
                 self.toast_error(gettext(
                     self.locale,
-                    "Couldn't change how Spotifast starts with your computer.",
+                    "Couldn't change how Sirensong starts with your computer.",
                 ));
                 // Show what the system really has.
                 self.autostart_wanted = None;
@@ -8973,7 +8973,7 @@ impl App {
                 self.pending_link = None;
                 self.toast_error(gettext(
                     self.locale,
-                    "Spotifast cannot open this kind of Spotify link",
+                    "Sirensong cannot open this kind of Spotify link",
                 ));
             }
         }
@@ -10884,8 +10884,8 @@ impl App {
                 ngettext(
                     self.locale,
                     // Translators: Keep {count} exactly as written. It becomes the number of picked files that could not be added.
-                    "Couldn't add {count} file. Spotifast plays MP3, FLAC, MP4 and M4P files.",
-                    "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P files.",
+                    "Couldn't add {count} file. Sirensong plays MP3, FLAC, MP4 and M4P files.",
+                    "Couldn't add {count} files. Sirensong plays MP3, FLAC, MP4 and M4P files.",
                     copied.failed,
                 )
                 .replace("{count}", &copied.failed.to_string()),
@@ -14470,16 +14470,16 @@ fn increase_playlist_total(playlist: &mut Playlist, added: u32) {
 
 /// This fork's own version, after Spotifast's: one more each round of
 /// changes it ships.
-pub const FORK_VERSION: &str = "mod 13";
+pub const FORK_VERSION: &str = "mod 14";
 
 /// What `vacuum_built` holds while Vacuum is off.
 const VACUUM_OFF: u64 = 0;
 
-/// The window's title: the playing song, if any, then Spotifast's version
-/// and this fork's.
+/// The window's title: the playing song, if any, then Sirensong's version
+/// and the Spotifast release it is built on.
 fn window_title(playing: Option<(String, String)>) -> String {
     let versions = format!(
-        "Spotifast {} \u{b7} {FORK_VERSION}",
+        "Sirensong {FORK_VERSION} \u{b7} Spotifast {}",
         env!("CARGO_PKG_VERSION")
     );
     match playing {
@@ -23294,7 +23294,7 @@ mod tests {
     #[test]
     fn the_title_carries_both_versions() {
         let versions = format!(
-            "Spotifast {} \u{b7} {FORK_VERSION}",
+            "Sirensong {FORK_VERSION} \u{b7} Spotifast {}",
             env!("CARGO_PKG_VERSION")
         );
         assert_eq!(window_title(None), versions);
@@ -30983,7 +30983,7 @@ mod tests {
                 "unknown",
                 // Local playback is this computer, which Spotify has not
                 // named because it is not a remote device.
-                "Spotifast",
+                "Sirensong",
             ]
         );
         // No devices seen yet is an empty array, not an empty string, so a

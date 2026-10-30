@@ -21,7 +21,7 @@ nfpm:
   license: MIT
   contents:
   # A glob source makes nFPM append its basename to the destination directory.
-  - src: "@PAYLOAD@/*-v@VERSION@-@TARGET@/spotifast"
+  - src: "@PAYLOAD@/*-v@VERSION@-@TARGET@/sirensong"
     dst: "/usr/bin/"
     file_info:
       mode: 493

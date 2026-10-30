@@ -1,7 +1,7 @@
 ---
 redirect_from: /using-fastpotify/
 title: Everyday Use
-description: Play music, arrange playlists, find lyrics, and make Spotifast your own.
+description: Play music, arrange playlists, find lyrics, and make Sirensong your own.
 nav_order: 3
 ---
 
@@ -41,7 +41,7 @@ unavailable, the session read fails, or the grant check fails, the same shelf
 shows approximate matches found through the shared Web API. Shared access can
 be rate-limited. If a refresh fails, cards already on screen remain available;
 **Retry** is shown when the first load fails. Spotify DJ is left out because
-Spotifast cannot play its special context.
+Sirensong cannot play its special context.
 
 **Your top mixes** follows Made for you with the artist, genre and decade
 mixes Spotify builds from your listening, in Spotify's order. It comes from
@@ -120,7 +120,7 @@ is still loading, it selects the songs loaded so far.
 `Ctrl+C` (`Cmd+C`) copies the selected songs' `open.spotify.com` links, one
 per line, ready to paste into another playlist, a message, or Spotify's own
 apps. `Ctrl+V` (`Cmd+V`) in a playlist you can edit adds every song link on
-the clipboard to its end. Links copied from Spotifast add their rows at
+the clipboard to its end. Links copied from Sirensong add their rows at
 once; links from elsewhere appear as soon as Spotify names the songs. Songs
 already in the playlist ask before being added twice, and links that are
 not songs, such as albums, are skipped.
@@ -190,13 +190,13 @@ see it enlarged, at the largest size Spotify has. Click anywhere or press
 Since 0.8.0, choose **Refresh** in a playlist's **…** menu to reload
 its details and songs, including changes made in another Spotify client. The
 menu item reads **Refreshing…** and is disabled while loading. Current songs,
-filtering and sorting stay visible. Spotifast finishes saving your edits before
+filtering and sorting stay visible. Sirensong finishes saving your edits before
 loading changes from Spotify. If loading fails, your songs stay visible and
 you can choose **Retry**.
 
 A podcast's **…** menu has the same **Refresh**. It asks Spotify for the
 podcast again instead of reusing the episodes loaded earlier, so new
-episodes appear without restarting Spotifast. The episodes already shown
+episodes appear without restarting Sirensong. The episodes already shown
 stay until the new list arrives.
 
 ## Playing from the sidebar
@@ -316,17 +316,17 @@ The `spotifast` command controls the copy already running, on every
 platform. Each verb prints nothing on success:
 
 ```
-spotifast play-pause          spotifast volume 40
-spotifast play                spotifast volume-up [percent]
-spotifast pause               spotifast volume-down [percent]
-spotifast next                spotifast mute
-spotifast previous            spotifast shuffle [on|off]
-spotifast seek 15             spotifast repeat [off|context|track]
-spotifast seek -- -15         spotifast like
-spotifast seek-to 90          spotifast play-uri spotify:playlist:37i9…
-spotifast show                spotifast transfer <device-id>
-spotifast now-playing [--raw] spotifast devices [--raw]
-spotifast play-search <words> spotifast play-search --kind artist <name>
+sirensong play-pause          sirensong volume 40
+sirensong play                sirensong volume-up [percent]
+sirensong pause               sirensong volume-down [percent]
+sirensong next                sirensong mute
+sirensong previous            sirensong shuffle [on|off]
+sirensong seek 15             sirensong repeat [off|context|track]
+sirensong seek -- -15         sirensong like
+sirensong seek-to 90          sirensong play-uri spotify:playlist:37i9…
+sirensong show                sirensong transfer <device-id>
+sirensong now-playing [--raw] spotifast devices [--raw]
+sirensong play-search <words> spotifast play-search --kind artist <name>
 ```
 
 `shuffle` and `repeat` toggle when used without an argument. Pass a state to
@@ -345,46 +345,35 @@ loading. New fields are appended to keep older scripts working.
 marked with `*`. `--raw` prints JSON. The command refreshes the device list,
 so the first call after startup may be empty. Run it again if needed.
 
-A verb exits non-zero when Spotifast is not running.
+A verb exits non-zero when Sirensong is not running.
 
-`spotifast <link>` opens a Spotify link, a `spotify:` URI or an
+`sirensong <link>` opens a Spotify link, a `spotify:` URI or an
 `open.spotify.com` address, in the running app, or starts the app on it.
-This is what the desktop runs when a link is clicked. On Linux, Spotifast is
+This is what the desktop runs when a link is clicked. On Linux, Sirensong is
 also an MPRIS player, so `playerctl --player=spotifast play-pause` and media
 keys work too.
 
 Launchers such as Raycast or Alfred, and the Stream Deck plugin, can use
-these commands. They reach Spotifast through a private channel only your user
+these commands. They reach Sirensong through a private channel only your user
 can open (on Windows, a loopback port that answers only requests carrying a
 random token). Use the command rather than the channel itself.
 
 ## Updates
 
-The Windows installer, Mac app, AppImage, and portable Windows and Linux
-downloads update from inside Spotifast. Click the green update button to download a
-release, then choose when to restart and install it. Settings can enable
-automatic background downloads; restarting always waits for your click.
-Closing the update window keeps a download running. You can also check for a
-new release from Settings, or on macOS from the application menu.
-**Release notes** in **Settings > About** opens the GitHub release page of
-the version you are running, to read what changed.
+Sirensong is a fork of Spotifast, and on Windows and Linux it does not
+install updates itself (a Mac build still would; see the notes). It
+still tells you when upstream Spotifast has a new release: the green update
+button, or **Check for updates** in Settings, shows that release with a
+**Download from GitHub** link. Installing it would put Spotifast beside
+Sirensong, with folders of its own, so new Sirensong builds come from this
+fork's repository instead. **Release notes** in **Settings > About** opens
+the GitHub release page of the Spotifast version Sirensong is built on.
 
-Spotifast checks each download before installing it. An interrupted or damaged
-download leaves the running app alone, and a failed startup restores the
-previous installation. Updates keep your settings and sign-ins. On macOS,
-move Spotifast to Applications before updating it.
-
-Package-managed installations update through their package manager,
-including Homebrew, Flatpak, apt, dnf, pacman, Nix, and Cargo. Other
-installations use the [Download page](/download/). Portable archives
-identify themselves with `spotifast-portable.txt`. On Windows, a portable
-copy keeps its settings, state and caches in the `spotifast-data` folder
-next to it, which updates leave as it is (see
-[portable copies](/settings-and-files/#portable-copies)). The AppImage
-updates itself when you own it and can write to its folder, such as
-`~/Applications`; one in a system folder or someone else's says so and
-links to the release instead. AppImage updaters such as AppImageUpdate and
-Gear Lever work as well, from the update information inside it.
+Package-managed installations of Spotifast update through their package
+manager. Portable archives identify themselves with `sirensong-portable.txt`.
+On Windows, a portable copy keeps its settings, state and caches in the
+`sirensong-data` folder next to it (see
+[portable copies](/settings-and-files/#portable-copies)).
 
 ## Library order
 
@@ -395,7 +384,7 @@ With more than one kind listed, the order menu offers the orders they all
 take (**Recently played** and **Name**, and **Recently added** when every one
 has dates), shared by all of them, and two layouts: **Group by kind** keeps
 each kind together, a thin line between them, playlists first with their
-folders; **Mix together** lists everything in one list. Spotifast remembers
+folders; **Mix together** lists everything in one list. Sirensong remembers
 the choice, and which kinds are ticked. One kind alone keeps its own order, Spotify's or yours included;
 rows of several kinds cannot be dragged into a new order. A folder you open
 lists only what it holds, whatever else is ticked.
@@ -435,23 +424,23 @@ Inside an opened folder, a new **Folder** from the **+** button goes inside it,
 and a playlist dragged below the last row stays in it. A folder's subtitle
 counts the playlists and folders it holds itself, as Spotify's does.
 Set up playback on this computer to load that order. Your playlists stay
-visible while it loads, and Spotifast remembers the last order for your account.
-When you rearrange your library in another Spotify app, Spotifast picks up the
+visible while it loads, and Sirensong remembers the last order for your account.
+When you rearrange your library in another Spotify app, Sirensong picks up the
 new order when you switch back to it.
-Items you pin in Spotifast remain at the top, including items from a closed
+Items you pin in Sirensong remain at the top, including items from a closed
 folder. In Spotify custom order, with playback set up on this computer,
 dragging a playlist or folder moves it in your Spotify library, inside the
 folder of the row it lands above, also with **By You** on. Other sorts and a
-search only change the order in Spotifast.
+search only change the order in Sirensong.
 
-With playback set up, folders can be changed from Spotifast too. The **+**
+With playback set up, folders can be changed from Sirensong too. The **+**
 button offers a new **Folder**. A playlist's menu has **Move to folder**,
 with a new folder, any other folder (the playlist goes first inside it), or
 **Remove from folder**, which puts it just above the folder it leaves. A
 folder's menu renames it, makes a folder inside it, moves it, or removes
 it. Removing a folder keeps its playlists, one level up; it never removes a
 playlist from your library. Each change shows at once and is sent to Spotify, and if
-Spotify refuses it, Spotifast says why and shows your library as Spotify
+Spotify refuses it, Sirensong says why and shows your library as Spotify
 holds it.
 
 With playback set up, pins are the ones in your Spotify account, the same as
@@ -459,7 +448,7 @@ in Spotify's own apps, and **Pin to top** and **Unpin** change them there.
 Folders can be pinned from their menu or by dragging them into the pinned
 group; a pinned folder sits at the top with its playlists. Spotify pins only
 items that are not inside a folder and caps how many you can have; when it
-refuses a pin, Spotifast says why. Spotify keeps the order of its pins, so
+refuses a pin, Sirensong says why. Spotify keeps the order of its pins, so
 dragging within the pinned group does not change it. Until playback is set
 up, and if Spotify's pins cannot be read, the pins saved on this computer
 are used.
@@ -479,7 +468,7 @@ Liked Songs starts pinned at the top. Drag it between pins to choose its
 position, or below the pin block to unpin it and put it in **Local custom
 order**. Other pins can sit above it. Its right-click menu also offers **Unpin**
 and **Pin to top**; pinning adds it after your existing pins. The arrangement
-survives restarting Spotifast and switching sort choices.
+survives restarting Sirensong and switching sort choices.
 
 When unpinned, Liked Songs follows **Name** or **Recently played** like the other
 rows. In **Spotify custom order**, it comes first after the pins, where
@@ -499,14 +488,14 @@ bar's empty space switches it, as Winamp's visualizer did: off, then
 Spectrum, then Waveform, then off again. **Frame rate** in **Settings >
 Appearance** sets how often it and the mini player's analyser draw: 30, 60
 (the default), the rate of the screen showing the window, or Uncapped,
-which follows the display. They draw at half that rate while Spotifast's
+which follows the display. They draw at half that rate while Sirensong's
 window is out of focus, at most 30 frames a second while the system saves
 energy, and not at all while nobody can see the window: minimised, in the
 tray, with the display off or the screen locked. MilkDrop has its own frame
 rate. Disable **Click player bar to change
 visualizer** in **Settings > Appearance** to prevent accidental changes.
 
-Spotifast follows the system when it asks for less motion: **Animation
+Sirensong follows the system when it asks for less motion: **Animation
 effects** turned off in Windows, **Reduce motion** on macOS, or GNOME's
 **Animations** turned off. Its animations then show where they end at once:
 the player bar's colour changes without fading, lyrics jump to the sung line,
@@ -519,12 +508,12 @@ bullet; each artist name remains a separate link.
 ## Starting with your computer
 
 **Settings > Playback on this computer > Start with your computer** opens
-Spotifast when you log in. **With the window** opens it as you would;
+Sirensong when you log in. **With the window** opens it as you would;
 **In the tray** starts it without a window, ready for media keys and the tray
 icon. **Off** leaves your login alone.
 
 The setting is your system's own list of what starts at login, read back each
-time Settings opens, so turning Spotifast off there (System Settings on macOS,
+time Settings opens, so turning Sirensong off there (System Settings on macOS,
 Task Manager's Startup apps on Windows, your desktop's autostart settings on
 Linux) shows here too.
 
@@ -536,20 +525,20 @@ Linux) shows here too.
   Items** when it holds the item for approval; the row says so until then.
   It needs macOS 13 or later and the app from the disk image or Homebrew.
 - **Flatpak** asks the desktop's background portal, which may ask you first.
-  A change made later in the desktop's own settings is not seen by Spotifast.
-- If Spotifast is already running when the login entry runs, nothing happens:
+  A change made later in the desktop's own settings is not seen by Sirensong.
+- If Sirensong is already running when the login entry runs, nothing happens:
   it stays where it is.
 
 ## Windows taskbar controls
 
-Since 0.8.0, hovering Spotifast's taskbar button offers **Previous**,
+Since 0.8.0, hovering Sirensong's taskbar button offers **Previous**,
 **Play/Pause**, and **Next** beneath its window preview. They control the same
 playing device as the player bar, update immediately, and are disabled when
 there is no song or the device refuses controls. The icons follow the system
 appearance and display scaling.
 
 Since 0.8.0, clicking or double-clicking the Windows tray icon shows
-and raises Spotifast. Use **Show or hide Spotifast** in the tray menu to hide
+and raises Sirensong. Use **Show or hide Sirensong** in the tray menu to hide
 it again.
 
 Closing to the tray removes the window and its preview. Reopening the main
@@ -560,7 +549,7 @@ is closed.
 For the Winamp mini player, turn off **Show in taskbar** under
 **Settings > Winamp skins**, or **Show in taskbar** in its options menu.
 The choice survives restarts. The mini player stays visible; the tray icon,
-**Ctrl+M**, the skin logo, and launching Spotifast again remain ways to reach
+**Ctrl+M**, the skin logo, and launching Sirensong again remain ways to reach
 the app. Returning to the main window always restores its taskbar button.
 Changing the option while the mini player is open replaces that window while
 playback continues. This setting is available on Windows and in Linux X11
@@ -578,16 +567,16 @@ position left on an unplugged display.
 
 ## macOS menu bar and Dock menu
 
-Click Spotifast's menu-bar icon to open its menu. From there you can show or
-hide the window, control playback, or quit Spotifast. The menu opens from
+Click Sirensong's menu-bar icon to open its menu. From there you can show or
+hide the window, control playback, or quit Sirensong. The menu opens from
 either a primary or secondary click, as other macOS menu-bar items do.
 It stays available with the main window open, with the Winamp mini player,
 and after closing the window to the menu bar.
 
-Spotifast also shows its Dock icon when run directly through Cargo, without
+Sirensong also shows its Dock icon when run directly through Cargo, without
 an installed app bundle.
 
-Right-click or Control-click Spotifast's Dock icon for **Play** (or **Pause**
+Right-click or Control-click Sirensong's Dock icon for **Play** (or **Pause**
 while music plays), **Next**, and **Previous**, above the standard Dock items.
 They control the same playing device as the player bar and keep working while
 the window is closed to the menu bar.
@@ -595,16 +584,16 @@ the window is closed to the menu bar.
 ### Menu bar only
 
 Turn off **Show in Dock** under **Settings > Playback on this computer** to
-run Spotifast from the menu bar alone. The Dock icon goes at once, without a
-restart, and the window stays open in front. Spotifast then also leaves the
+run Sirensong from the menu bar alone. The Dock icon goes at once, without a
+restart, and the window stays open in front. Sirensong then also leaves the
 Cmd+Tab switcher and shows no menu bar of its own while you use it, as other
 menu-bar apps do. Its keyboard shortcuts, including Cmd+Q, Cmd+comma and
 copy and paste, keep working in the window.
 
 The menu-bar icon stays: it is how you show the window again after closing
-it, and how you quit while the window is closed. Opening Spotifast again from
+it, and how you quit while the window is closed. Opening Sirensong again from
 Finder or Launchpad also brings the window back. Turn the setting on to put
-Spotifast back in the Dock. The choice survives restarts, and Spotifast
+Sirensong back in the Dock. The choice survives restarts, and Sirensong
 starts without the Dock icon; the Dock may show it for a moment as the app
 launches. This option is only on macOS.
 
@@ -616,7 +605,7 @@ others.
 Use your desktop's window rule or shortcut instead. In KDE Plasma, configure
 **Keep Window Above Others** under **Settings > Keyboard > Shortcuts >
 Window Management**. Your saved preference remains available when you use
-Spotifast on Windows, macOS, or X11 again.
+Sirensong on Windows, macOS, or X11 again.
 
 Since 0.8.0, the top bar reserves room for the device and update
 badges beside Search. In narrow windows those badges show only their icons.
@@ -630,7 +619,7 @@ picker or update window.
 
 ## MacBook notch widget
 
-On macOS machines equipped with a display notch, Spotifast displays an
+On macOS machines equipped with a display notch, Sirensong displays an
 interactive Now Playing floating island under the notch when the main
 window is minimized, in the background, or closed to the tray.
 
@@ -649,7 +638,7 @@ Settings under **Playback on this computer**.
 ## Recent
 
 The queue panel's second tab combines Spotify's history with tracks played
-through Spotifast, which Spotify does not record.
+through Sirensong, which Spotify does not record.
 
 Since 0.8.0, choosing any Recent row starts that song on its own,
 and the player bar shows the selection immediately while playback starts.
@@ -663,7 +652,7 @@ time; pausing or seeking the current play does not create another entry.
 The same play reported both locally and by Spotify appears once.
 
 The local list is stored in `history.json` and is never uploaded. Each play
-keeps how long you listened and where it was played from. Spotifast keeps
+keeps how long you listened and where it was played from. Sirensong keeps
 the newest 500; turn on **Keep every play** in Settings → Storage to keep
 them all, the older ones in a `plays` folder beside it. Settings → Storage
 shows where they are and has a **Clear history** button, which asks first.
@@ -671,7 +660,7 @@ The Home map's **Size by listening** sizes each playlist, album and folder
 by this listening time.
 
 On Windows, the main window's minimize, maximize, and close buttons share the
-top bar with Spotifast's controls. Drag an empty part of that bar to move or
+top bar with Sirensong's controls. Drag an empty part of that bar to move or
 snap the window, and drag a window edge or corner to resize it.
 
 ## Choosing the audio output
@@ -686,17 +675,17 @@ in `settings.json`, by the device's own id, so it survives renames and
 reordering. While a saved output is unplugged, music plays through the system
 default, and the output stays listed so you can see and change the choice.
 
-On Linux, Spotifast plays through PipeWire when it is running, otherwise
+On Linux, Sirensong plays through PipeWire when it is running, otherwise
 through a PulseAudio server, and otherwise straight to ALSA. The picker lists
-that sound system's outputs. Spotifast 0.13.3 and earlier saved an output by
+that sound system's outputs. Sirensong 0.13.3 and earlier saved an output by
 its name: a name an output still has is kept, and saved by its id the next
 time music plays there. One that no output has any more, such as ALSA's
 **PipeWire Sound Server**, plays through the system default until you choose
 again.
 
-Volume mixers show the stream as **Spotifast**, with its icon, playing
+Volume mixers show the stream as **Sirensong**, with its icon, playing
 **Spotify playback**, on PipeWire and PulseAudio. The mixer remembers its
-volume for Spotifast alone.
+volume for Sirensong alone.
 
 ## Listening activity
 
@@ -717,7 +706,7 @@ controls keep their room; widen the window to bring it back.
 
 ## Sleep while playing
 
-While music plays on this computer, Spotifast keeps it from going to sleep
+While music plays on this computer, Sirensong keeps it from going to sleep
 on its own, so a long playlist is not cut off by the idle timer. The display
 still turns off and the screen still locks as usual, and you can still put
 the computer to sleep yourself or close the lid. Pausing or stopping, or
@@ -728,11 +717,11 @@ depends on the desktop honouring the request; GNOME and KDE do.
 ## Google Cast playback
 
 Google Cast speakers and speaker groups appear in the device picker. Enable
-local playback first, then select the speaker. Since 0.13.1, Spotifast first
+local playback first, then select the speaker. Since 0.13.1, Sirensong first
 checks that the speaker is a genuine Google Cast device, as Chrome does (0.13.0
 did not), then starts Spotify on
 it, and the speaker plays like any other Spotify Connect device. A device that
-fails the check gets nothing, and Spotifast says it could not prove it is
+fails the check gets nothing, and Sirensong says it could not prove it is
 genuine.
 
 ## Radio
@@ -766,13 +755,13 @@ counts out. The column needs a window wide enough for it.
 ## Upcoming albums
 
 Open a `spotify:prerelease:` URI or an `open.spotify.com/prerelease/` link
-with Spotifast to see the artwork, release countdown and track-list preview.
+with Sirensong to see the artwork, release countdown and track-list preview.
 This requires local playback authorization. Pre-save adds the resolved album
 to your Spotify library and confirms its saved state. Unavailable preview
 tracks cannot start playback.
 
 The browser's **Open in app** action uses the registered `spotify:` handler.
-Pasting an HTTPS address into the browser opens Spotify's website; Spotifast
+Pasting an HTTPS address into the browser opens Spotify's website; Sirensong
 does not take over HTTP or HTTPS associations.
 
 ## Playlist covers
@@ -791,19 +780,20 @@ use a personal Spotify app, reconnect it in Settings as well.
 
 ## This fork's version
 
-The window title, and the taskbar's, end with Spotifast's version and this
-fork's, such as `Spotifast 0.14.1 · mod 13`, after the playing song. With
+The window title, and the taskbar's, end with Sirensong's version and the
+Spotifast release it is built on, such as `Sirensong mod 14 · Spotifast 0.14.1`,
+after the playing song. With
 **Custom title bar** on the window has no title, so **Show version**, in
-Settings → Appearance, puts `0.14.1 · mod 13` in the top bar instead, beside
+Settings → Appearance, puts `0.14.1 · mod 14` in the top bar instead, beside
 the update button; in a narrow window it gives way before anything else
 there.
 
 ## Local files
 
-Spotifast plays songs from this computer only where you point it. In
+Sirensong plays songs from this computer only where you point it. In
 **Settings → Playback on this computer → Local files**, **Add folder** adds a
 folder, searched with its subfolders, and **Add files** picks songs one at a
-time. Picked songs are copied into Spotifast's own folder, so the originals can
+time. Picked songs are copied into Sirensong's own folder, so the originals can
 move or go; a song already there is not copied twice. Each folder is listed
 under the row, with buttons to open it or stop using it, and **Songs you
 added** opens the copies. Nothing is read before you add something.
@@ -813,7 +803,7 @@ Liked Songs. It lists every song found, by artist, album and title, with its
 cover and lyrics from the file, and plays them on this computer, even while
 another device was playing. **Look for new songs** reads the folders again
 after you add or remove files; like adding a folder, it restarts local
-playback. Spotifast plays MP3, FLAC, MP4 and M4P files. The local files your
+playback. Sirensong plays MP3, FLAC, MP4 and M4P files. The local files your
 playlists list play from the same folders.
 
 ## Vacuum

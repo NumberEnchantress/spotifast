@@ -3,7 +3,7 @@
 Usage: python packaging/windows/test-msi.py [path/to/ISCC.exe]
 
 Runs on Windows with what build-msi.py needs (WiX 5 and the MSVC tools for
-this machine, which also build a harmless stand-in for spotifast.exe that
+this machine, which also build a harmless stand-in for sirensong.exe that
 never reaches Spotify). Every package it builds has an identity of its own:
 another upgrade code, link scheme, registry keys, folder and shortcut names,
 so nothing it does can touch a real Spotifast installation. Inno Setup's
@@ -44,6 +44,7 @@ UPGRADE_CODE = "{%s}" % str(uuid.uuid4()).upper()
 INNO_APP_ID = "{%s}" % str(uuid.uuid4()).upper()
 DEFINES = [
     f"Identity={IDENTITY}",
+    f"Shown={IDENTITY}",
     f"LinkScheme={SCHEME}",
     f"UpgradeCode={UPGRADE_CODE}",
     "ProgramComponent={%s}" % str(uuid.uuid4()).upper(),
@@ -54,7 +55,7 @@ INNO_KEY = rf"Software\Microsoft\Windows\CurrentVersion\Uninstall\{INNO_APP_ID}_
 LINK_COMMAND = rf"Software\Classes\{SCHEME}\shell\open\command"
 OWN_LINK_COMMAND = rf"Software\Classes\{IDENTITY}.spotify\shell\open\command"
 FIRST, SECOND = "1.0.0", "1.0.1"
-FILES = {"spotifast.exe", "README.md", "LICENSE", "spotifast-installer.txt"}
+FILES = {"sirensong.exe", "README.md", "LICENSE", "sirensong-installer.txt"}
 
 PAYLOAD_SOURCE = r"""
 #include <stdio.h>
@@ -83,7 +84,7 @@ def architecture():
 
 
 def build_payload(folder, version):
-    """A stand-in spotifast.exe carrying VERSION in its version resource."""
+    """A stand-in sirensong.exe carrying VERSION in its version resource."""
     folder.mkdir(parents=True)
     numbers = version.replace(".", ",") + ",0"
     (folder / "payload.c").write_text(PAYLOAD_SOURCE)
@@ -107,15 +108,15 @@ END
 """)
     for command in (
         ["rc", "/nologo", "/fo", "payload.res", "payload.rc"],
-        ["cl", "/nologo", "/O1", "payload.c", "payload.res", "/Fespotifast.exe"],
+        ["cl", "/nologo", "/O1", "payload.c", "payload.res", "/Fesirensong.exe"],
     ):
         subprocess.run(command, cwd=folder, check=True, timeout=120)
     payload = folder / "payload"
     payload.mkdir()
-    shutil.copy2(folder / "spotifast.exe", payload)
+    shutil.copy2(folder / "sirensong.exe", payload)
     for name in ("README.md", "LICENSE"):
         shutil.copy2(REPO / name, payload)
-    shutil.copy2(HERE / "spotifast-installer.txt", payload)
+    shutil.copy2(HERE / "sirensong-installer.txt", payload)
     return payload
 
 
@@ -123,7 +124,9 @@ def build_inno_setup(root, binary):
     """spotifast.iss as it ships, under the test identity."""
     script = (HERE / "spotifast.iss").read_text(encoding="utf-8-sig")
     for old, new in (
-        ('#define AppName "Spotifast"', f'#define AppName "{IDENTITY}"'),
+        ('#define AppName "Sirensong"', f'#define AppName "{IDENTITY}"'),
+        ('Name: "{autoprograms}\\Spotifast.lnk"', 'Name: "{autoprograms}\\' + IDENTITY + 'Old.lnk"'),
+        ('Name: "{autodesktop}\\Spotifast.lnk"', 'Name: "{autodesktop}\\' + IDENTITY + 'Old.lnk"'),
         ('#define AppIdentity "Spotifast"', f'#define AppIdentity "{IDENTITY}"'),
         ("AppId={{FCED1EA0-EBF5-4C32-BA3B-A3AD724BACC3}", "AppId={" + INNO_APP_ID),
         ("Spotifast.spotify", f"{IDENTITY}.spotify"),
@@ -224,7 +227,7 @@ class PackageTest(unittest.TestCase):
             cls.payloads[version] = build_payload(cls.root / f"payload-{version}", version)
             cls.packages[version] = cls.root / f"{IDENTITY}-{version}.msi"
             build_msi.build(cls.payloads[version], cls.packages[version], version, architecture(), DEFINES)
-        cls.inno = build_inno_setup(cls.root, cls.payloads[FIRST] / "spotifast.exe") if ISCC else None
+        cls.inno = build_inno_setup(cls.root, cls.payloads[FIRST] / "sirensong.exe") if ISCC else None
         cls.start_menu = Path(os.environ["APPDATA"], "Microsoft", "Windows", "Start Menu", "Programs", f"{IDENTITY}.lnk")
         cls.desktop = known_folder(0x10) / f"{IDENTITY}.lnk"  # CSIDL_DESKTOPDIRECTORY
         cls.default_folder = Path(os.environ["LOCALAPPDATA"], "Programs", IDENTITY)
@@ -303,7 +306,7 @@ class PackageTest(unittest.TestCase):
     def portable_copy(self):
         folder = self.root / uuid.uuid4().hex / "portable"
         folder.mkdir(parents=True)
-        return Path(shutil.copy2(self.payloads[FIRST] / "spotifast.exe", folder))
+        return Path(shutil.copy2(self.payloads[FIRST] / "sirensong.exe", folder))
 
     def contents(self):
         return {path.name: path.read_bytes() for path in self.folder.iterdir() if path.is_file()}
@@ -311,13 +314,13 @@ class PackageTest(unittest.TestCase):
     def assertInstalled(self, version):
         self.assertEqual({path.name for path in self.folder.iterdir() if path.is_file()}, FILES)
         self.assertEqual(
-            (self.folder / "spotifast.exe").read_bytes(),
-            (self.payloads[version] / "spotifast.exe").read_bytes(),
+            (self.folder / "sirensong.exe").read_bytes(),
+            (self.payloads[version] / "sirensong.exe").read_bytes(),
         )
-        self.assertEqual((self.folder / "spotifast-installer.txt").read_text().strip(), "spotifast-installer-v1")
+        self.assertEqual((self.folder / "sirensong-installer.txt").read_text().strip(), "sirensong-installer-v1")
         self.assertEqual(len(installed_products()), 1)
         self.assertEqual(value(INSTALLER, "InstallFolder"), f"{self.folder}\\")
-        command = f'"{self.folder}\\spotifast.exe" "%1"'
+        command = f'"{self.folder}\\sirensong.exe" "%1"'
         self.assertEqual(value(LINK_COMMAND), command)
         self.assertEqual(value(OWN_LINK_COMMAND), command)
         self.assertEqual(value(rf"Software\{IDENTITY}\Capabilities\URLAssociations", SCHEME), f"{IDENTITY}.spotify")
@@ -333,7 +336,7 @@ class PackageTest(unittest.TestCase):
         (staging / "previous").mkdir(parents=True)
         (staging / "helper.exe").write_bytes(b"helper")
         (staging / "result.txt").write_text("Updated to 1.0.0")
-        backup = staging / "previous" / "spotifast.exe"
+        backup = staging / "previous" / "sirensong.exe"
         backup.write_bytes(b"previous")
         os.chmod(backup, 0o444)
         return staging
@@ -422,7 +425,7 @@ class PackageTest(unittest.TestCase):
 
     def test_running_copy_stops_a_silent_uninstall_before_anything_goes(self):
         self.assertSucceeded(self.install_like_the_updater(FIRST))
-        process = self.start(self.folder / "spotifast.exe")
+        process = self.start(self.folder / "sirensong.exe")
         before = self.contents()
         self.assertNotEqual(self.uninstall(FIRST), 0)
         self.assertEqual(self.contents(), before)
@@ -439,14 +442,14 @@ class PackageTest(unittest.TestCase):
 
     def test_missing_executable_does_not_block_uninstall(self):
         self.assertSucceeded(self.install_like_the_updater(FIRST))
-        (self.folder / "spotifast.exe").unlink()
+        (self.folder / "sirensong.exe").unlink()
         self.assertSucceeded(self.uninstall(FIRST))
         self.assertRemoved()
 
     def test_update_closes_only_the_installed_copy_and_keeps_choices(self):
         self.assertSucceeded(self.install(FIRST, INSTALLFOLDER=self.folder, DESKTOPSHORTCUT=1))
         self.assertTrue(self.desktop.exists())
-        installed = self.start(self.folder / "spotifast.exe")
+        installed = self.start(self.folder / "sirensong.exe")
         portable = self.start(self.portable_copy())
         self.assertSucceeded(self.install_like_the_updater(SECOND))
         installed.wait(timeout=10)
@@ -505,7 +508,7 @@ class PackageTest(unittest.TestCase):
 
     def test_running_inno_copy_is_closed_before_the_takeover(self):
         self.install_with_inno()
-        installed = self.start(self.folder / "spotifast.exe")
+        installed = self.start(self.folder / "sirensong.exe")
         self.assertSucceeded(self.install_like_the_updater(SECOND))
         installed.wait(timeout=10)
         self.assertInstalled(SECOND)

@@ -81,7 +81,51 @@ record its own decisions and three rounds of adversarial grading.
 - **Kept:** `game.json` in the state folder; the game's setup is kept there,
   not as a setting.
 
+### Sirensong, 29 October 2026
+
+- **Decision (the user):** a full rename to Sirensong: the binary, the data
+  folders (migrated), the installer and all text.
+- **The binary** is `sirensong` (`sirensong.exe`); the package and library
+  keep the name `spotifast`, so the code's paths and history stay readable.
+- **Folders:** `paolino/sirensong` on every platform, and `sirensong-data`
+  for a portable copy. The first start of an installed copy brings over the
+  old config and state: the old state folder records its credential profile
+  first, so the copy keeps the sign-in. Both folders are copied in full beside
+  their places before anything moves in, and `migrated-from-spotifast` is
+  written in the new state last; `migrating-from-spotifast`, written before
+  the copy starts, makes every later start try again, replacing what an
+  unfinished attempt left. A first start with no Spotifast folders, or with
+  Sirensong's own data and no attempt under way, writes the marker and
+  brings nothing over, so Sirensong's data is never replaced. Then the cache moves, the
+  window's place is copied, the Windows start at login moves from the name
+  Spotifast to Sirensong (on Linux, outside Flatpak, it is pointed at the
+  new program), and a Connect name left at Spotifast's default becomes
+  Sirensong. A portable `spotifast-data` folder is not brought over.
+- **Updates:** Sirensong never installs upstream Spotifast over itself. The
+  fork's installers carry `sirensong-installer.txt`, which the updater
+  (still configured for upstream releases) does not take for an install it
+  may update, and AppImages do not update themselves. It still tells you of
+  upstream releases, so its three update messages name Spotifast.
+- **Versions:** shown as `Sirensong mod 14 · Spotifast 0.14.1`: the fork's
+  own version, then the upstream release it is built on.
+- **Kept as Spotifast:** the credential store's service name (renaming it
+  would sign everyone out); the Linux desktop entry, icon, Flatpak id and
+  MPRIS bus name (`spotifast`), whose packaging and permissions are keyed to
+  them, with only the names shown changed; the installers' registry
+  identity, AppId and GUIDs (the MSI's name shown is Sirensong); release
+  asset names; Omarchy's palette file and variables; links to
+  spotifast.rocks and crmne/spotifast; the built-in Winamp skin's own name;
+  developer docs (CONTRIBUTING, AGENTS, PACKAGING) and the download and
+  packaging pages, which describe upstream.
+- **Translations:** the name is not translated anywhere. Korean particles
+  and Turkish suffixes follow the new name (이/을/은/과, 'un/'u/'a).
+
 ### Still open
+
+- Sirensong, not verified here: the Linux packaging tests, the MSI and Inno
+  Setup builds, and macOS. A Mac build of the fork would still take
+  upstream updates (the updater matches its bundle), and the Homebrew cask's
+  clean-up paths still list only Spotifast's folders.
 
 - Guessing game: with Vacuum off and the game showing stand-ins, the gate is
   built at each round and let go at each reveal, learning the library again

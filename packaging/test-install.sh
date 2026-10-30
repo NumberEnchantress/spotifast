@@ -44,9 +44,9 @@ docker run --rm \
     # without installing a desktop, compiler, interpreter or test dependencies.
     # Trace the isolated fixture assertions so a failed check identifies itself.
     set -x
-    spotifast --version
-    test -f /usr/bin/spotifast
-    test ! -L /usr/bin/spotifast
+    sirensong --version
+    test -f /usr/bin/sirensong
+    test ! -L /usr/bin/sirensong
     test -f /usr/share/licenses/spotifast/LICENSE
     if [ "$FORMAT" = deb ]; then
       # Slim Debian/Ubuntu images exclude /usr/share/doc at installation time.
@@ -68,7 +68,7 @@ docker run --rm \
     else
       dnf remove -y spotifast
     fi
-    test ! -e /usr/bin/spotifast
+    test ! -e /usr/bin/sirensong
     test ! -e /usr/share/applications/spotifast.desktop
     test ! -e /usr/share/icons/hicolor/scalable/apps/spotifast.svg
     test ! -e /usr/share/spotifast/omarchy/spotifast.json.tpl

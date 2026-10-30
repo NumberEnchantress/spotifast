@@ -17,7 +17,7 @@ sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
   # libclang generates bindings for fastframe-audio's PipeWire backend.
   - org.freedesktop.Sdk.Extension.llvm22
-command: spotifast
+command: sirensong
 finish-args:
   # Wayland first, X11 when that is what there is.
   - --socket=wayland
@@ -49,7 +49,7 @@ modules:
     build-commands:
       - cargo --offline fetch --manifest-path Cargo.toml --verbose
       - cargo --offline build --release --locked
-      - install -Dm755 target/release/spotifast /app/bin/spotifast
+      - install -Dm755 target/release/sirensong /app/bin/sirensong
       - install -Dm644 packaging/applications/*.desktop /app/share/applications/rocks.spotifast.Spotifast.desktop
       - sed -i 's/^Icon=.*$/Icon=rocks.spotifast.Spotifast/;s/^StartupWMClass=spotifast$/StartupWMClass=rocks.spotifast.Spotifast/' /app/share/applications/rocks.spotifast.Spotifast.desktop
       - install -Dm644 packaging/icons/*.svg /app/share/icons/hicolor/scalable/apps/rocks.spotifast.Spotifast.svg

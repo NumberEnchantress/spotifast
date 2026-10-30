@@ -30,7 +30,7 @@ def payload(root):
                     root / "packaging/applications/spotifast.desktop")
     shutil.copyfile(ROOT / "packaging/icons/spotifast.svg", root / "packaging/icons/spotifast.svg")
     (root / "target/release").mkdir(parents=True)
-    for name in ["spotifast", "target/release/spotifast"]:
+    for name in ["sirensong", "target/release/sirensong"]:
         shutil.copyfile(shutil.which("true"), root / name)
     for name in ["LICENSE", "README.md"]:
         shutil.copyfile(ROOT / name, root / name)
@@ -58,17 +58,17 @@ class LauncherInstallTest(unittest.TestCase):
         parser = configparser.ConfigParser(interpolation=None)
         parser.read(entries[0])
         entry = parser["Desktop Entry"]
-        self.assertEqual(entry["Name"], "Spotifast")
+        self.assertEqual(entry["Name"], "Sirensong")
         self.assertEqual(entry["Icon"], icon)
         self.assertEqual(entry["StartupWMClass"], window_class)
-        self.assertEqual(entry["Exec"], "spotifast %u")
+        self.assertEqual(entry["Exec"], "sirensong %u")
         self.assertIn("x-scheme-handler/spotify;", entry["MimeType"])
         icons = list((prefix / "share/icons/hicolor/scalable/apps").glob("*.svg"))
         self.assertEqual([p.name for p in icons], [icon + ".svg"])
         self.assertEqual(icons[0].read_bytes(), (ROOT / "packaging/icons/spotifast.svg").read_bytes())
-        self.assertFalse((prefix / "bin/spotifast").is_symlink())
-        self.assertTrue((prefix / "bin/spotifast").is_file())
-        self.assertEqual([p.name for p in (prefix / "bin").iterdir()], ["spotifast"])
+        self.assertFalse((prefix / "bin/sirensong").is_symlink())
+        self.assertTrue((prefix / "bin/sirensong").is_file())
+        self.assertEqual([p.name for p in (prefix / "bin").iterdir()], ["sirensong"])
 
     def test_aur_payloads_install_the_launcher(self):
         for package in ["spotifast", "spotifast-bin", "spotifast-git"]:

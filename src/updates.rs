@@ -21,10 +21,11 @@ pub const CONFIG: UpdateConfig = UpdateConfig {
     // Releases publish an Ed25519 signature for checksums.txt. Require it
     // before downloading an update, using the release workflow's public key.
     publisher_key: Some(include_str!("../assets/update-public-key.hex")),
-    // Releases build their AppImages before publishing, so the signed
-    // checksums.txt lists them (#737): an AppImage replaces itself with the
-    // next one.
-    appimage: true,
+    // Sirensong never installs upstream Spotifast over itself: an AppImage
+    // does not replace itself, and the fork's installers carry their own
+    // marker (`sirensong-installer.txt`), which this updater does not take
+    // for an install it may update.
+    appimage: false,
     ..UpdateConfig::new(
         "crmne/spotifast",
         "Spotifast",
@@ -58,11 +59,9 @@ mod tests {
         CONFIG.validate().unwrap();
     }
 
-    /// An AppImage may replace itself only because the release workflow
-    /// builds the AppImages into the signed checksums.txt;
-    /// packaging/test-release-names.py checks that side.
+    /// Sirensong's AppImages do not replace themselves with upstream's.
     #[test]
-    fn appimages_update_themselves() {
-        const { assert!(CONFIG.appimage) };
+    fn appimages_never_install_upstream_over_sirensong() {
+        const { assert!(!CONFIG.appimage) };
     }
 }

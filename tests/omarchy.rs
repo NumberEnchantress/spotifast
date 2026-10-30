@@ -18,7 +18,7 @@ fn omarchy_hook_replaces_only_its_palette_and_tolerates_a_stopped_app() {
         Scratch(std::env::temp_dir().join(format!("spotifast omarchy {}", rand::random::<u64>())));
     let source = scratch.0.join("current theme");
     let config = scratch.0.join("config");
-    let target = config.join("spotifast/themes");
+    let target = config.join("sirensong/themes");
     let bin = scratch.0.join("bin");
     let log = scratch.0.join("commands");
     for dir in [&source, &target, &bin] {
@@ -36,7 +36,7 @@ fn omarchy_hook_replaces_only_its_palette_and_tolerates_a_stopped_app() {
     )
     .unwrap();
     std::fs::write(
-        bin.join("spotifast"),
+        bin.join("sirensong"),
         format!(
             "#!{}\nprintf '%s\\n' \"$*\" >> \"$SPOTIFAST_HOOK_TEST_LOG\"\nexit 1\n",
             shell.display()
@@ -44,7 +44,7 @@ fn omarchy_hook_replaces_only_its_palette_and_tolerates_a_stopped_app() {
     )
     .unwrap();
     std::fs::set_permissions(
-        bin.join("spotifast"),
+        bin.join("sirensong"),
         std::fs::Permissions::from_mode(0o755),
     )
     .unwrap();
@@ -73,7 +73,7 @@ fn omarchy_hook_replaces_only_its_palette_and_tolerates_a_stopped_app() {
     let outside = scratch.0.join("unrelated.json");
     std::fs::write(&outside, "preserve me").unwrap();
     std::os::unix::fs::symlink(&outside, target.join("omarchy.json")).unwrap();
-    std::fs::write(config.join("spotifast/settings.json"), "unchanged settings").unwrap();
+    std::fs::write(config.join("sirensong/settings.json"), "unchanged settings").unwrap();
     for text in [r#"{"base":"dark"}"#, r#"{"base":"light"}"#] {
         std::fs::write(source.join("spotifast.json"), text).unwrap();
         run();
@@ -87,7 +87,7 @@ fn omarchy_hook_replaces_only_its_palette_and_tolerates_a_stopped_app() {
     }
     assert_eq!(std::fs::read_to_string(&outside).unwrap(), "preserve me");
     assert_eq!(
-        std::fs::read_to_string(config.join("spotifast/settings.json")).unwrap(),
+        std::fs::read_to_string(config.join("sirensong/settings.json")).unwrap(),
         "unchanged settings"
     );
     assert_eq!(

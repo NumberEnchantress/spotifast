@@ -289,8 +289,8 @@ msgid "Mute"
 msgstr "静音"
 
 #: src/ui/player_bar.rs:981
-msgid "This device's volume can't be changed from Spotifast"
-msgstr "无法从 Spotifast 更改此设备的音量"
+msgid "This device's volume can't be changed from Sirensong"
+msgstr "无法从 Sirensong 更改此设备的音量"
 
 #: src/ui/player_bar.rs:1001 src/ui/devices.rs:401
 msgid "Connect to a device"
@@ -399,8 +399,8 @@ msgstr "当前处于离线状态"
 #: src/ui/collection.rs:2065 src/ui/collection.rs:2312 src/ui/home.rs:34
 #: src/ui/library.rs:262 src/ui/show.rs:69 src/ui/show.rs:115
 #: src/ui/show.rs:145
-msgid "Spotifast will reconnect automatically when your connection returns."
-msgstr "连接恢复后，Spotifast 将自动重新连接。"
+msgid "Sirensong will reconnect automatically when your connection returns."
+msgstr "连接恢复后，Sirensong 将自动重新连接。"
 
 #. Translators: Keep {error} unchanged. It is the original failure detail.
 #: src/ui/lyrics.rs:171 src/ui/lyrics.rs:455 src/ui/lyrics.rs:691
@@ -698,8 +698,8 @@ msgid "Restoring proxy settings"
 msgstr "正在恢复代理设置"
 
 #: src/app.rs:1481
-msgid "Couldn't change how Spotifast starts with your computer."
-msgstr "无法更改 Spotifast 随电脑启动的方式。"
+msgid "Couldn't change how Sirensong starts with your computer."
+msgstr "无法更改 Sirensong 随电脑启动的方式。"
 
 #. Translators: {name} is the name of a speaker or other playback device.
 #: src/app.rs:2483
@@ -950,8 +950,8 @@ msgid "This song's album is not on Spotify"
 msgstr "这首歌曲所属的专辑不在 Spotify 上"
 
 #: src/app.rs:8263
-msgid "Spotifast cannot open this kind of Spotify link"
-msgstr "Spotifast 无法打开这类 Spotify 链接"
+msgid "Sirensong cannot open this kind of Spotify link"
+msgstr "Sirensong 无法打开这类 Spotify 链接"
 
 #: src/app.rs:8511
 msgid "Nothing is playing. Pick something first"
@@ -1391,13 +1391,13 @@ msgstr "歌曲之间不插入静音。"
 
 #: src/ui/settings.rs:664
 msgid ""
-"Spotifast hides to the system tray. Quit from the tray menu or with Ctrl+Q."
-msgstr "Spotifast 会隐藏到系统托盘。可通过托盘菜单或 Ctrl+Q 退出。"
+"Sirensong hides to the system tray. Quit from the tray menu or with Ctrl+Q."
+msgstr "Sirensong 会隐藏到系统托盘。可通过托盘菜单或 Ctrl+Q 退出。"
 
 #: src/ui/settings.rs:668
 msgid ""
-"Spotifast hides to the system tray. Quit from the tray menu or with Cmd+Q."
-msgstr "Spotifast 会隐藏到系统托盘。可通过托盘菜单或 Cmd+Q 退出。"
+"Sirensong hides to the system tray. Quit from the tray menu or with Cmd+Q."
+msgstr "Sirensong 会隐藏到系统托盘。可通过托盘菜单或 Cmd+Q 退出。"
 
 #: src/ui/settings.rs:675
 msgid "Checks GitHub once a day. No personal data is sent."
@@ -1439,10 +1439,10 @@ msgstr "本地文件"
 
 #: src/ui/settings.rs:711
 msgid ""
-"When off, Spotifast lives in the menu bar and leaves Cmd+Tab. Open it from "
+"When off, Sirensong lives in the menu bar and leaves Cmd+Tab. Open it from "
 "its menu-bar icon."
 msgstr ""
-"关闭后，Spotifast 只留在菜单栏，也不会出现在 Cmd+Tab 中。请从菜单栏图标打开"
+"关闭后，Sirensong 只留在菜单栏，也不会出现在 Cmd+Tab 中。请从菜单栏图标打开"
 "它。"
 
 #: src/ui/settings.rs:717
@@ -1600,8 +1600,8 @@ msgstr ""
 
 #: src/ui/settings.rs:1192
 msgid ""
-"Draw Spotifast's own title bar and window buttons instead of the desktop's."
-msgstr "使用 Spotifast 自己的标题栏和窗口按钮，而不是桌面环境提供的。"
+"Draw Sirensong's own title bar and window buttons instead of the desktop's."
+msgstr "使用 Sirensong 自己的标题栏和窗口按钮，而不是桌面环境提供的。"
 
 #: src/ui/settings.rs:1200
 msgid ""
@@ -1789,34 +1789,34 @@ msgstr "预设"
 #: src/ui/settings.rs:1865
 #, rust-format
 msgid ""
-"None yet in {folder}. Add .milk files here. Spotifast downloads presets when "
+"None yet in {folder}. Add .milk files here. Sirensong downloads presets when "
 "MilkDrop first opens with an empty folder."
 msgstr ""
 "{folder} 中还没有预设。请将 .milk 文件添加到此处。首次打开 MilkDrop 时如果文"
-"件夹为空，Spotifast 会下载预设。"
+"件夹为空，Sirensong 会下载预设。"
 
 #. Translators: {folder} is the path of the MilkDrop presets folder.
 #: src/ui/settings.rs:1871
 #, rust-format
 msgid ""
-"One preset in {folder}. Add .milk files here. Spotifast downloads presets "
+"One preset in {folder}. Add .milk files here. Sirensong downloads presets "
 "when MilkDrop first opens with an empty folder."
 msgstr ""
 "{folder} 中有 1 个预设。请将 .milk 文件添加到此处。首次打开 MilkDrop 时如果文"
-"件夹为空，Spotifast 会下载预设。"
+"件夹为空，Sirensong 会下载预设。"
 
 #. Translators: {count} is the number of presets, {folder} the path of the MilkDrop presets folder.
 #: src/ui/settings.rs:1877
 #, rust-format
 msgid ""
-"{count} preset in {folder}. Add .milk files here. Spotifast downloads "
+"{count} preset in {folder}. Add .milk files here. Sirensong downloads "
 "presets when MilkDrop first opens with an empty folder."
 msgid_plural ""
-"{count} presets in {folder}. Add .milk files here. Spotifast downloads "
+"{count} presets in {folder}. Add .milk files here. Sirensong downloads "
 "presets when MilkDrop first opens with an empty folder."
 msgstr[0] ""
 "{folder} 中有 {count} 个预设。请将 .milk 文件添加到此处。首次打开 MilkDrop 时"
-"如果文件夹为空，Spotifast 会下载预设。"
+"如果文件夹为空，Sirensong 会下载预设。"
 
 #: src/ui/settings.rs:1886
 msgid "Time per preset"
@@ -1997,8 +1997,8 @@ msgid "In the tray"
 msgstr "在托盘中"
 
 #: src/ui/settings.rs:2343
-msgid "Allow Spotifast in System Settings, General, Login Items."
-msgstr "请在“系统设置”>“通用”>“登录项”中允许 Spotifast。"
+msgid "Allow Sirensong in System Settings, General, Login Items."
+msgstr "请在“系统设置”>“通用”>“登录项”中允许 Sirensong。"
 
 #: src/ui/settings.rs:2348
 msgid ""
@@ -2007,8 +2007,8 @@ msgid ""
 msgstr "要在托盘中启动，需要开启“关闭窗口后继续播放音乐”。在此之前会打开窗口。"
 
 #: src/ui/settings.rs:2353
-msgid "Open Spotifast when you log in, with its window or in the tray."
-msgstr "登录时打开 Spotifast，显示窗口或留在托盘中。"
+msgid "Open Sirensong when you log in, with its window or in the tray."
+msgstr "登录时打开 Sirensong，显示窗口或留在托盘中。"
 
 #: src/ui/settings.rs:2459
 msgctxt "language"
@@ -2113,8 +2113,8 @@ msgstr "无法加载 Omarchy 调色板，将保留上次可用的外观。详情
 
 #: src/theme.rs:213
 msgid ""
-"Custom themes could not be loaded. Run spotifast reload-themes to try again."
-msgstr "无法加载自定义主题。请运行 spotifast reload-themes 重试。"
+"Custom themes could not be loaded. Run sirensong reload-themes to try again."
+msgstr "无法加载自定义主题。请运行 sirensong reload-themes 重试。"
 
 #: src/ui/artist.rs:32
 msgid "Popular"
@@ -2319,11 +2319,11 @@ msgstr "减少等待 Spotify 的时间"
 
 #: src/ui/dialogs.rs:47
 msgid ""
-"Spotifast's default connection shares Spotify's request limit with other "
+"Sirensong's default connection shares Spotify's request limit with other "
 "listeners. When it gets busy, loading music and using playback controls can "
 "take longer."
 msgstr ""
-"Spotifast 的默认连接与其他听众共享 Spotify 的请求限额。繁忙时，加载音乐和使用"
+"Sirensong 的默认连接与其他听众共享 Spotify 的请求限额。繁忙时，加载音乐和使用"
 "播放控制可能需要更长时间。"
 
 #: src/ui/dialogs.rs:48
@@ -2397,9 +2397,9 @@ msgstr "此账户无法在此播放音乐"
 #: src/ui/dialogs.rs:219
 msgid ""
 "Playback needs Spotify Premium. Free accounts can browse and search, but "
-"cannot play music through Spotifast."
+"cannot play music through Sirensong."
 msgstr ""
-"播放需要 Spotify Premium。免费账户可以浏览和搜索，但无法通过 Spotifast 播放音"
+"播放需要 Spotify Premium。免费账户可以浏览和搜索，但无法通过 Sirensong 播放音"
 "乐。"
 
 #: src/ui/dialogs.rs:228
@@ -2762,10 +2762,10 @@ msgstr "使用 Spotify 登录"
 
 #: src/ui/login.rs:136
 msgid ""
-"Sign in through your browser. Spotifast never sees your password. Local "
+"Sign in through your browser. Sirensong never sees your password. Local "
 "playback needs Spotify Premium."
 msgstr ""
-"通过浏览器登录。Spotifast 永远不会看到你的密码。本地播放需要 Spotify "
+"通过浏览器登录。Sirensong 永远不会看到你的密码。本地播放需要 Spotify "
 "Premium。"
 
 #: src/ui/login.rs:169
@@ -2775,8 +2775,8 @@ msgstr "代理设置"
 #. Translators: {version} is the app's version number, such as 1.2.0.
 #: src/ui/login.rs:195
 #, rust-format
-msgid "Spotifast {version} • not affiliated with Spotify"
-msgstr "Spotifast {version} • 与 Spotify 无关"
+msgid "Sirensong {version} • not affiliated with Spotify"
+msgstr "Sirensong {version} • 与 Spotify 无关"
 
 #: src/ui/mod.rs:476
 msgid "Minimize"
@@ -3000,8 +3000,8 @@ msgstr "想听什么？"
 
 #: src/ui/topbar.rs:521
 msgid ""
-"Spotifast is offline. Reconnecting automatically when connection returns."
-msgstr "Spotifast 处于离线状态。连接恢复后将自动重新连接。"
+"Sirensong is offline. Reconnecting automatically when connection returns."
+msgstr "Sirensong 处于离线状态。连接恢复后将自动重新连接。"
 
 #: src/ui/topbar.rs:548
 msgid "MilkDrop visualiser (Ctrl+Shift+K)"
@@ -3060,8 +3060,8 @@ msgid "Ready to install"
 msgstr "可以安装"
 
 #: src/ui/update.rs:115
-msgid "Music playing on this computer will stop when Spotifast restarts."
-msgstr "Spotifast 重启时，这台电脑上正在播放的音乐将停止。"
+msgid "Music playing on this computer will stop when Sirensong restarts."
+msgstr "Sirensong 重启时，这台电脑上正在播放的音乐将停止。"
 
 #: src/ui/update.rs:122
 msgid "Restart to update"
@@ -3380,16 +3380,16 @@ msgid "On Wayland, use your desktop's Keep Above shortcut or window rule."
 msgstr "在 Wayland 上，请使用桌面环境的“保持在最上层”快捷键或窗口规则。"
 
 #: src/window.rs:39
-msgid "Spotifast cannot open its window"
-msgstr "Spotifast 无法打开窗口"
+msgid "Sirensong cannot open its window"
+msgstr "Sirensong 无法打开窗口"
 
 #: src/window.rs:45
 msgid ""
-"On Windows on ARM, the OpenGL that Spotifast draws with comes from "
+"On Windows on ARM, the OpenGL that Sirensong draws with comes from "
 "Microsoft's OpenCL, OpenGL & Vulkan Compatibility Pack. Open its Microsoft "
 "Store page to install or repair it?"
 msgstr ""
-"在 ARM 版 Windows 上，Spotifast 用于绘制界面的 OpenGL 由 Microsoft 的 "
+"在 ARM 版 Windows 上，Sirensong 用于绘制界面的 OpenGL 由 Microsoft 的 "
 "OpenCL, OpenGL & Vulkan Compatibility Pack 提供。要打开其 Microsoft Store 页"
 "面以安装或修复吗？"
 
@@ -3398,11 +3398,11 @@ msgstr ""
 #: src/window.rs:55
 #, rust-format
 msgid ""
-"Spotifast needs a graphics driver with OpenGL 2.0 or newer, and this PC or "
+"Sirensong needs a graphics driver with OpenGL 2.0 or newer, and this PC or "
 "virtual machine does not provide one. Install the graphics driver, or turn "
 "on GPU acceleration for the virtual machine. Open {url} to read more?"
 msgstr ""
-"Spotifast 需要支持 OpenGL 2.0 或更高版本的显卡驱动程序，而这台电脑或虚拟机没"
+"Sirensong 需要支持 OpenGL 2.0 或更高版本的显卡驱动程序，而这台电脑或虚拟机没"
 "有提供。请安装显卡驱动程序，或为虚拟机开启 GPU 加速。要打开 {url} 了解更多"
 "吗？"
 
@@ -3445,8 +3445,8 @@ msgid "A folder can't go inside itself."
 msgstr "文件夹不能放入其自身。"
 
 #: src/folders.rs:1
-msgid "Spotify's copy of this folder looks damaged, so Spotifast left it alone."
-msgstr "Spotify 上此文件夹的数据似乎已损坏，因此 Spotifast 未作更改。"
+msgid "Spotify's copy of this folder looks damaged, so Sirensong left it alone."
+msgstr "Spotify 上此文件夹的数据似乎已损坏，因此 Sirensong 未作更改。"
 
 #: src/folders.rs:1
 msgid "A folder needs a name."
@@ -3634,8 +3634,8 @@ msgid "No local files yet"
 msgstr "还没有本地文件"
 
 #: src/ui/collection.rs:1811
-msgid "Add a folder or songs to play them here. Spotifast looks nowhere else."
-msgstr "添加文件夹或歌曲即可在这里播放。Spotifast 不会查找其他位置。"
+msgid "Add a folder or songs to play them here. Sirensong looks nowhere else."
+msgstr "添加文件夹或歌曲即可在这里播放。Sirensong 不会查找其他位置。"
 
 #. Translators: Reads the local files folders again, for songs added or removed.
 #: src/ui/collection.rs:1950
@@ -3656,9 +3656,9 @@ msgstr[0] "已将 {count} 首歌曲添加到本地文件"
 #. Translators: Keep {count} exactly as written. It becomes the number of picked files that could not be added.
 #: src/app.rs:10610
 #, rust-format
-msgid "Couldn't add {count} file. Spotifast plays MP3, FLAC, MP4 and M4P files."
-msgid_plural "Couldn't add {count} files. Spotifast plays MP3, FLAC, MP4 and M4P files."
-msgstr[0] "有 {count} 个文件无法添加。Spotifast 可播放 MP3、FLAC、MP4 和 M4P 文件。"
+msgid "Couldn't add {count} file. Sirensong plays MP3, FLAC, MP4 and M4P files."
+msgid_plural "Couldn't add {count} files. Sirensong plays MP3, FLAC, MP4 and M4P files."
+msgstr[0] "有 {count} 个文件无法添加。Sirensong 可播放 MP3、FLAC、MP4 和 M4P 文件。"
 
 #. Translators: A colour in the theme editor: the window's background.
 #: src/ui/theme_editor.rs:18
@@ -3890,8 +3890,8 @@ msgid "Clear play history?"
 msgstr "清除播放记录？"
 
 #: src/ui/dialogs.rs:96
-msgid "Every play Spotifast has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
-msgstr "Spotifast 保留的所有播放都将被删除，地图用于缩放的收听时长也会一并删除。此操作无法撤销。"
+msgid "Every play Sirensong has kept will be deleted, along with the listening time the map is sized by. This cannot be undone."
+msgstr "Sirensong 保留的所有播放都将被删除，地图用于缩放的收听时长也会一并删除。此操作无法撤销。"
 
 #. Translators: Library sidebar button: choose to show the Library as rows, cover cards or the playlist map.
 #: src/demo.rs:2997

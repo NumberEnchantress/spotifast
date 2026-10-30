@@ -728,7 +728,7 @@ pub fn table(app: &mut App, ui: &mut egui::Ui, table: Table<'_>) {
             &gettext(locale, "You're offline"),
             &gettext(
                 locale,
-                "Spotifast will reconnect automatically when your connection returns.",
+                "Sirensong will reconnect automatically when your connection returns.",
             ),
         );
         return;
@@ -1841,7 +1841,7 @@ pub fn local_files(app: &mut App, ui: &mut egui::Ui) {
             &gettext(locale, "No local files yet"),
             &gettext(
                 locale,
-                "Add a folder or songs to play them here. Spotifast looks nowhere else.",
+                "Add a folder or songs to play them here. Sirensong looks nowhere else.",
             ),
         );
         return;
@@ -2042,7 +2042,7 @@ pub fn playlist(app: &mut App, ui: &mut egui::Ui, id: &str) {
                     &gettext(app.locale, "You're offline"),
                     &gettext(
                         app.locale,
-                        "Spotifast will reconnect automatically when your connection returns.",
+                        "Sirensong will reconnect automatically when your connection returns.",
                     ),
                 );
                 return;
@@ -2183,7 +2183,7 @@ pub fn playlist(app: &mut App, ui: &mut egui::Ui, id: &str) {
                     &gettext(app.locale, "You're offline"),
                     &gettext(
                         app.locale,
-                        "Spotifast will reconnect automatically when your connection returns.",
+                        "Sirensong will reconnect automatically when your connection returns.",
                     ),
                 );
             } else {
@@ -2209,7 +2209,7 @@ pub fn playlist(app: &mut App, ui: &mut egui::Ui, id: &str) {
                     &gettext(app.locale, "You're offline"),
                     &gettext(
                         app.locale,
-                        "Spotifast will reconnect automatically when your connection returns.",
+                        "Sirensong will reconnect automatically when your connection returns.",
                     ),
                 );
             } else {
@@ -2273,7 +2273,7 @@ pub fn album(app: &mut App, ui: &mut egui::Ui, id: &str) {
                     &gettext(app.locale, "You're offline"),
                     &gettext(
                         app.locale,
-                        "Spotifast will reconnect automatically when your connection returns.",
+                        "Sirensong will reconnect automatically when your connection returns.",
                     ),
                 );
                 return;
@@ -2389,7 +2389,7 @@ pub fn album(app: &mut App, ui: &mut egui::Ui, id: &str) {
                     &gettext(app.locale, "You're offline"),
                     &gettext(
                         app.locale,
-                        "Spotifast will reconnect automatically when your connection returns.",
+                        "Sirensong will reconnect automatically when your connection returns.",
                     ),
                 );
             } else {
@@ -2415,7 +2415,7 @@ pub fn album(app: &mut App, ui: &mut egui::Ui, id: &str) {
                     &gettext(app.locale, "You're offline"),
                     &gettext(
                         app.locale,
-                        "Spotifast will reconnect automatically when your connection returns.",
+                        "Sirensong will reconnect automatically when your connection returns.",
                     ),
                 );
             } else {
@@ -2698,7 +2698,7 @@ pub fn liked(app: &mut App, ui: &mut egui::Ui) {
             &gettext(app.locale, "You're offline"),
             &gettext(
                 app.locale,
-                "Spotifast will reconnect automatically when your connection returns.",
+                "Sirensong will reconnect automatically when your connection returns.",
             ),
         );
         return;

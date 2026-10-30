@@ -172,7 +172,7 @@
               # The GUI dlopens its Wayland, X11 and GL libraries at run time.
               postFixup =
                 pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
-                  wrapProgram $out/bin/spotifast \
+                  wrapProgram $out/bin/sirensong \
                     --prefix LD_LIBRARY_PATH : ${pkgs.lib.makeLibraryPath runtimeLibs}
                 ''
                 + pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
@@ -195,7 +195,7 @@
                   mkdir -p "$app/MacOS" "$app/Resources"
                   executable=Spotifast
                   identifier=rocks.spotifast.Spotifast
-                  cp "$out/bin/spotifast" "$app/MacOS/$executable"
+                  cp "$out/bin/sirensong" "$app/MacOS/$executable"
                   icnsify packaging/macos/icon-1024.png -o "$app/Resources/spotifast.icns"
                   substitute packaging/macos/Info.plist "$app/Info.plist" \
                     --replace-fail __VERSION__ "${version}" \
@@ -208,7 +208,7 @@
                 description = "Fast native Spotify client with local playback and Spotify Connect";
                 homepage = "https://spotifast.rocks";
                 license = pkgs.lib.licenses.mit;
-                mainProgram = "spotifast";
+                mainProgram = "sirensong";
               };
             };
 
